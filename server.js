@@ -575,14 +575,14 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
         for (let i = dataStart; i < Math.min(dataStart + 50, raw.length); i++) {
           const r = raw[i];
           const col0 = String(r[0]).trim();
-          // Baris summary: col 0 kosong, dan ada angka di posisi KONT (startCol+3)
+          // Baris summary: col 0 kosong/0, dan ada angka di kolom RPS (startCol+4)
+          // KONT selalu 0 di Sorter, jadi cek RPS bukan KONT
           if (col0 === '' || col0 === '0') {
-            // Cek apakah ada nilai angka di kolom KONT dari salah satu batch
-            const hasKont = batchCols.some(b => {
-              const kontVal = parseInt(r[b.startCol + 3]);
-              return !isNaN(kontVal) && kontVal > 0;
+            const hasRps = batchCols.some(b => {
+              const rpsVal = parseInt(r[b.startCol + 4]);
+              return !isNaN(rpsVal) && rpsVal > 0;
             });
-            if (hasKont) { summaryRowIdx = i; break; }
+            if (hasRps) { summaryRowIdx = i; break; }
           }
           // Stop jika sudah ketemu baris marker berikutnya
           if (/NAMA|SHIFT|TOT KONT/i.test(col0)) break;
