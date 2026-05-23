@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Formulir Register Pencapaian Kerja - SS08</title>
+  <meta name="description" content="Formulir digital untuk pencatatan pencapaian kerja tim SS08">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #6C3CE1;
+      --primary-light: #8B5CF6;
+      --primary-dark: #4C1D95;
+      --accent: #EC4899;
+      --bg: #F0EBF8;
+      --card-bg: #FFFFFF;
+      --text: #1E1B2E;
+      --text-muted: #6B7280;
+      --border: #E5E7EB;
+      --success: #10B981;
+      --error: #EF4444;
+      --shadow: 0 4px 24px rgba(108, 60, 225, 0.12);
+      --shadow-lg: 0 8px 40px rgba(108, 60, 225, 0.18);
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
+      padding: 0 0 60px;
+    }
+
+    /* Header Banner */
+    .header-banner {
+      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 50%, var(--primary-light) 100%);
+      padding: 12px 20px;
+      text-align: center;
+    }
+    .header-banner span {
+      color: rgba(255,255,255,0.85);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 16px;
+    }
+
+    /* Title Card */
+    .title-card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      overflow: hidden;
+      margin-top: 24px;
+      box-shadow: var(--shadow);
+      border-top: 6px solid var(--primary);
+    }
+    .title-card-inner {
+      padding: 28px 32px;
+    }
+    .title-card h1 {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.3;
+      margin-bottom: 12px;
+    }
+    .title-card p {
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .title-card .required-note {
+      margin-top: 16px;
+      color: var(--error);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    /* Form Card */
+    .form-card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 28px 32px;
+      margin-top: 16px;
+      box-shadow: var(--shadow);
+      transition: box-shadow 0.3s ease;
+    }
+    .form-card:hover {
+      box-shadow: var(--shadow-lg);
+    }
+    .form-card.focused {
+      box-shadow: 0 0 0 2px var(--primary-light), var(--shadow-lg);
+    }
+
+    /* Field styles */
+    .field-label {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .field-label .required { color: var(--error); }
+    .field-hint {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .form-input, .form-select, .form-textarea {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      color: var(--text);
+      background: #FAFAFA;
+      transition: all 0.2s ease;
+      outline: none;
+      appearance: none;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      border-color: var(--primary);
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(108, 60, 225, 0.1);
+    }
+    .form-input::placeholder, .form-textarea::placeholder {
+      color: #B0B7C3;
+    }
+
+    .form-select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath fill='%236C3CE1' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 44px;
+      cursor: pointer;
+    }
+    .form-select option { color: var(--text); }
+
+    .form-textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    /* Batch/Cluster Section */
+    .batch-section { margin-top: 8px; }
+    .batch-group {
+      margin-bottom: 20px;
+    }
+    .batch-group-label {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--primary);
+      margin-bottom: 10px;
+      padding: 6px 12px;
+      background: rgba(108, 60, 225, 0.08);
+      border-radius: 8px;
+      display: inline-block;
+    }
+    .batch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 8px;
+    }
+    .batch-item {
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+    .batch-item input[type="checkbox"] {
+      display: none;
+    }
+    .batch-item label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 8px 4px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: center;
+      background: #FAFAFA;
+      user-select: none;
+    }
+    .batch-item input[type="checkbox"]:checked + label {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: #fff;
+      transform: scale(1.03);
+      box-shadow: 0 2px 8px rgba(108, 60, 225, 0.3);
+    }
+    .batch-item label:hover {
+      border-color: var(--primary-light);
+      background: rgba(108, 60, 225, 0.06);
+      color: var(--primary);
+    }
+    .batch-item input[type="checkbox"]:checked + label:hover {
+      background: var(--primary-dark);
+      color: #fff;
+    }
+
+    /* Special batch items (Gacoan, Lainnya) */
+    .batch-special .batch-grid {
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
+
+    /* Select/Deselect All buttons */
+    .batch-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .batch-btn {
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 2px solid var(--primary);
+      transition: all 0.15s ease;
+    }
+    .batch-btn.select-all {
+      background: var(--primary);
+      color: #fff;
+    }
+    .batch-btn.select-all:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
+    .batch-btn.clear-all {
+      background: transparent;
+      color: var(--primary);
+    }
+    .batch-btn.clear-all:hover { background: rgba(108, 60, 225, 0.1); }
+
+    .selected-count {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .selected-count span {
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    /* File Upload */
+    .file-drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: #FAFAFA;
+    }
+    .file-drop-zone:hover, .file-drop-zone.dragover {
+      border-color: var(--primary);
+      background: rgba(108, 60, 225, 0.04);
+    }
+    .file-drop-zone .upload-icon {
+      width: 48px;
+      height: 48px;
+      background: rgba(108, 60, 225, 0.1);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 12px;
+    }
+    .file-drop-zone .upload-icon svg { color: var(--primary); }
+    .file-drop-zone p { color: var(--text-muted); font-size: 14px; }
+    .file-drop-zone .upload-link {
+      color: var(--primary);
+      font-weight: 600;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    .file-drop-zone small { display: block; color: #B0B7C3; font-size: 12px; margin-top: 6px; }
+    #fileInput { display: none; }
+
+    .file-list {
+      margin-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: rgba(108, 60, 225, 0.06);
+      border-radius: 10px;
+      border: 1px solid rgba(108, 60, 225, 0.2);
+    }
+    .file-item .file-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--primary);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .file-item .file-icon svg { color: #fff; }
+    .file-item .file-info { flex: 1; min-width: 0; }
+    .file-item .file-name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .file-item .file-size { font-size: 12px; color: var(--text-muted); }
+    .file-item .file-remove {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: none;
+      background: transparent;
+      color: #EF4444;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .file-item .file-remove:hover { background: rgba(239, 68, 68, 0.1); }
+
+    /* Capacity Info Box */
+    .capacity-box {
+      margin-top: 12px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      display: none;
+      gap: 0;
+      flex-direction: column;
+    }
+    .capacity-box.visible { display: flex; }
+    .capacity-box.ok { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); }
+    .capacity-box.warn { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.3); }
+    .capacity-box.full { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); }
+    .capacity-box.nodata { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); }
+    .cap-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .cap-label { font-size: 12px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.4px; }
+    .cap-val { font-size: 14px; font-weight: 700; }
+    .cap-val.ok { color: #10B981; }
+    .cap-val.warn { color: #F59E0B; }
+    .cap-val.full { color: #EF4444; }
+    .cap-divider { width: 1px; height: 20px; background: rgba(0,0,0,0.1); margin: 0 4px; }
+    .cap-progress { margin-top: 8px; height: 6px; background: rgba(0,0,0,0.08); border-radius: 99px; overflow: hidden; }
+    .cap-progress-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
+    .cap-progress-fill.ok { background: linear-gradient(90deg, #10B981, #34D399); }
+    .cap-progress-fill.warn { background: linear-gradient(90deg, #F59E0B, #FCD34D); }
+    .cap-progress-fill.full { background: linear-gradient(90deg, #EF4444, #DC2626); }
+    .cap-msg { font-size: 12px; margin-top: 6px; }
+    .cap-msg.ok { color: #059669; }
+    .cap-msg.warn { color: #B45309; }
+    .cap-msg.full { color: #DC2626; font-weight: 600; }
+    .cap-msg.nodata { color: #9CA3AF; }
+
+    /* Error */
+    .field-error {
+      color: var(--error);
+      font-size: 13px;
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      display: none;
+    }
+    .field-error.visible { display: flex; }
+
+    /* Submit Button */
+    .form-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 8px;
+    }
+    .btn-submit {
+      padding: 14px 40px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 16px rgba(108, 60, 225, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-submit:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(108, 60, 225, 0.4);
+    }
+    .btn-submit:active:not(:disabled) { transform: translateY(0); }
+    .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .btn-submit .spinner {
+      display: none;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    .btn-submit.loading .btn-text { display: none; }
+    .btn-submit.loading .spinner { display: inline-block; }
+
+    .btn-clear {
+      padding: 14px 24px;
+      background: transparent;
+      color: var(--primary);
+      border: 2px solid var(--primary);
+      border-radius: 12px;
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-clear:hover { background: rgba(108, 60, 225, 0.06); }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      bottom: 32px;
+      right: 32px;
+      padding: 16px 24px;
+      border-radius: 14px;
+      font-weight: 600;
+      font-size: 14px;
+      color: #fff;
+      z-index: 9999;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      max-width: 360px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { background: linear-gradient(135deg, #059669, #10B981); }
+    .toast.error { background: linear-gradient(135deg, #DC2626, #EF4444); }
+
+    /* Success Screen */
+    .success-screen {
+      display: none;
+      text-align: center;
+      padding: 48px 32px;
+    }
+    .success-screen.visible { display: block; }
+    .success-icon {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #059669, #10B981);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
+    }
+    .success-screen h2 { font-size: 24px; font-weight: 700; color: var(--text); margin-bottom: 12px; }
+    .success-screen p { color: var(--text-muted); font-size: 15px; }
+    .btn-new-form {
+      margin-top: 28px;
+      padding: 12px 32px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-new-form:hover { background: var(--primary-dark); transform: translateY(-2px); }
+
+    @media (max-width: 600px) {
+      .title-card-inner, .form-card { padding: 20px 18px; }
+      .title-card h1 { font-size: 20px; }
+      .batch-grid { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
+      .form-actions { flex-direction: column; align-items: stretch; }
+      .btn-submit, .btn-clear { width: 100%; }
+      .toast { left: 16px; right: 16px; bottom: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header-banner">
+  <span>📋 Sistem Digital Pencapaian Kerja SS08 — Sebelum mengisi pastikan menyiapkan lembar register yang sudah berisi nama lengkap, tanggal, dan shift pada setiap kotak bagian nomor batch.</span>
+</div>
+
+<div class="container">
+  <!-- Title Card -->
+  <div class="title-card">
+    <div class="title-card-inner">
+      <h1>Formulir Register Pencapaian Kerja — SS08</h1>
+      <p>Isi formulir ini dengan data yang akurat berdasarkan lembar register Anda. Nama, alamat email, dan foto yang terkirim melalui Akun Google Anda akan direkam saat Anda mengupload file dan mengirimkan formulir ini.</p>
+      <p class="required-note">* Menunjukkan pertanyaan yang wajib diisi</p>
+    </div>
+  </div>
+
+  <form id="mainForm" novalidate>
+
+    <!-- Tanggal Carian -->
+    <div class="form-card" id="card-tanggal_carian">
+      <label class="field-label" for="tanggal_carian">Tanggal Carian <span class="required">*</span></label>
+      <p class="field-hint">Diisi berdasarkan tanggal carian PB</p>
+      <input type="date" id="tanggal_carian" name="tanggal_carian" class="form-input" required>
+      <div class="field-error" id="err-tanggal_carian">
+        <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+        Pertanyaan ini wajib diisi
+      </div>
+    </div>
+
+    <!-- Tanggal Pengerjaan -->
+    <div class="form-card" id="card-tanggal_pengerjaan">
+      <label class="field-label" for="tanggal_pengerjaan">Tanggal Pengerjaan <span class="required">*</span></label>
+      <p class="field-hint">Diisi berdasarkan tanggal pengerjaan</p>
+      <input type="date" id="tanggal_pengerjaan" name="tanggal_pengerjaan" class="form-input" required>
+      <div class="field-error" id="err-tanggal_pengerjaan">
+        <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+        Pertanyaan ini wajib diisi
+      </div>
+    </div>
+
+    <!-- Nama -->
+    <div class="form-card" id="card-nama">
+      <label class="field-label" for="nama">Nama <span class="required">*</span></label>
+      <select id="nama" name="nama" class="form-select" required>
+        <option value="">-- Pilih Nama --</option>
+        <option>RIZKI HASIAN OKTAMA</option>
+        <option>FAJAR HIDAYAT</option>
+        <option>DANIEL GAMAINO</option>
+        <option>JAKY</option>
+        <option>MULYAWAN</option>
+        <option>RENDY</option>
+        <option>M. ILHAM KURNIAWAN</option>
+        <option>M JAYAN IHSANUL AMAL</option>
+        <option>ARES SETIADI</option>
+        <option>SAMBA SUMIRAT</option>
+        <option>ANDI NURMAWAN</option>
+        <option>RAFLI SAEPUL ANWAR</option>
+        <option>ANDRI SETIAWAN</option>
+        <option>RIZKY AGUNG</option>
+        <option>DENI SEPTIAWAN</option>
+        <option>AZHAR</option>
+        <option>MUHAMAD RISAM ALKAELANI</option>
+        <option>RIDWAN NUGRAHA</option>
+        <option>ERZY MAULANA SAPUTRA</option>
+        <option>DERA ARI SANJAYA</option>
+        <option>MUCHAMAD FIRDAUS</option>
+        <option>AZIS</option>
+        <option>AGUNG NUGRAHA</option>
+        <option>AHMAD HIDAYAT</option>
+        <option>MUHAMMAD IRVANI</option>
+        <option>YUZAR HAEKALSA RAJAB</option>
+        <option>ADAM JULIANTO</option>
+        <option>MUHAMMAD REVY FARIZQY</option>
+        <option>TEZAR MAULANA</option>
+        <option>ALDI TRIANA</option>
+        <option>BAGUS MAULANA YUSUP</option>
+        <option>ARVIN KUSMARDIYANA</option>
+        <option>CEPTIANA HIDAYAT</option>
+        <option>ADI SEPTIAN</option>
+        <option>PARIL IRWANSAH</option>
+        <option>HAMDAN RAMDANI</option>
+        <option>AHMAD MIFTAH MUTAQIN</option>
+        <option>RIKI</option>
+        <option>LUTFI ABDUL AZIZ</option>
+        <option>SYAHRUL NUGRAHA</option>
+        <option>MIRWANSYAH</option>
+        <option>RENO MAULANA</option>
+        <option>MUHAMAD AHSANU NADYYA</option>
+        <option>DILAN ADRIANSYAH</option>
+        <option>WISNU NUGRAHA</option>
+        <option>MUHAMMAD DAFFA ALFAZRI</option>
+        <option>CHAIRUL YOGASWARA</option>
+        <option>MUHAMAD IRGI FAUZI</option>
+        <option>DASEP SAEPUDIN</option>
+        <option>MUHAMMAD RAMDAN</option>
+        <option>DIAN PERMANA</option>
+        <option>RENALDI AGUSTIANA</option>
+        <option>AHWAL KUSUMAH</option>
+        <option>MUHAMAD SALMAN ALFARISI</option>
+        <option>MUHAMMAD AKBAR SAPUTRA</option>
+        <option>BAGAS ADITIA PRAMUDITA</option>
+        <option>AWIGS PRASTYO</option>
+        <option>NOVAL SANDIKA</option>
+        <option>INDRA SUKMANA</option>
+        <option>ARIS FIRMANSYAH</option>
+        <option>SAMSUL ARIFIN</option>
+        <option>MUHAMMAD ARYA YUDA</option>
+        <option>INDRA JAYA KUSUMAH</option>
+        <option>DARMANSYAH</option>
+        <option>MUHAMAD NURDIANSYAH</option>
+        <option>DESTIAN FIRDAUS</option>
+        <option>MUHAMAD RAMDANI</option>
+      </select>
+      <div class="field-error" id="err-nama">
+        <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+        Pertanyaan ini wajib diisi
+      </div>
+    </div>
+
+    <!-- Posisi -->
+    <div class="form-card" id="card-posisi">
+      <label class="field-label" for="posisi">Posisi <span class="required">*</span></label>
+      <select id="posisi" name="posisi" class="form-select" required>
+        <option value="">-- Pilih Posisi --</option>
+        <option>Picker</option>
+        <option>Sorter</option>
+        <option>Loader</option>
+      </select>
+      <div class="field-error" id="err-posisi">
+        <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+        Pertanyaan ini wajib diisi
+      </div>
+    </div>
+
+    <!-- Tipe Lokasi -->
+    <div class="form-card" id="card-tipe_lokasi">
+      <label class="field-label" for="tipe_lokasi">Tipe Lokasi <span class="required">*</span></label>
+      <select id="tipe_lokasi" name="tipe_lokasi" class="form-select" required>
+        <option value="">-- Pilih Tipe Lokasi --</option>
+        <option>Chiller (R)</option>
+        <option>Freezer (F)</option>
+        <option>Ambient (T)</option>
+        <option>Loading Dock</option>
+      </select>
+      <div class="field-error" id="err-tipe_lokasi">
+        <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+        Pertanyaan ini wajib diisi
+      </div>
+    </div>
+
+    <!-- Zona -->
+    <div class="form-card" id="card-zona">
+      <label class="field-label" for="zona">Zona <span class="required">*</span></label>
+      <p class="field-hint">Picker dan Sorter diisi sesuai dengan Zona, dan Loader diisi dengan Loading Dock</p>
+      <select id="zona" name="zona" class="form-select" required>
+        <option value="">-- Pilih Zona --</option>
+        <option>F1</option>
+        <option>R1</option>
+        <option>R2</option>
+        <option>R3</option>
+        <option>T1</option>
+        <option>T2</option>
+        <option>T3</option>
+        <option>T4</option>
+        <option>T5</option>
+        <option>Loading Dock</option>
+      </select>
+      <div class="field-error" id="err-zona">
+        <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+        Pertanyaan ini wajib diisi
+      </div>
+    </div>
+
+    <!-- Batch / Cluster -->
+    <div class="form-card" id="card-batch">
+      <div class="field-label">Batch / Cluster <span class="required">*</span></div>
+      <p class="field-hint">Picker dan Sorter diisi dengan batch. Loader diisi sesuai dengan pengerjaan Cluster.</p>
+      <div class="batch-actions">
+        <button type="button" class="batch-btn select-all" onclick="selectAllBatch()">Pilih Semua</button>
+        <button type="button" class="batch-btn clear-all" onclick="clearAllBatch()">Hapus Semua</button>
+        <div class="selected-count">Dipilih: <span id="selectedCount">0</span></div>
+      </div>
+      <div class="batch-section" id="batchSection">
+        <!-- Angka 1-23 -->
+        <div class="batch-group">
+          <div class="batch-group-label">Angka</div>
+          <div class="batch-grid" id="grid-angka"></div>
+        </div>
+        <!-- BOG -->
+        <div class="batch-group">
+          <div class="batch-group-label">BOG</div>
+          <div class="batch-grid" id="grid-bog"></div>
+        </div>
+        <!-- BOY -->
+        <div class="batch-group">
+          <div class="batch-group-label">BOY</div>
+          <div class="batch-grid" id="grid-boy"></div>
+        </div>
+        <!-- CJR -->
+        <div class="batch-group">
+          <div class="batch-group-label">CJR</div>
+          <div class="batch-grid" id="grid-cjr"></div>
+        </div>
+        <!-- KWG -->
+        <div class="batch-group">
+          <div class="batch-group-label">KWG</div>
+          <div class="batch-grid" id="grid-kwg"></div>
+        </div>
+        <!-- PRN -->
+        <div class="batch-group">
+          <div class="batch-group-label">PRN</div>
+          <div class="batch-grid" id="grid-prn"></div>
+        </div>
+        <!-- Special -->
+        <div class="batch-group batch-special">
+          <div class="batch-group-label">Lainnya</div>
+          <div class="batch-grid" id="grid-special"></div>
+        </div>
+      </div>
+      <div class="field-error" id="err-batch">
+        <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+        Pilih minimal satu batch/cluster
+      </div>
+    </div>
+
+    <!-- Jumlah Output -->
+    <div class="form-card" id="card-jumlah_output">
+      <label class="field-label" for="jumlah_output">Jumlah Output <span class="required">*</span></label>
+      <p class="field-hint" id="hint-jumlah_output">Diisi jumlah pcs jika Picker dan jumlah kontainer jika Sorter atau Loader. Hanya diisi dengan angka.</p>
+
+      <!-- Capacity Info Box (muncul setelah posisi+zona+batch dipilih) -->
+      <div class="capacity-box" id="capacityBox">
+        <div class="cap-row">
+          <span class="cap-label">Kapasitas Batch:</span>
+          <span class="cap-val" id="capTotal">-</span>
+          <div class="cap-divider"></div>
+          <span class="cap-label">Sudah Terisi:</span>
+          <span class="cap-val" id="capUsed">-</span>
+          <div class="cap-divider"></div>
+          <span class="cap-label">Sisa:</span>
+          <span class="cap-val" id="capSisa">-</span>
+        </div>
+        <div class="cap-progress"><div class="cap-progress-fill" id="capProgressFill" style="width:0%"></div></div>
+        <div class="cap-msg" id="capMsg"></div>
+      </div>
+
+      <input type="number" id="jumlah_output" name="jumlah_output" class="form-input" placeholder="Contoh: 250" min="1" required style="margin-top:12px;">
+      <div class="field-error" id="err-jumlah_output">
+        <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+        <span id="errOutputMsg">Pertanyaan ini wajib diisi</span>
+      </div>
+    </div>
+
+    <!-- Lembar Register (File Upload) -->
+    <div class="form-card">
+      <div class="field-label">Lembar Register</div>
+      <p class="field-hint">Upload maksimum 5 file yang diizinkan: drawing atau image. Maks 10 MB per file.</p>
+      <div class="file-drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <div class="upload-icon">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M4 16l4-4 4 4 4-8 4 8"/>
+            <path d="M3 21h18M3 3h18"/>
+          </svg>
+        </div>
+        <p><span class="upload-link">Klik untuk upload</span> atau drag & drop file di sini</p>
+        <small>JPG, PNG, GIF, BMP, WEBP — Max 10MB per file, max 5 file</small>
+      </div>
+      <input type="file" id="fileInput" name="lembar_register" multiple accept="image/*,.pdf" style="display:none">
+      <div class="file-list" id="fileList"></div>
+    </div>
+
+    <!-- Catatan Tambahan -->
+    <div class="form-card">
+      <label class="field-label" for="catatan_tambahan">Catatan Tambahan</label>
+      <textarea id="catatan_tambahan" name="catatan_tambahan" class="form-textarea" placeholder="Jawaban Anda..."></textarea>
+    </div>
+
+    <!-- Submit -->
+    <div class="form-card">
+      <div class="form-actions">
+        <button type="submit" class="btn-submit" id="submitBtn">
+          <span class="btn-text">Kirim</span>
+          <div class="spinner"></div>
+        </button>
+        <button type="button" class="btn-clear" onclick="clearForm()">Kosongkan Formulir</button>
+      </div>
+    </div>
+
+    <!-- Success Screen -->
+    <div class="form-card" id="successCard" style="display:none;">
+      <div class="success-screen visible">
+        <div class="success-icon">
+          <svg width="40" height="40" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+          </svg>
+        </div>
+        <h2>Formulir Berhasil Dikirim!</h2>
+        <p>Data Anda telah tersimpan. Terima kasih telah mengisi formulir Register Pencapaian Kerja SS08.</p>
+        <button class="btn-new-form" onclick="resetToForm()">Isi Formulir Baru</button>
+      </div>
+    </div>
+
+  </form>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ============= BATCH GENERATION =============
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function renderBatchGroup(containerId, items) {
+    const container = document.getElementById(containerId);
+    items.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'batch-item';
+      const id = 'batch_' + item.replace(/\s/g, '_');
+      div.innerHTML = `
+        <input type="checkbox" id="${id}" name="batch_cluster" value="${item}" onchange="updateCount()">
+        <label for="${id}">${item}</label>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  // Generate arrays
+  const angka = Array.from({length: 23}, (_, i) => String(i + 1));
+  const bog = Array.from({length: 35}, (_, i) => 'BOG' + pad(i + 1));
+  const boy = Array.from({length: 21}, (_, i) => 'BOY' + pad(i + 1));
+  const cjr = Array.from({length: 27}, (_, i) => 'CJR' + pad(i + 1));
+  const kwg = Array.from({length: 32}, (_, i) => 'KWG' + pad(i + 1));
+  const prn = Array.from({length: 24}, (_, i) => 'PRN' + pad(i + 1));
+  const special = ['Gacoan', 'Lainnya'];
+
+  renderBatchGroup('grid-angka', angka);
+  renderBatchGroup('grid-bog', bog);
+  renderBatchGroup('grid-boy', boy);
+  renderBatchGroup('grid-cjr', cjr);
+  renderBatchGroup('grid-kwg', kwg);
+  renderBatchGroup('grid-prn', prn);
+  renderBatchGroup('grid-special', special);
+
+  // ============= CAPACITY VALIDATION =============
+  let capacityData = null; // holds latest capacity info
+  let capacityCheckTimeout = null;
+
+  function updateCount() {
+    const checked = document.querySelectorAll('input[name="batch_cluster"]:checked').length;
+    document.getElementById('selectedCount').textContent = checked;
+    scheduleCapacityCheck();
+  }
+  function selectAllBatch() {
+    document.querySelectorAll('input[name="batch_cluster"]').forEach(cb => cb.checked = true);
+    updateCount();
+  }
+  function clearAllBatch() {
+    document.querySelectorAll('input[name="batch_cluster"]').forEach(cb => cb.checked = false);
+    updateCount();
+    resetCapacityBox();
+  }
+
+  // Trigger capacity check when posisi or zona changes
+  document.getElementById('posisi').addEventListener('change', scheduleCapacityCheck);
+  document.getElementById('zona').addEventListener('change', scheduleCapacityCheck);
+  document.getElementById('tanggal_carian').addEventListener('change', scheduleCapacityCheck);
+
+  // Real-time output validation against capacity
+  document.getElementById('jumlah_output').addEventListener('input', validateOutputAgainstCapacity);
+
+  function scheduleCapacityCheck() {
+    clearTimeout(capacityCheckTimeout);
+    capacityCheckTimeout = setTimeout(checkBatchCapacity, 300);
+  }
+
+  async function checkBatchCapacity() {
+    const tanggal = document.getElementById('tanggal_carian').value;
+    const posisi = document.getElementById('posisi').value;
+    const zona = document.getElementById('zona').value;
+    const checkedBatches = Array.from(document.querySelectorAll('input[name="batch_cluster"]:checked')).map(cb => cb.value);
+
+    if (!tanggal || !posisi || !zona || checkedBatches.length === 0) {
+      resetCapacityBox();
+      return;
+    }
+
+    // If multiple batches selected, check each one and aggregate
+    try {
+      const results = await Promise.all(
+        checkedBatches.map(batch =>
+          fetch(`/api/batch-capacity?tanggal_carian=${tanggal}&posisi=${encodeURIComponent(posisi)}&zona=${encodeURIComponent(zona)}&batch=${encodeURIComponent(batch)}`)
+            .then(r => r.json())
+        )
+      );
+
+      // Filter only those with data carian
+      const withData = results.filter(r => r.ada_data_carian);
+
+      if (withData.length === 0) {
+        // No data carian for any selected batch
+        // Check if any result has a suggestion for a different posisi
+        const suggestions = results.filter(r => r.suggestion_posisi).map(r => r.suggestion_posisi);
+        const uniqueSuggestion = suggestions.length > 0 ? [...new Set(suggestions)][0] : null;
+        showCapacityBox('nodata', null, null, null, null, checkedBatches.length, uniqueSuggestion);
+        capacityData = null;
+        return;
+      }
+
+      // Use the minimum sisa among all batches (most restrictive)
+      const minSisa = Math.min(...withData.map(r => r.sisa));
+      const totalKapasitas = withData.reduce((a, r) => a + r.total_output, 0);
+      const totalTerisi = withData.reduce((a, r) => a + r.sudah_diisi, 0);
+      const totalSisa = withData.reduce((a, r) => a + r.sisa, 0);
+      const satuan = withData[0].satuan;
+
+      capacityData = { minSisa, totalSisa, totalKapasitas, totalTerisi, satuan, batchCount: withData.length };
+
+      const pct = totalKapasitas > 0 ? Math.min(100, Math.round((totalTerisi / totalKapasitas) * 100)) : 0;
+      const state = minSisa <= 0 ? 'full' : pct >= 75 ? 'warn' : 'ok';
+
+      showCapacityBox(state, totalKapasitas, totalTerisi, totalSisa, satuan, checkedBatches.length);
+      validateOutputAgainstCapacity();
+
+    } catch(err) {
+      resetCapacityBox();
+    }
+  }
+
+  function showCapacityBox(state, total, terisi, sisa, satuan, batchCount, suggestionPosisi) {
+    const box = document.getElementById('capacityBox');
+    box.className = `capacity-box visible ${state}`;
+
+    if (state === 'nodata') {
+      document.getElementById('capTotal').textContent = '-';
+      document.getElementById('capUsed').textContent = '-';
+      document.getElementById('capSisa').textContent = '-';
+      document.getElementById('capProgressFill').style.width = '0%';
+      document.getElementById('capProgressFill').className = 'cap-progress-fill ok';
+      document.getElementById('capMsg').className = 'cap-msg nodata';
+      if (suggestionPosisi) {
+        document.getElementById('capMsg').innerHTML = `ℹ️ Data kapasitas untuk posisi ini belum diimport admin. Ada data untuk posisi <strong>${suggestionPosisi}</strong> di zona+batch yang sama. Input bebas masih diperbolehkan.`;
+      } else {
+        document.getElementById('capMsg').textContent = `ℹ️ Data kapasitas untuk ${batchCount} batch yang dipilih belum diimport admin. Input bebas masih diperbolehkan.`;
+      }
+      return;
+    }
+
+    const pct = total > 0 ? Math.min(100, Math.round((terisi / total) * 100)) : 0;
+    const pfClass = state === 'full' ? 'full' : state === 'warn' ? 'warn' : 'ok';
+
+    document.getElementById('capTotal').textContent = `${total.toLocaleString('id-ID')} ${satuan}`;
+    document.getElementById('capTotal').className = 'cap-val';
+    document.getElementById('capUsed').textContent = `${terisi.toLocaleString('id-ID')} ${satuan}`;
+    document.getElementById('capUsed').className = 'cap-val';
+    document.getElementById('capSisa').textContent = `${sisa.toLocaleString('id-ID')} ${satuan}`;
+    document.getElementById('capSisa').className = `cap-val ${pfClass}`;
+    document.getElementById('capProgressFill').style.width = `${pct}%`;
+    document.getElementById('capProgressFill').className = `cap-progress-fill ${pfClass}`;
+
+    const msgEl = document.getElementById('capMsg');
+    msgEl.className = `cap-msg ${state}`;
+    if (state === 'full') {
+      msgEl.textContent = `🚫 Kapasitas batch sudah penuh! Tidak bisa submit untuk batch ini.`;
+    } else if (state === 'warn') {
+      msgEl.textContent = `⚠️ Sisa kapasitas tinggal ${sisa.toLocaleString('id-ID')} ${satuan}. Pastikan jumlah output tidak melebihi sisa.`;
+    } else {
+      msgEl.textContent = `✅ Sisa kapasitas: ${sisa.toLocaleString('id-ID')} ${satuan}. Masukkan jumlah yang Anda kerjakan.`;
+    }
+  }
+
+  function resetCapacityBox() {
+    capacityData = null;
+    const box = document.getElementById('capacityBox');
+    box.className = 'capacity-box';
+  }
+
+  function validateOutputAgainstCapacity() {
+    if (!capacityData) return;
+    const outputVal = parseInt(document.getElementById('jumlah_output').value) || 0;
+    const errEl = document.getElementById('err-jumlah_output');
+    const errMsg = document.getElementById('errOutputMsg');
+
+    if (capacityData.minSisa <= 0) {
+      errEl.classList.add('visible');
+      errMsg.textContent = 'Kapasitas batch sudah penuh. Tidak bisa submit.';
+      return;
+    }
+    if (outputVal > capacityData.totalSisa) {
+      errEl.classList.add('visible');
+      errMsg.textContent = `Melebihi sisa kapasitas! Maksimal yang bisa diinput: ${capacityData.totalSisa.toLocaleString('id-ID')} ${capacityData.satuan}.`;
+    } else {
+      errEl.classList.remove('visible');
+      errMsg.textContent = 'Pertanyaan ini wajib diisi';
+    }
+  }
+
+  // ============= FILE UPLOAD =============
+  let selectedFiles = [];
+
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const fileList = document.getElementById('fileList');
+
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+  });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    handleFiles(Array.from(e.dataTransfer.files));
+  });
+  fileInput.addEventListener('change', () => handleFiles(Array.from(fileInput.files)));
+
+  function handleFiles(files) {
+    const allowed = /\.(jpg|jpeg|png|gif|bmp|webp|pdf)$/i;
+    files.forEach(file => {
+      if (!allowed.test(file.name)) { showToast('Format file tidak didukung: ' + file.name, 'error'); return; }
+      if (file.size > 10 * 1024 * 1024) { showToast('File terlalu besar (max 10MB): ' + file.name, 'error'); return; }
+      if (selectedFiles.length >= 5) { showToast('Maksimum 5 file yang dapat diupload.', 'error'); return; }
+      selectedFiles.push(file);
+    });
+    renderFileList();
+    fileInput.value = '';
+  }
+
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+  }
+
+  function renderFileList() {
+    fileList.innerHTML = '';
+    selectedFiles.forEach((file, idx) => {
+      const div = document.createElement('div');
+      div.className = 'file-item';
+      div.innerHTML = `
+        <div class="file-icon">
+          <svg width="16" height="16" fill="white" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8" stroke="white" stroke-width="2" fill="none"/></svg>
+        </div>
+        <div class="file-info">
+          <div class="file-name">${file.name}</div>
+          <div class="file-size">${formatSize(file.size)}</div>
+        </div>
+        <button type="button" class="file-remove" onclick="removeFile(${idx})" title="Hapus file">
+          <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+        </button>
+      `;
+      fileList.appendChild(div);
+    });
+  }
+
+  function removeFile(idx) {
+    selectedFiles.splice(idx, 1);
+    renderFileList();
+  }
+
+  // ============= FORM VALIDATION & SUBMIT =============
+  function showError(fieldId, show) {
+    const err = document.getElementById('err-' + fieldId);
+    if (err) err.classList.toggle('visible', show);
+  }
+
+  function validateForm() {
+    let valid = true;
+    const required = ['tanggal_carian', 'tanggal_pengerjaan', 'nama', 'posisi', 'tipe_lokasi', 'zona', 'jumlah_output'];
+    required.forEach(id => {
+      const el = document.getElementById(id);
+      const isEmpty = !el.value.trim();
+      showError(id, isEmpty);
+      if (isEmpty) valid = false;
+    });
+    const batchChecked = document.querySelectorAll('input[name="batch_cluster"]:checked').length > 0;
+    showError('batch', !batchChecked);
+    if (!batchChecked) valid = false;
+
+    // Validasi kapasitas (jika ada data carian)
+    if (capacityData) {
+      const outputVal = parseInt(document.getElementById('jumlah_output').value) || 0;
+      const errEl = document.getElementById('err-jumlah_output');
+      const errMsg = document.getElementById('errOutputMsg');
+      if (capacityData.totalSisa <= 0) {
+        errEl.classList.add('visible');
+        errMsg.textContent = 'Kapasitas batch sudah penuh. Tidak bisa submit.';
+        valid = false;
+      } else if (outputVal > capacityData.totalSisa) {
+        errEl.classList.add('visible');
+        errMsg.textContent = `Melebihi sisa kapasitas! Maksimal: ${capacityData.totalSisa.toLocaleString('id-ID')} ${capacityData.satuan}.`;
+        valid = false;
+      }
+    }
+
+    return valid;
+  }
+
+  document.getElementById('mainForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!validateForm()) {
+      showToast('Mohon lengkapi semua field yang wajib diisi.', 'error');
+      // Scroll to first error
+      const firstErr = document.querySelector('.field-error.visible');
+      if (firstErr) firstErr.closest('.form-card').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    const btn = document.getElementById('submitBtn');
+    btn.classList.add('loading');
+    btn.disabled = true;
+
+    const formData = new FormData();
+    formData.append('tanggal_carian', document.getElementById('tanggal_carian').value);
+    formData.append('tanggal_pengerjaan', document.getElementById('tanggal_pengerjaan').value);
+    formData.append('nama', document.getElementById('nama').value);
+    formData.append('posisi', document.getElementById('posisi').value);
+    formData.append('tipe_lokasi', document.getElementById('tipe_lokasi').value);
+    formData.append('zona', document.getElementById('zona').value);
+    formData.append('jumlah_output', document.getElementById('jumlah_output').value);
+    formData.append('catatan_tambahan', document.getElementById('catatan_tambahan').value);
+    document.querySelectorAll('input[name="batch_cluster"]:checked').forEach(cb => {
+      formData.append('batch_cluster', cb.value);
+    });
+    selectedFiles.forEach(file => formData.append('lembar_register', file));
+
+    try {
+      const response = await fetch('/api/submit', { method: 'POST', body: formData });
+      const data = await response.json();
+      if (data.success) {
+        document.getElementById('mainForm').style.display = 'none';
+        document.getElementById('successCard').style.display = 'block';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        showToast(data.error || 'Terjadi kesalahan. Coba lagi.', 'error');
+      }
+    } catch (err) {
+      showToast('Gagal menghubungi server. Periksa koneksi Anda.', 'error');
+    } finally {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  });
+
+  function clearForm() {
+    if (!confirm('Apakah Anda yakin ingin mengosongkan formulir?')) return;
+    document.getElementById('mainForm').reset();
+    clearAllBatch();
+    selectedFiles = [];
+    renderFileList();
+    document.querySelectorAll('.field-error.visible').forEach(el => el.classList.remove('visible'));
+  }
+
+  function resetToForm() {
+    document.getElementById('mainForm').style.display = 'block';
+    document.getElementById('successCard').style.display = 'none';
+    document.getElementById('mainForm').reset();
+    clearAllBatch();
+    selectedFiles = [];
+    renderFileList();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ============= TOAST =============
+  let toastTimer;
+  function showToast(msg, type = 'success') {
+    const toast = document.getElementById('toast');
+    const icon = type === 'success'
+      ? '<svg width="20" height="20" fill="white" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>'
+      : '<svg width="20" height="20" fill="white" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>';
+    toast.innerHTML = icon + msg;
+    toast.className = `toast ${type} show`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 4000);
+  }
+</script>
+</body>
+</html>
