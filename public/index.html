@@ -798,21 +798,22 @@
       </div>
     </div>
 
-    <!-- Success Screen -->
-    <div class="form-card" id="successCard" style="display:none;">
-      <div class="success-screen visible">
-        <div class="success-icon">
-          <svg width="40" height="40" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-          </svg>
-        </div>
-        <h2>Formulir Berhasil Dikirim!</h2>
-        <p>Data Anda telah tersimpan. Terima kasih telah mengisi formulir Register Pencapaian Kerja SS08.</p>
-        <button class="btn-new-form" onclick="resetToForm()">Isi Formulir Baru</button>
-      </div>
-    </div>
-
   </form>
+
+  <!-- Success Screen (di luar form agar tidak ikut hidden saat form disembunyikan) -->
+  <div class="form-card" id="successCard" style="display:none;">
+    <div class="success-screen visible">
+      <div class="success-icon">
+        <svg width="40" height="40" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+        </svg>
+      </div>
+      <h2>Formulir Berhasil Dikirim!</h2>
+      <p>Data Anda telah tersimpan. Terima kasih telah mengisi formulir Register Pencapaian Kerja SS08.</p>
+      <button class="btn-new-form" onclick="resetToForm()">Isi Formulir Baru</button>
+    </div>
+  </div>
+
 </div>
 
 <!-- Toast -->
