@@ -341,37 +341,104 @@
     }
     .file-item .file-remove:hover { background: rgba(239, 68, 68, 0.1); }
 
-    /* Capacity Info Box */
-    .capacity-box {
+    /* Per-batch Output List */
+    .batch-output-list {
       margin-top: 12px;
-      padding: 12px 16px;
-      border-radius: 10px;
-      display: none;
-      gap: 0;
+      display: flex;
       flex-direction: column;
+      gap: 10px;
     }
-    .capacity-box.visible { display: flex; }
-    .capacity-box.ok { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); }
-    .capacity-box.warn { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.3); }
-    .capacity-box.full { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); }
-    .capacity-box.nodata { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); }
-    .cap-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .cap-label { font-size: 12px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.4px; }
-    .cap-val { font-size: 14px; font-weight: 700; }
-    .cap-val.ok { color: #10B981; }
-    .cap-val.warn { color: #F59E0B; }
-    .cap-val.full { color: #EF4444; }
-    .cap-divider { width: 1px; height: 20px; background: rgba(0,0,0,0.1); margin: 0 4px; }
-    .cap-progress { margin-top: 8px; height: 6px; background: rgba(0,0,0,0.08); border-radius: 99px; overflow: hidden; }
-    .cap-progress-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
-    .cap-progress-fill.ok { background: linear-gradient(90deg, #10B981, #34D399); }
-    .cap-progress-fill.warn { background: linear-gradient(90deg, #F59E0B, #FCD34D); }
-    .cap-progress-fill.full { background: linear-gradient(90deg, #EF4444, #DC2626); }
-    .cap-msg { font-size: 12px; margin-top: 6px; }
-    .cap-msg.ok { color: #059669; }
-    .cap-msg.warn { color: #B45309; }
-    .cap-msg.full { color: #DC2626; font-weight: 600; }
-    .cap-msg.nodata { color: #9CA3AF; }
+    .batch-output-row {
+      background: #FAFAFA;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      transition: border-color 0.2s;
+    }
+    .batch-output-row.has-error { border-color: var(--error); background: rgba(239,68,68,0.04); }
+    .batch-output-row.is-ok { border-color: #10B981; background: rgba(16,185,129,0.04); }
+    .batch-output-row.is-full { border-color: var(--error); background: rgba(239,68,68,0.06); }
+    .bor-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .bor-badge {
+      background: var(--primary);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .bor-cap-info {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      flex: 1;
+    }
+    .bor-cap-info .cap-chip {
+      background: rgba(108,60,225,0.08);
+      color: var(--primary);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+    .bor-cap-info .cap-chip.full { background: rgba(239,68,68,0.1); color: #DC2626; }
+    .bor-cap-info .cap-chip.warn { background: rgba(245,158,11,0.1); color: #B45309; }
+    .bor-cap-info .cap-chip.ok { background: rgba(16,185,129,0.1); color: #059669; }
+    .bor-input-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .bor-input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      color: var(--text);
+      background: #fff;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .bor-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(108,60,225,0.1); }
+    .bor-input:disabled { background: #f3f4f6; color: #9CA3AF; cursor: not-allowed; }
+    .bor-satuan {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .bor-error {
+      font-size: 12px;
+      color: var(--error);
+      margin-top: 6px;
+      display: none;
+    }
+    .bor-error.visible { display: block; }
+    .batch-output-empty {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 14px;
+      padding: 20px;
+      background: rgba(108,60,225,0.04);
+      border-radius: 10px;
+      border: 2px dashed var(--border);
+      margin-top: 12px;
+    }
+    /* Progress bar mini */
+    .bor-progress { margin-top: 6px; height: 4px; background: rgba(0,0,0,0.07); border-radius: 99px; overflow: hidden; }
+    .bor-progress-fill { height: 100%; border-radius: 99px; transition: width 0.4s; }
+    .bor-progress-fill.ok { background: linear-gradient(90deg, #10B981, #34D399); }
+    .bor-progress-fill.warn { background: linear-gradient(90deg, #F59E0B, #FCD34D); }
+    .bor-progress-fill.full { background: linear-gradient(90deg, #EF4444, #DC2626); }
 
     /* Error */
     .field-error {
@@ -735,31 +802,19 @@
       </div>
     </div>
 
-    <!-- Jumlah Output -->
+    <!-- Jumlah Output Per Batch -->
     <div class="form-card" id="card-jumlah_output">
-      <label class="field-label" for="jumlah_output">Jumlah Output <span class="required">*</span></label>
-      <p class="field-hint" id="hint-jumlah_output">Diisi jumlah pcs jika Picker dan jumlah kontainer jika Sorter atau Loader. Hanya diisi dengan angka.</p>
+      <div class="field-label">Jumlah Output per Batch <span class="required">*</span></div>
+      <p class="field-hint">Isi jumlah output untuk setiap batch yang Anda kerjakan. Picker: pcs, Sorter/Loader: kontainer/rps.</p>
 
-      <!-- Capacity Info Box (muncul setelah posisi+zona+batch dipilih) -->
-      <div class="capacity-box" id="capacityBox">
-        <div class="cap-row">
-          <span class="cap-label">Kapasitas Batch:</span>
-          <span class="cap-val" id="capTotal">-</span>
-          <div class="cap-divider"></div>
-          <span class="cap-label">Sudah Terisi:</span>
-          <span class="cap-val" id="capUsed">-</span>
-          <div class="cap-divider"></div>
-          <span class="cap-label">Sisa:</span>
-          <span class="cap-val" id="capSisa">-</span>
-        </div>
-        <div class="cap-progress"><div class="cap-progress-fill" id="capProgressFill" style="width:0%"></div></div>
-        <div class="cap-msg" id="capMsg"></div>
+      <!-- Dynamic per-batch output rows -->
+      <div id="batchOutputList">
+        <div class="batch-output-empty" id="batchOutputEmpty">Pilih batch terlebih dahulu untuk mengisi jumlah output.</div>
       </div>
 
-      <input type="number" id="jumlah_output" name="jumlah_output" class="form-input" placeholder="Contoh: 250" min="1" required style="margin-top:12px;">
-      <div class="field-error" id="err-jumlah_output">
+      <div class="field-error" id="err-jumlah_output" style="margin-top:8px;">
         <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-        <span id="errOutputMsg">Pertanyaan ini wajib diisi</span>
+        <span id="errOutputMsg">Isi jumlah output untuk setiap batch yang dipilih</span>
       </div>
     </div>
 
@@ -854,14 +909,14 @@
   renderBatchGroup('grid-prn', prn);
   renderBatchGroup('grid-special', special);
 
-  // ============= CAPACITY VALIDATION =============
-  let capacityData = null; // holds latest capacity info
-  let capacityCheckTimeout = null;
+  // ============= PER-BATCH OUTPUT =============
+  let batchCapacityCache = {}; // {key: capacityData}
+  let batchOutputRenderTimeout = null;
 
   function updateCount() {
     const checked = document.querySelectorAll('input[name="batch_cluster"]:checked').length;
     document.getElementById('selectedCount').textContent = checked;
-    scheduleCapacityCheck();
+    scheduleBatchOutputRender();
   }
   function selectAllBatch() {
     document.querySelectorAll('input[name="batch_cluster"]').forEach(cb => cb.checked = true);
@@ -870,140 +925,131 @@
   function clearAllBatch() {
     document.querySelectorAll('input[name="batch_cluster"]').forEach(cb => cb.checked = false);
     updateCount();
-    resetCapacityBox();
   }
 
-  // Trigger capacity check when posisi or zona changes
-  document.getElementById('posisi').addEventListener('change', scheduleCapacityCheck);
-  document.getElementById('zona').addEventListener('change', scheduleCapacityCheck);
-  document.getElementById('tanggal_carian').addEventListener('change', scheduleCapacityCheck);
+  document.getElementById('posisi').addEventListener('change', () => { batchCapacityCache = {}; scheduleBatchOutputRender(); });
+  document.getElementById('zona').addEventListener('change', () => { batchCapacityCache = {}; scheduleBatchOutputRender(); });
+  document.getElementById('tanggal_carian').addEventListener('change', () => { batchCapacityCache = {}; scheduleBatchOutputRender(); });
 
-  // Real-time output validation against capacity
-  document.getElementById('jumlah_output').addEventListener('input', validateOutputAgainstCapacity);
-
-  function scheduleCapacityCheck() {
-    clearTimeout(capacityCheckTimeout);
-    capacityCheckTimeout = setTimeout(checkBatchCapacity, 300);
+  function scheduleBatchOutputRender() {
+    clearTimeout(batchOutputRenderTimeout);
+    batchOutputRenderTimeout = setTimeout(renderBatchOutputRows, 300);
   }
 
-  async function checkBatchCapacity() {
+  async function renderBatchOutputRows() {
     const tanggal = document.getElementById('tanggal_carian').value;
     const posisi = document.getElementById('posisi').value;
     const zona = document.getElementById('zona').value;
     const checkedBatches = Array.from(document.querySelectorAll('input[name="batch_cluster"]:checked')).map(cb => cb.value);
+    const list = document.getElementById('batchOutputList');
+    const empty = document.getElementById('batchOutputEmpty');
 
-    if (!tanggal || !posisi || !zona || checkedBatches.length === 0) {
-      resetCapacityBox();
+    if (checkedBatches.length === 0) {
+      list.innerHTML = '';
+      list.appendChild(empty);
+      empty.style.display = '';
       return;
     }
+    empty.style.display = 'none';
 
-    // If multiple batches selected, check each one and aggregate
-    try {
-      const results = await Promise.all(
-        checkedBatches.map(batch =>
-          fetch(`/api/batch-capacity?tanggal_carian=${tanggal}&posisi=${encodeURIComponent(posisi)}&zona=${encodeURIComponent(zona)}&batch=${encodeURIComponent(batch)}`)
-            .then(r => r.json())
-        )
-      );
-
-      // Filter only those with data carian
-      const withData = results.filter(r => r.ada_data_carian);
-
-      if (withData.length === 0) {
-        // No data carian for any selected batch
-        // Check if any result has a suggestion for a different posisi
-        const suggestions = results.filter(r => r.suggestion_posisi).map(r => r.suggestion_posisi);
-        const uniqueSuggestion = suggestions.length > 0 ? [...new Set(suggestions)][0] : null;
-        showCapacityBox('nodata', null, null, null, null, checkedBatches.length, uniqueSuggestion);
-        capacityData = null;
-        return;
-      }
-
-      // Use the minimum sisa among all batches (most restrictive)
-      const minSisa = Math.min(...withData.map(r => r.sisa));
-      const totalKapasitas = withData.reduce((a, r) => a + r.total_output, 0);
-      const totalTerisi = withData.reduce((a, r) => a + r.sudah_diisi, 0);
-      const totalSisa = withData.reduce((a, r) => a + r.sisa, 0);
-      const satuan = withData[0].satuan;
-
-      capacityData = { minSisa, totalSisa, totalKapasitas, totalTerisi, satuan, batchCount: withData.length };
-
-      const pct = totalKapasitas > 0 ? Math.min(100, Math.round((totalTerisi / totalKapasitas) * 100)) : 0;
-      const state = minSisa <= 0 ? 'full' : pct >= 75 ? 'warn' : 'ok';
-
-      showCapacityBox(state, totalKapasitas, totalTerisi, totalSisa, satuan, checkedBatches.length);
-      validateOutputAgainstCapacity();
-
-    } catch(err) {
-      resetCapacityBox();
+    // Fetch capacity for each batch (use cache)
+    const capMap = {};
+    if (tanggal && posisi && zona) {
+      await Promise.all(checkedBatches.map(async batch => {
+        const cacheKey = `${tanggal}|${posisi}|${zona}|${batch}`;
+        if (batchCapacityCache[cacheKey]) {
+          capMap[batch] = batchCapacityCache[cacheKey];
+        } else {
+          try {
+            const r = await fetch(`/api/batch-capacity?tanggal_carian=${tanggal}&posisi=${encodeURIComponent(posisi)}&zona=${encodeURIComponent(zona)}&batch=${encodeURIComponent(batch)}`);
+            const data = await r.json();
+            batchCapacityCache[cacheKey] = data;
+            capMap[batch] = data;
+          } catch(e) { capMap[batch] = null; }
+        }
+      }));
     }
-  }
 
-  function showCapacityBox(state, total, terisi, sisa, satuan, batchCount, suggestionPosisi) {
-    const box = document.getElementById('capacityBox');
-    box.className = `capacity-box visible ${state}`;
+    // Preserve existing input values
+    const existingVals = {};
+    list.querySelectorAll('.bor-input').forEach(inp => {
+      existingVals[inp.dataset.batch] = inp.value;
+    });
 
-    if (state === 'nodata') {
-      document.getElementById('capTotal').textContent = '-';
-      document.getElementById('capUsed').textContent = '-';
-      document.getElementById('capSisa').textContent = '-';
-      document.getElementById('capProgressFill').style.width = '0%';
-      document.getElementById('capProgressFill').className = 'cap-progress-fill ok';
-      document.getElementById('capMsg').className = 'cap-msg nodata';
-      if (suggestionPosisi) {
-        document.getElementById('capMsg').innerHTML = `ℹ️ Data kapasitas untuk posisi ini belum diimport admin. Ada data untuk posisi <strong>${suggestionPosisi}</strong> di zona+batch yang sama. Input bebas masih diperbolehkan.`;
+    // Render rows
+    list.innerHTML = '';
+    checkedBatches.forEach(batch => {
+      const cap = capMap[batch];
+      const isFull = cap && cap.ada_data_carian && cap.sisa <= 0;
+      const isWarn = cap && cap.ada_data_carian && cap.sisa > 0 && (cap.sudah_diisi / cap.total_output) >= 0.75;
+      const satuan = cap && cap.ada_data_carian ? cap.satuan : '';
+      const pct = cap && cap.ada_data_carian && cap.total_output > 0
+        ? Math.min(100, Math.round((cap.sudah_diisi / cap.total_output) * 100)) : 0;
+      const pfClass = isFull ? 'full' : isWarn ? 'warn' : 'ok';
+
+      let capHtml = '';
+      if (cap && cap.ada_data_carian) {
+        const sisaClass = isFull ? 'full' : isWarn ? 'warn' : 'ok';
+        capHtml = `
+          <div class="bor-cap-info">
+            <span class="cap-chip">Kapasitas: ${cap.total_output.toLocaleString('id-ID')} ${satuan}</span>
+            <span class="cap-chip">Terisi: ${cap.sudah_diisi.toLocaleString('id-ID')}</span>
+            <span class="cap-chip ${sisaClass}">Sisa: ${cap.sisa.toLocaleString('id-ID')}</span>
+          </div>
+          <div class="bor-progress"><div class="bor-progress-fill ${pfClass}" style="width:${pct}%"></div></div>
+        `;
       } else {
-        document.getElementById('capMsg').textContent = `ℹ️ Data kapasitas untuk ${batchCount} batch yang dipilih belum diimport admin. Input bebas masih diperbolehkan.`;
+        capHtml = `<div class="bor-cap-info"><span class="cap-chip" style="background:rgba(0,0,0,0.05);color:#9CA3AF">Belum ada data kapasitas</span></div>`;
       }
-      return;
-    }
 
-    const pct = total > 0 ? Math.min(100, Math.round((terisi / total) * 100)) : 0;
-    const pfClass = state === 'full' ? 'full' : state === 'warn' ? 'warn' : 'ok';
-
-    document.getElementById('capTotal').textContent = `${total.toLocaleString('id-ID')} ${satuan}`;
-    document.getElementById('capTotal').className = 'cap-val';
-    document.getElementById('capUsed').textContent = `${terisi.toLocaleString('id-ID')} ${satuan}`;
-    document.getElementById('capUsed').className = 'cap-val';
-    document.getElementById('capSisa').textContent = `${sisa.toLocaleString('id-ID')} ${satuan}`;
-    document.getElementById('capSisa').className = `cap-val ${pfClass}`;
-    document.getElementById('capProgressFill').style.width = `${pct}%`;
-    document.getElementById('capProgressFill').className = `cap-progress-fill ${pfClass}`;
-
-    const msgEl = document.getElementById('capMsg');
-    msgEl.className = `cap-msg ${state}`;
-    if (state === 'full') {
-      msgEl.textContent = `🚫 Kapasitas batch sudah penuh! Tidak bisa submit untuk batch ini.`;
-    } else if (state === 'warn') {
-      msgEl.textContent = `⚠️ Sisa kapasitas tinggal ${sisa.toLocaleString('id-ID')} ${satuan}. Pastikan jumlah output tidak melebihi sisa.`;
-    } else {
-      msgEl.textContent = `✅ Sisa kapasitas: ${sisa.toLocaleString('id-ID')} ${satuan}. Masukkan jumlah yang Anda kerjakan.`;
-    }
+      const row = document.createElement('div');
+      row.className = `batch-output-row${isFull ? ' is-full' : ''}`;
+      row.innerHTML = `
+        <div class="bor-header">
+          <span class="bor-badge">Batch ${batch}</span>
+          ${capHtml}
+        </div>
+        <div class="bor-input-row">
+          <input type="number" class="bor-input" data-batch="${batch}" placeholder="Jumlah output..." min="0"
+            value="${existingVals[batch] || ''}" ${isFull ? 'disabled' : ''}
+            oninput="validateBorInput(this)">
+          <span class="bor-satuan">${satuan || (posisi === 'Picker' ? 'pcs' : 'kontainer')}</span>
+        </div>
+        ${isFull ? '<div class="bor-error visible">🚫 Batch ini sudah penuh, tidak bisa diisi.</div>' : '<div class="bor-error"></div>'}
+      `;
+      list.appendChild(row);
+    });
   }
 
-  function resetCapacityBox() {
-    capacityData = null;
-    const box = document.getElementById('capacityBox');
-    box.className = 'capacity-box';
-  }
+  function validateBorInput(inp) {
+    const batch = inp.dataset.batch;
+    const tanggal = document.getElementById('tanggal_carian').value;
+    const posisi = document.getElementById('posisi').value;
+    const zona = document.getElementById('zona').value;
+    const cacheKey = `${tanggal}|${posisi}|${zona}|${batch}`;
+    const cap = batchCapacityCache[cacheKey];
+    const errEl = inp.closest('.batch-output-row').querySelector('.bor-error');
+    const row = inp.closest('.batch-output-row');
+    const val = parseInt(inp.value) || 0;
 
-  function validateOutputAgainstCapacity() {
-    if (!capacityData) return;
-    const outputVal = parseInt(document.getElementById('jumlah_output').value) || 0;
-    const errEl = document.getElementById('err-jumlah_output');
-    const errMsg = document.getElementById('errOutputMsg');
+    row.classList.remove('has-error', 'is-ok', 'is-full');
+    errEl.classList.remove('visible');
+    errEl.textContent = '';
 
-    if (capacityData.minSisa <= 0) {
-      errEl.classList.add('visible');
-      errMsg.textContent = 'Kapasitas batch sudah penuh. Tidak bisa submit.';
-      return;
-    }
-    if (outputVal > capacityData.totalSisa) {
-      errEl.classList.add('visible');
-      errMsg.textContent = `Melebihi sisa kapasitas! Maksimal yang bisa diinput: ${capacityData.totalSisa.toLocaleString('id-ID')} ${capacityData.satuan}.`;
-    } else {
-      errEl.classList.remove('visible');
-      errMsg.textContent = 'Pertanyaan ini wajib diisi';
+    if (cap && cap.ada_data_carian) {
+      if (cap.sisa <= 0) {
+        row.classList.add('is-full');
+        errEl.textContent = '🚫 Batch ini sudah penuh.';
+        errEl.classList.add('visible');
+      } else if (val > cap.sisa) {
+        row.classList.add('has-error');
+        errEl.textContent = `⚠️ Melebihi sisa! Maksimal: ${cap.sisa.toLocaleString('id-ID')} ${cap.satuan}.`;
+        errEl.classList.add('visible');
+      } else if (val > 0) {
+        row.classList.add('is-ok');
+      }
+    } else if (val > 0) {
+      row.classList.add('is-ok');
     }
   }
 
@@ -1078,7 +1124,7 @@
 
   function validateForm() {
     let valid = true;
-    const required = ['tanggal_carian', 'tanggal_pengerjaan', 'nama', 'posisi', 'tipe_lokasi', 'zona', 'jumlah_output'];
+    const required = ['tanggal_carian', 'tanggal_pengerjaan', 'nama', 'posisi', 'tipe_lokasi', 'zona'];
     required.forEach(id => {
       const el = document.getElementById(id);
       const isEmpty = !el.value.trim();
@@ -1089,18 +1135,27 @@
     showError('batch', !batchChecked);
     if (!batchChecked) valid = false;
 
-    // Validasi kapasitas (jika ada data carian)
-    if (capacityData) {
-      const outputVal = parseInt(document.getElementById('jumlah_output').value) || 0;
-      const errEl = document.getElementById('err-jumlah_output');
-      const errMsg = document.getElementById('errOutputMsg');
-      if (capacityData.totalSisa <= 0) {
+    // Validasi per-batch output: minimal 1 batch harus diisi > 0, tidak ada yang error
+    const borInputs = document.querySelectorAll('.bor-input:not(:disabled)');
+    const errEl = document.getElementById('err-jumlah_output');
+    const errMsg = document.getElementById('errOutputMsg');
+    errEl.classList.remove('visible');
+
+    if (batchChecked) {
+      let anyFilled = false;
+      let hasCapError = false;
+      borInputs.forEach(inp => {
+        const val = parseInt(inp.value) || 0;
+        if (val > 0) anyFilled = true;
+        if (inp.closest('.batch-output-row').classList.contains('has-error')) hasCapError = true;
+      });
+      if (!anyFilled) {
         errEl.classList.add('visible');
-        errMsg.textContent = 'Kapasitas batch sudah penuh. Tidak bisa submit.';
+        errMsg.textContent = 'Isi jumlah output untuk minimal satu batch yang dikerjakan.';
         valid = false;
-      } else if (outputVal > capacityData.totalSisa) {
+      } else if (hasCapError) {
         errEl.classList.add('visible');
-        errMsg.textContent = `Melebihi sisa kapasitas! Maksimal: ${capacityData.totalSisa.toLocaleString('id-ID')} ${capacityData.satuan}.`;
+        errMsg.textContent = 'Ada jumlah output yang melebihi kapasitas batch. Mohon perbaiki.';
         valid = false;
       }
     }
@@ -1112,15 +1167,23 @@
     e.preventDefault();
     if (!validateForm()) {
       showToast('Mohon lengkapi semua field yang wajib diisi.', 'error');
-      // Scroll to first error
-      const firstErr = document.querySelector('.field-error.visible');
-      if (firstErr) firstErr.closest('.form-card').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const firstErr = document.querySelector('.field-error.visible, .bor-error.visible');
+      if (firstErr) firstErr.closest('.form-card, .batch-output-row').scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
 
     const btn = document.getElementById('submitBtn');
     btn.classList.add('loading');
     btn.disabled = true;
+
+    // Kumpulkan batch_outputs: [{batch, jumlah}] hanya yang diisi > 0
+    const batchOutputs = [];
+    document.querySelectorAll('.bor-input').forEach(inp => {
+      const val = parseInt(inp.value) || 0;
+      if (val > 0 && !inp.disabled) {
+        batchOutputs.push({ batch: inp.dataset.batch, jumlah: val });
+      }
+    });
 
     const formData = new FormData();
     formData.append('tanggal_carian', document.getElementById('tanggal_carian').value);
@@ -1129,8 +1192,9 @@
     formData.append('posisi', document.getElementById('posisi').value);
     formData.append('tipe_lokasi', document.getElementById('tipe_lokasi').value);
     formData.append('zona', document.getElementById('zona').value);
-    formData.append('jumlah_output', document.getElementById('jumlah_output').value);
     formData.append('catatan_tambahan', document.getElementById('catatan_tambahan').value);
+    formData.append('batch_outputs', JSON.stringify(batchOutputs));
+    // Tetap kirim batch_cluster untuk kompatibilitas
     document.querySelectorAll('input[name="batch_cluster"]:checked').forEach(cb => {
       formData.append('batch_cluster', cb.value);
     });
@@ -1160,6 +1224,8 @@
     clearAllBatch();
     selectedFiles = [];
     renderFileList();
+    batchCapacityCache = {};
+    renderBatchOutputRows();
     document.querySelectorAll('.field-error.visible').forEach(el => el.classList.remove('visible'));
   }
 
@@ -1170,6 +1236,8 @@
     clearAllBatch();
     selectedFiles = [];
     renderFileList();
+    batchCapacityCache = {};
+    renderBatchOutputRows();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 

@@ -79,99 +79,86 @@ app.post('/api/submit', (req, res, next) => {
   });
 }, async (req, res) => {
   try {
-    const { tanggal_carian, tanggal_pengerjaan, nama, posisi, tipe_lokasi, zona, jumlah_output, catatan_tambahan } = req.body;
+    const { tanggal_carian, tanggal_pengerjaan, nama, posisi, tipe_lokasi, zona, catatan_tambahan } = req.body;
 
     // Validate required fields
-    if (!tanggal_carian || !tanggal_pengerjaan || !nama || !posisi || !tipe_lokasi || !zona || !jumlah_output) {
+    if (!tanggal_carian || !tanggal_pengerjaan || !nama || !posisi || !tipe_lokasi || !zona) {
       return res.status(400).json({ error: 'Semua field yang bertanda * wajib diisi.' });
     }
 
-    let batch_cluster = req.body.batch_cluster;
-    if (!Array.isArray(batch_cluster)) batch_cluster = batch_cluster ? [batch_cluster] : [];
-
-    if (batch_cluster.length === 0) {
-      return res.status(400).json({ error: 'Pilih minimal satu batch/cluster.' });
+    // Parse batch_outputs: [{batch, jumlah}]
+    let batchOutputs = [];
+    try {
+      batchOutputs = JSON.parse(req.body.batch_outputs || '[]');
+    } catch(e) {
+      return res.status(400).json({ error: 'Format data batch output tidak valid.' });
     }
 
-    const outputValue = parseInt(jumlah_output);
-    if (isNaN(outputValue) || outputValue <= 0) {
-      return res.status(400).json({ error: 'Jumlah output harus berupa angka positif.' });
+    // Filter hanya yang jumlah > 0
+    batchOutputs = batchOutputs.filter(b => b.batch && parseInt(b.jumlah) > 0);
+
+    if (batchOutputs.length === 0) {
+      return res.status(400).json({ error: 'Isi jumlah output untuk minimal satu batch.' });
     }
 
-    // ===== VALIDASI KAPASITAS BATCH =====
-    // Jumlah output user (outputValue) dicek terhadap GABUNGAN sisa kapasitas semua batch yang dipilih
+    // ===== VALIDASI KAPASITAS PER BATCH =====
     const validationErrors = [];
-    let totalKapasitas = 0;
-    let totalSudahDiisi = 0;
-    let adaDataCarian = false;
-    let satuanLabel = '';
-
-    for (const batch of batch_cluster) {
+    for (const { batch, jumlah } of batchOutputs) {
+      const outputValue = parseInt(jumlah);
       const capacity = await db.getBatchCapacity(tanggal_carian, posisi, zona, batch);
       if (capacity.ada_data_carian) {
-        adaDataCarian = true;
-        totalKapasitas += capacity.total_output;
-        totalSudahDiisi += capacity.sudah_diisi;
-        satuanLabel = capacity.satuan;
+        if (capacity.sisa <= 0) {
+          validationErrors.push(`Batch ${batch} sudah penuh (kapasitas: ${capacity.total_output} ${capacity.satuan}, sudah terisi: ${capacity.sudah_diisi} ${capacity.satuan}).`);
+        } else if (outputValue > capacity.sisa) {
+          validationErrors.push(`Batch ${batch}: jumlah output Anda (${outputValue}) melebihi sisa kapasitas (${capacity.sisa} ${capacity.satuan} dari total ${capacity.total_output} ${capacity.satuan}).`);
+        }
       }
     }
-
-    if (adaDataCarian) {
-      const totalSisa = totalKapasitas - totalSudahDiisi;
-      if (totalSisa <= 0) {
-        validationErrors.push(
-          `Semua batch yang dipilih sudah penuh (total kapasitas: ${totalKapasitas} ${satuanLabel}, sudah terisi: ${totalSudahDiisi} ${satuanLabel}).`
-        );
-      } else if (outputValue > totalSisa) {
-        validationErrors.push(
-          `Jumlah output Anda (${outputValue} ${satuanLabel}) melebihi sisa kapasitas gabungan batch yang dipilih (sisa: ${totalSisa} ${satuanLabel} dari total ${totalKapasitas} ${satuanLabel}).`
-        );
-      }
-    }
-    // Jika tidak ada data carian → tidak divalidasi (admin belum input)
-
     if (validationErrors.length > 0) {
-      return res.status(400).json({
-        error: 'Validasi gagal: ' + validationErrors.join(' | '),
-        validation_errors: validationErrors
-      });
+      return res.status(400).json({ error: 'Validasi gagal: ' + validationErrors.join(' | '), validation_errors: validationErrors });
     }
     // ===== AKHIR VALIDASI =====
 
-    const submissionId = uuidv4();
-
-    await db.insertSubmission({
-      id: submissionId,
-      tanggal_carian,
-      tanggal_pengerjaan,
-      nama,
-      posisi,
-      tipe_lokasi,
-      zona,
-      batch_cluster: JSON.stringify(batch_cluster),
-      jumlah_output: outputValue,
-      catatan_tambahan: catatan_tambahan || '',
-    });
-
-    // Insert uploaded files
+    // Upload files dulu (shared ke semua submission batch ini)
+    const uploadedFiles = [];
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
         const fileId = uuidv4();
         const uniqueFilename = fileId + path.extname(file.originalname);
-        
         const fileUrl = await db.saveUploadedFile(uniqueFilename, file.buffer, file.mimetype);
-        
+        uploadedFiles.push({ id: fileId, filename: uniqueFilename, original_name: file.originalname, file_path: fileUrl });
+      }
+    }
+
+    // Insert satu submission per batch
+    for (const { batch, jumlah } of batchOutputs) {
+      const submissionId = uuidv4();
+      await db.insertSubmission({
+        id: submissionId,
+        tanggal_carian,
+        tanggal_pengerjaan,
+        nama,
+        posisi,
+        tipe_lokasi,
+        zona,
+        batch_cluster: JSON.stringify([batch]),
+        jumlah_output: parseInt(jumlah),
+        catatan_tambahan: catatan_tambahan || '',
+      });
+
+      // Attach files ke setiap submission
+      for (const f of uploadedFiles) {
         await db.insertFile({
-          id: fileId,
+          id: uuidv4(),
           submission_id: submissionId,
-          filename: uniqueFilename,
-          original_name: file.originalname,
-          file_path: fileUrl
+          filename: f.filename,
+          original_name: f.original_name,
+          file_path: f.file_path
         });
       }
     }
 
-    res.json({ success: true, message: 'Formulir berhasil dikirim! Terima kasih.' });
+    res.json({ success: true, message: `Formulir berhasil dikirim! ${batchOutputs.length} batch tersimpan. Terima kasih.` });
   } catch (err) {
     console.error('Submit error:', err);
     res.status(500).json({ error: 'Terjadi kesalahan server. Silakan coba lagi.' });
