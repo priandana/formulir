@@ -912,6 +912,7 @@
   // ============= PER-BATCH OUTPUT =============
   let batchCapacityCache = {}; // {key: capacityData}
   let batchOutputRenderTimeout = null;
+  let renderGeneration = 0; // tambah ini: untuk cegah race condition
 
   function updateCount() {
     const checked = document.querySelectorAll('input[name="batch_cluster"]:checked').length;
@@ -937,6 +938,7 @@
   }
 
   async function renderBatchOutputRows() {
+    const myGen = ++renderGeneration; // tandai generasi ini
     const tanggal = document.getElementById('tanggal_carian').value;
     const posisi = document.getElementById('posisi').value;
     const zona = document.getElementById('zona').value;
@@ -945,6 +947,7 @@
     const empty = document.getElementById('batchOutputEmpty');
 
     if (checkedBatches.length === 0) {
+      if (myGen !== renderGeneration) return; // sudah ada render baru, batalkan
       list.innerHTML = '';
       list.appendChild(empty);
       empty.style.display = '';
@@ -969,6 +972,9 @@
         }
       }));
     }
+
+    // Setelah await, cek apakah masih generasi terbaru
+    if (myGen !== renderGeneration) return; // ada render baru yang lebih segar, batalkan
 
     // Preserve existing input values
     const existingVals = {};
