@@ -611,15 +611,49 @@ module.exports = {
   },
 
   /**
-   * Ambil rekapitulasi semua batch untuk tanggal tertentu dengan status pengisian
+   * Ambil rekapitulasi semua batch untuk tanggal tertentu dengan status pengisian.
+   * OPTIMASI: fetch semua submissions untuk tanggal itu dalam 1 query,
+   * lalu hitung sudah_diisi per batch di memory (menghindari N+1 queries).
    */
   async getDataCarianWithStatus(tanggal_carian) {
-    const records = await this.getDataCarian(tanggal_carian);
+    // Fetch data_carian records dan semua submissions sekaligus (2 queries total, bukan N+1)
+    const [records, allSubmissions] = await Promise.all([
+      this.getDataCarian(tanggal_carian),
+      (async () => {
+        if (isSupabaseEnabled) {
+          const { data, error } = await supabase
+            .from('submissions')
+            .select('jumlah_output, batch_cluster, posisi, zona')
+            .eq('tanggal_carian', tanggal_carian);
+          if (error) {
+            console.error('Supabase getDataCarianWithStatus submissions error:', error);
+            throw error;
+          }
+          return data;
+        } else {
+          const db = load();
+          return db.submissions.filter(s => s.tanggal_carian === tanggal_carian);
+        }
+      })()
+    ]);
+
+    // Bangun lookup map: "posisi|zona|batch" → total output yang sudah disubmit
+    const submittedMap = {};
+    for (const s of allSubmissions) {
+      const clusters = Array.isArray(s.batch_cluster)
+        ? s.batch_cluster
+        : JSON.parse(s.batch_cluster || '[]');
+      for (const batch of clusters) {
+        const key = `${s.posisi}|${s.zona}|${batch}`;
+        submittedMap[key] = (submittedMap[key] || 0) + (parseInt(s.jumlah_output) || 0);
+      }
+    }
+
+    // Gabungkan dengan data_carian records
     const result = [];
     for (const rec of records) {
-      const sudah_diisi = await this.getSubmittedOutputForBatch(
-        rec.tanggal_carian, rec.posisi, rec.zona, rec.batch
-      );
+      const key = `${rec.posisi}|${rec.zona}|${rec.batch}`;
+      const sudah_diisi = submittedMap[key] || 0;
       const sisa = Math.max(0, rec.total_output - sudah_diisi);
       const persen = rec.total_output > 0 ? Math.min(100, Math.round((sudah_diisi / rec.total_output) * 100)) : 0;
       result.push({ ...rec, sudah_diisi, sisa, persen });
