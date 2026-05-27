@@ -353,13 +353,33 @@ app.get('/api/export-csv', requireAuth, async (req, res) => {
 
 // ==================== DATA CARIAN ROUTES (Admin) ====================
 
+// Simple in-memory cache untuk data-carian (per tanggal, TTL 30 detik)
+const dcCache = {}; // { tanggal: { data, expireAt } }
+const DC_CACHE_TTL = 30 * 1000; // 30 detik
+function invalidateDcCache(tanggal) {
+  if (tanggal) {
+    delete dcCache[tanggal];
+  } else {
+    Object.keys(dcCache).forEach(k => delete dcCache[k]);
+  }
+}
+
 // GET /api/data-carian — Ambil semua atau filter per tanggal
 app.get('/api/data-carian', requireAuth, async (req, res) => {
   try {
     const { tanggal } = req.query;
     let records;
     if (tanggal) {
+      // Cek cache dulu
+      const cached = dcCache[tanggal];
+      if (cached && cached.expireAt > Date.now()) {
+        res.setHeader('X-Cache', 'HIT');
+        return res.json(cached.data);
+      }
       records = await db.getDataCarianWithStatus(tanggal);
+      // Simpan ke cache
+      dcCache[tanggal] = { data: records, expireAt: Date.now() + DC_CACHE_TTL };
+      res.setHeader('X-Cache', 'MISS');
     } else {
       records = await db.getDataCarian();
     }
@@ -396,6 +416,7 @@ app.post('/api/data-carian', requireAuth, async (req, res) => {
       total_output: parseInt(total_output),
       satuan
     });
+    invalidateDcCache(tanggal_carian);
     res.json({ success: true, data: record });
   } catch (err) {
     console.error('Insert data carian error:', err);
@@ -419,6 +440,7 @@ app.put('/api/data-carian/:id', requireAuth, async (req, res) => {
       ...(req.body.zona && { zona: req.body.zona }),
       ...(req.body.batch && { batch: req.body.batch }),
     });
+    invalidateDcCache(req.body.tanggal_carian || null);
     res.json({ success: true, data: record });
   } catch (err) {
     console.error('Update data carian error:', err);
@@ -430,6 +452,7 @@ app.put('/api/data-carian/:id', requireAuth, async (req, res) => {
 app.delete('/api/data-carian/:id', requireAuth, async (req, res) => {
   try {
     await db.deleteDataCarian(req.params.id);
+    invalidateDcCache(null); // invalidate semua cache karena tidak tahu tanggalnya
     res.json({ success: true });
   } catch (err) {
     console.error('Delete data carian error:', err);
@@ -441,6 +464,7 @@ app.delete('/api/data-carian/:id', requireAuth, async (req, res) => {
 app.delete('/api/data-carian/tanggal/:tanggal', requireAuth, async (req, res) => {
   try {
     await db.deleteDataCarianByTanggal(req.params.tanggal);
+    invalidateDcCache(req.params.tanggal);
     res.json({ success: true });
   } catch (err) {
     console.error('Delete data carian by tanggal error:', err);
@@ -475,6 +499,9 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
     const info = [];
     let records = [];
     const skipped = [];
+
+    // Detect "DATA UPLOAD SYSTEM" format (1 sheet, matrix besar: row1=posisi, row2=zona, row3=batch, row4=label, row5=QTY/ACT)
+    const dataUploadSheet = sheetNames.find(n => n.toUpperCase().includes('DATA UPLOAD') || n.toUpperCase().includes('UPLOAD SYSTEM'));
 
     // Detect SS08 format (has sheets named Picker / Sorter / Loader)
     const pickerSheetNames = sheetNames.filter(n => n.toLowerCase().includes('picker'));
@@ -621,7 +648,127 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
     }
 
 
-    if (isSS08Format) {
+    if (dataUploadSheet) {
+      // ====================================================
+      // FORMAT: DATA UPLOAD SYSTEM (1 sheet, matrix besar)
+      // Row 1 (idx 0): Posisi — PICKER / SHORTER / LOADER
+      // Row 2 (idx 1): Zona  — F1, R1, R2, R3, T1..T5, FREZZER, CHILLER, AMBIENT
+      // Row 3 (idx 2): Batch number (angka)
+      // Row 4 (idx 3): Label lengkap — "PICKER ZONA F1 BATCH 1" / "LOADER ZONA FREZZER"
+      // Row 5 (idx 4): QTY / ACT (header sub-kolom, tiap batch = 2 kolom: QTY, ACT)
+      // Row 6+  (idx 5+): Data per toko — sum kolom QTY untuk total per batch
+      //
+      // OPTIMASI: Baca cell langsung via encode_cell, bukan sheet_to_json,
+      // karena sheet_to_json sangat lambat untuk 321 kolom × 2000 baris.
+      // ====================================================
+      const ws = workbook.Sheets[dataUploadSheet];
+      const wsRange = XLSX.utils.decode_range(ws['!ref'] || 'A1:A1');
+      const startRow = wsRange.s.r; // baris awal worksheet (bisa 0 atau 1 jika row 1 Excel kosong)
+      const maxCol   = wsRange.e.c; // last column index (0-based)
+      const maxRow   = wsRange.e.r; // last row index (0-based)
+
+      // Helper: ambil nilai cell (row & col 0-based, ABSOLUTE index)
+      // Support both normal mode (ws['A1']) and dense mode (ws['!data'][r][c])
+      const cellVal = (r, c) => {
+        if (ws['!data']) {
+          const cell = ws['!data'][r] && ws['!data'][r][c];
+          return cell ? cell.v : '';
+        }
+        const cell = ws[XLSX.utils.encode_cell({ r, c })];
+        return cell ? cell.v : '';
+      };
+
+      // Normalisasi nama posisi
+      const normPosisi = (p) => {
+        const u = String(p).trim().toUpperCase();
+        if (u === 'PICKER')  return 'Picker';
+        if (u === 'SHORTER' || u === 'SORTER') return 'Sorter';
+        if (u === 'LOADER')  return 'Loader';
+        return null;
+      };
+
+      // Satuan per posisi
+      const satuanOf = (p) => (p === 'Picker' ? 'pcs' : 'kontainer');
+
+      // Struktur header (relative ke startRow):
+      // +0: Posisi (PICKER/SHORTER/LOADER)
+      // +1: Zona (F1, R1, T1...)
+      // +2: Batch number
+      // +3: Label lengkap ("PICKER ZONA F1 BATCH 1")
+      // +4: QTY / ACT
+      // +5 dst: data per toko
+      const rowLabel  = startRow + 3; // Row dengan label lengkap
+      const rowHeader = startRow + 4; // Row dengan QTY/ACT
+      const dataStart = startRow + 5; // Baris data pertama
+
+      // Bangun peta kolom dari header cells saja (cepat)
+      const batchColMap = []; // { col, posisi, zona, batch, label }
+      for (let col = 7; col <= maxCol; col++) {
+        const label  = String(cellVal(rowLabel,  col) || '').trim();
+        const header = String(cellVal(rowHeader, col) || '').trim().toUpperCase();
+        if (label === '' || header !== 'QTY') continue;
+
+        // Parse label: "PICKER ZONA F1 BATCH 1", "SHORTER ZONA T1 BATCH 2", "LOADER ZONA FREZZER"
+        const m1 = label.match(/^(PICKER|SHORTER|SORTER|LOADER)\s+ZONA\s+([A-Z0-9]+)\s+BATCH\s+(\d+)$/i);
+        const m2 = label.match(/^(LOADER)\s+ZONA\s+([A-Z0-9]+)\s*$/i);
+
+        let posisiRaw, zona, batch;
+        if (m1) {
+          posisiRaw = m1[1]; zona = m1[2].toUpperCase(); batch = String(parseInt(m1[3]));
+        } else if (m2) {
+          posisiRaw = m2[1]; zona = m2[2].toUpperCase(); batch = '1';
+        } else {
+          // Fallback: ambil dari row Posisi dan Zona
+          posisiRaw = String(cellVal(startRow + 0, col) || '').trim();
+          zona      = String(cellVal(startRow + 1, col) || '').trim().toUpperCase();
+          batch     = String(cellVal(startRow + 2, col) || '').trim();
+          if (!posisiRaw || !zona || !batch) continue;
+        }
+
+        const posisi = normPosisi(posisiRaw);
+        if (!posisi) continue;
+        batchColMap.push({ col, posisi, zona, batch, label });
+      }
+
+      if (batchColMap.length === 0) {
+        skipped.push('DATA UPLOAD SYSTEM: Tidak menemukan kolom batch yang valid (pastikan Row 4 berisi label seperti "PICKER ZONA F1 BATCH 1")');
+      } else {
+        // SUM kolom QTY langsung via cell address — mulai dari baris data pertama
+        const totals = {}; // col → total
+        const isDense = !!ws['!data'];
+        for (let r = dataStart; r <= maxRow; r++) {
+          for (const { col } of batchColMap) {
+            let cell;
+            if (isDense) {
+              cell = ws['!data'][r] && ws['!data'][r][col];
+            } else {
+              cell = ws[XLSX.utils.encode_cell({ r, c: col })];
+            }
+            if (cell && typeof cell.v === 'number' && cell.v > 0) {
+              totals[col] = (totals[col] || 0) + cell.v;
+            }
+          }
+        }
+
+        let pickerCount = 0, sorterCount = 0, loaderCount = 0;
+        for (const { col, posisi, zona, batch, label } of batchColMap) {
+          const total_output = totals[col] || 0;
+          if (total_output <= 0) {
+            skipped.push(`${label}: total QTY = 0, dilewati`);
+            continue;
+          }
+          records.push({ tanggal_carian, posisi, zona, batch, total_output, satuan: satuanOf(posisi) });
+          if (posisi === 'Picker')       pickerCount++;
+          else if (posisi === 'Sorter') sorterCount++;
+          else if (posisi === 'Loader') loaderCount++;
+        }
+
+        if (pickerCount > 0) info.push(`Picker: ${pickerCount} batch`);
+        if (sorterCount > 0) info.push(`Sorter: ${sorterCount} batch`);
+        if (loaderCount > 0) info.push(`Loader: ${loaderCount} batch`);
+      }
+
+    } else if (isSS08Format) {
       // === PICKER: bisa ada beberapa sheet (misal "Picker R3", "Picker F1") ===
       if (pickerSheetNames.length > 0) {
         let totalPicker = 0;
@@ -705,7 +852,7 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
         }
       }
       if (headerRowIdx === -1) {
-        return res.status(400).json({ error: 'Format Excel tidak dikenali.', hint: 'Gunakan file Register SS08 (sheet Picker/Sorter/Loader) atau template dengan kolom: Posisi | Zona | Batch | Total Output' });
+        return res.status(400).json({ error: 'Format Excel tidak dikenali.', hint: 'Gunakan: (1) File "DATA UPLOAD EXCEL" (sheet "DATA UPLOAD SYSTEM"), (2) Register SS08 (sheet Picker/Sorter/Loader), atau (3) template dengan kolom: Posisi | Zona | Batch | Total Output' });
       }
       for (let i = headerRowIdx + 1; i < rawData.length; i++) {
         const row = rawData[i];
@@ -731,6 +878,7 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
 
     // Upsert semua record
     const inserted = await db.bulkUpsertDataCarian(records);
+    invalidateDcCache(tanggal_carian); // clear cache setelah import
 
     res.json({
       success: true,
