@@ -380,29 +380,72 @@ module.exports = {
 
   /**
    * Insert banyak record data carian sekaligus (bulk upsert)
+   * OPTIMASI: gunakan Supabase native upsert (1 query) bukan loop N+1
    * Jika kombinasi (tanggal, posisi, zona, batch) sudah ada → update total_output
    */
   async bulkUpsertDataCarian(records) {
-    const results = [];
-    for (const data of records) {
-      // Cek apakah sudah ada record dengan kombinasi yang sama
-      const existing = await this.getDataCarianByKey(
-        data.tanggal_carian, data.posisi, data.zona, data.batch
-      );
-      if (existing) {
-        // Update
-        const updated = await this.updateDataCarian(existing.id, {
-          total_output: data.total_output,
-          satuan: data.satuan
-        });
-        results.push(updated);
-      } else {
-        // Insert
-        const inserted = await this.insertDataCarian(data);
-        results.push(inserted);
+    if (records.length === 0) return [];
+
+    if (isSupabaseEnabled) {
+      // Supabase native upsert — 1 query saja, conflict pada unique key
+      const rows = records.map(data => ({
+        id: data.id || uuidv4(),
+        tanggal_carian: data.tanggal_carian,
+        posisi: data.posisi,
+        zona: data.zona,
+        batch: String(data.batch),
+        total_output: parseInt(data.total_output),
+        satuan: data.satuan || 'pcs'
+      }));
+
+      const { data, error } = await supabase
+        .from('data_carian')
+        .upsert(rows, {
+          onConflict: 'tanggal_carian,posisi,zona,batch',
+          ignoreDuplicates: false
+        })
+        .select();
+
+      if (error) {
+        // Fallback ke loop jika upsert gagal (misal belum ada unique constraint)
+        console.warn('Supabase bulk upsert gagal, fallback ke loop:', error.message);
+        const results = [];
+        for (const data of records) {
+          const existing = await this.getDataCarianByKey(data.tanggal_carian, data.posisi, data.zona, data.batch);
+          if (existing) {
+            const updated = await this.updateDataCarian(existing.id, { total_output: data.total_output, satuan: data.satuan });
+            results.push(updated);
+          } else {
+            const inserted = await this.insertDataCarian(data);
+            results.push(inserted);
+          }
+        }
+        return results;
       }
+      return data || rows;
+    } else {
+      // Local mode: proses semua di memory, simpan sekali
+      const db = load();
+      const results = [];
+      for (const data of records) {
+        const idx = db.data_carian.findIndex(d =>
+          d.tanggal_carian === data.tanggal_carian &&
+          d.posisi === data.posisi &&
+          d.zona === data.zona &&
+          String(d.batch) === String(data.batch)
+        );
+        if (idx !== -1) {
+          db.data_carian[idx] = { ...db.data_carian[idx], total_output: parseInt(data.total_output), satuan: data.satuan, updated_at: new Date().toISOString() };
+          results.push(db.data_carian[idx]);
+        } else {
+          const record = { id: uuidv4(), tanggal_carian: data.tanggal_carian, posisi: data.posisi, zona: data.zona, batch: String(data.batch), total_output: parseInt(data.total_output), satuan: data.satuan || 'pcs', created_at: new Date().toISOString() };
+          db.data_carian.push(record);
+          results.push(record);
+        }
+      }
+      save(db); // simpan sekali setelah semua diproses
+      return results;
     }
-    return results;
   },
 
   /**
