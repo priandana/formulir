@@ -3,10 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Formulir Register Pencapaian Kerja - SS08</title>
-  <meta name="description" content="Formulir digital untuk pencatatan pencapaian kerja tim SS08">
+  <title>Formulir Pencapaian Kerja — SS08</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -14,94 +13,272 @@
       --primary: #6C3CE1;
       --primary-light: #8B5CF6;
       --primary-dark: #4C1D95;
-      --accent: #EC4899;
+      --accent-blue: #0EA5E9;
+      --accent-blue-light: #38BDF8;
+      --accent-blue-dark: #0369A1;
       --bg: #F0EBF8;
       --card-bg: #FFFFFF;
       --text: #1E1B2E;
       --text-muted: #6B7280;
+      --text-dim: #A3A1C2;
       --border: #E5E7EB;
+      --border-purple: rgba(108, 60, 225, 0.15);
       --success: #10B981;
       --error: #EF4444;
-      --shadow: 0 4px 24px rgba(108, 60, 225, 0.12);
-      --shadow-lg: 0 8px 40px rgba(108, 60, 225, 0.18);
+      --shadow: 0 4px 24px rgba(108, 60, 225, 0.10);
+      --shadow-lg: 0 12px 48px rgba(108, 60, 225, 0.16);
     }
+
+    /* ---- Scrollbar ---- */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(108, 60, 225, 0.2); border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(108, 60, 225, 0.4); }
 
     body {
       font-family: 'Inter', sans-serif;
       background: var(--bg);
       min-height: 100vh;
-      padding: 0 0 60px;
+      padding-bottom: 60px;
+      position: relative;
     }
 
-    /* Header Banner */
-    .header-banner {
-      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 50%, var(--primary-light) 100%);
-      padding: 12px 20px;
-      text-align: center;
+    /* ---- Background blobs ---- */
+    .bg-blobs { position: fixed; inset: 0; overflow: hidden; z-index: -1; pointer-events: none; }
+    .bg-blob { position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.06; animation: floatBlob 22s infinite alternate ease-in-out; }
+    .bg-blob-1 { width: 480px; height: 480px; background: var(--primary); top: -120px; left: -80px; }
+    .bg-blob-2 { width: 340px; height: 340px; background: var(--accent-blue); bottom: -80px; right: -60px; animation-delay: -11s; }
+    .bg-blob-3 { width: 260px; height: 260px; background: var(--primary-light); top: 50%; right: 20%; animation-delay: -6s; }
+
+    @keyframes floatBlob {
+      0%   { transform: translate(0, 0) scale(1); }
+      50%  { transform: translate(40px, 30px) scale(1.08); }
+      100% { transform: translate(-30px, 60px) scale(0.94); }
     }
-    .header-banner span {
-      color: rgba(255,255,255,0.85);
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    @keyframes skeletonPulse {
+      0% { opacity: 0.6; }
+      50% { opacity: 0.35; }
+      100% { opacity: 0.6; }
+    }
+    .skeleton-pulse {
+      animation: skeletonPulse 1.4s infinite ease-in-out;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes successPop {
+      0%   { transform: scale(0.5); opacity: 0; }
+      70%  { transform: scale(1.1); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* ---- HEADER ---- */
+    .app-header {
+      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 55%, var(--primary-light) 100%);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 24px rgba(76, 29, 149, 0.3);
+    }
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header-logo-icon {
+      width: 38px;
+      height: 38px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255,255,255,0.2);
+      transition: transform 0.3s ease;
+    }
+    .header-logo:hover .header-logo-icon { transform: rotate(8deg) scale(1.05); }
+    .header-logo-text { color: #fff; }
+    .header-logo-text .logo-name { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; }
+    .header-logo-text .logo-sub { font-size: 11px; font-weight: 500; opacity: 0.75; margin-top: 1px; }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header-user {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      border: 2px solid rgba(255,255,255,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
       font-size: 13px;
-      font-weight: 500;
+      color: #fff;
+      flex-shrink: 0;
     }
+    .header-user-info { color: #fff; }
+    .header-user-name { font-size: 13px; font-weight: 700; line-height: 1.2; }
+    .header-posisi-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      background: rgba(255,255,255,0.18);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.25);
+      margin-top: 2px;
+    }
+    .header-posisi-badge.picker { background: rgba(59,130,246,0.3); border-color: rgba(59,130,246,0.4); }
+    .header-posisi-badge.sorter { background: rgba(16,185,129,0.3); border-color: rgba(16,185,129,0.4); }
+    .header-posisi-badge.loader { background: rgba(14,165,233,0.3); border-color: rgba(14,165,233,0.4); }
 
+    .btn-logout {
+      padding: 7px 14px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 8px;
+      color: #fff;
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+      backdrop-filter: blur(4px);
+    }
+    .btn-logout:hover { background: rgba(255,255,255,0.22); transform: translateY(-1px); }
+
+    /* ---- TABS ---- */
+    .tabs-bar {
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-purple);
+      display: flex;
+      padding: 0 24px;
+      gap: 4px;
+      position: sticky;
+      top: 64px;
+      z-index: 90;
+      box-shadow: 0 2px 12px rgba(108,60,225,0.04);
+    }
+    .tab-btn {
+      padding: 14px 22px;
+      border: none;
+      background: none;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.25s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: var(--primary); background: rgba(108,60,225,0.04); border-radius: 8px 8px 0 0; }
+    .tab-btn.active-purple { color: var(--primary); border-bottom-color: var(--primary); }
+    .tab-btn.active-blue { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
+    .tab-btn .tab-icon {
+      width: 28px; height: 28px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+    .tab-btn.active-purple .tab-icon { background: rgba(108,60,225,0.1); color: var(--primary); }
+    .tab-btn.active-blue .tab-icon { background: rgba(14,165,233,0.1); color: var(--accent-blue); }
+    .tab-btn:not(.active-purple):not(.active-blue) .tab-icon { background: rgba(0,0,0,0.04); color: var(--text-dim); }
+
+    /* ---- TAB PANELS ---- */
+    .tab-panel { display: none; animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+    .tab-panel.active { display: block; }
+
+    /* ---- CONTAINER ---- */
     .container {
-      max-width: 720px;
+      max-width: 760px;
       margin: 0 auto;
-      padding: 0 16px;
+      padding: 28px 16px;
     }
 
-    /* Title Card */
-    .title-card {
+    /* ---- SECTION HEADER (inside panels) ---- */
+    .section-intro {
       background: var(--card-bg);
       border-radius: 16px;
       overflow: hidden;
-      margin-top: 24px;
+      margin-bottom: 20px;
       box-shadow: var(--shadow);
-      border-top: 6px solid var(--primary);
+      border-top: 5px solid var(--primary);
     }
-    .title-card-inner {
-      padding: 28px 32px;
-    }
-    .title-card h1 {
-      font-size: 26px;
-      font-weight: 700;
-      color: var(--text);
-      line-height: 1.3;
-      margin-bottom: 12px;
-    }
-    .title-card p {
-      color: var(--text-muted);
-      font-size: 14px;
-      line-height: 1.6;
-    }
-    .title-card .required-note {
-      margin-top: 16px;
-      color: var(--error);
-      font-size: 13px;
-      font-weight: 500;
-    }
+    .section-intro.blue-accent { border-top-color: var(--accent-blue); }
+    .section-intro-inner { padding: 24px 28px; }
+    .section-intro h1 { font-size: 22px; font-weight: 800; color: var(--text); line-height: 1.3; margin-bottom: 8px; }
+    .section-intro p { color: var(--text-muted); font-size: 14px; line-height: 1.6; }
+    .section-intro .required-note { margin-top: 12px; color: var(--error); font-size: 12px; font-weight: 500; }
 
-    /* Form Card */
+    /* ---- FORM CARD ---- */
     .form-card {
       background: var(--card-bg);
       border-radius: 16px;
-      padding: 28px 32px;
-      margin-top: 16px;
+      padding: 24px 28px;
+      margin-bottom: 14px;
       box-shadow: var(--shadow);
       transition: box-shadow 0.3s ease;
+      border: 1px solid rgba(108,60,225,0.06);
     }
-    .form-card:hover {
-      box-shadow: var(--shadow-lg);
-    }
-    .form-card.focused {
-      box-shadow: 0 0 0 2px var(--primary-light), var(--shadow-lg);
-    }
+    .form-card:hover { box-shadow: var(--shadow-lg); }
+    .form-card.blue-card { border-color: rgba(14,165,233,0.08); }
+    .form-card.blue-card:hover { box-shadow: 0 12px 48px rgba(14,165,233,0.10); }
 
-    /* Field styles */
+    /* Readonly name display */
+    .name-display {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 16px;
+      background: rgba(108,60,225,0.04);
+      border: 2px solid var(--border-purple);
+      border-radius: 10px;
+    }
+    .name-display .nd-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 14px; color: #fff; flex-shrink: 0;
+    }
+    .name-display .nd-name { font-size: 15px; font-weight: 700; color: var(--text); }
+    .name-display .nd-locked { font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+
+    /* ---- FIELD STYLES ---- */
     .field-label {
-      font-size: 15px;
-      font-weight: 600;
+      font-size: 14px;
+      font-weight: 700;
       color: var(--text);
       margin-bottom: 4px;
       display: flex;
@@ -122,7 +299,7 @@
       border: 2px solid var(--border);
       border-radius: 10px;
       font-family: 'Inter', sans-serif;
-      font-size: 15px;
+      font-size: 14px;
       color: var(--text);
       background: #FAFAFA;
       transition: all 0.2s ease;
@@ -132,66 +309,68 @@
     .form-input:focus, .form-select:focus, .form-textarea:focus {
       border-color: var(--primary);
       background: #fff;
-      box-shadow: 0 0 0 4px rgba(108, 60, 225, 0.1);
+      box-shadow: 0 0 0 4px rgba(108,60,225,0.1);
     }
-    .form-input::placeholder, .form-textarea::placeholder {
-      color: #B0B7C3;
+    .form-input.blue:focus, .form-select.blue:focus, .form-textarea.blue:focus {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 4px rgba(14,165,233,0.1);
     }
+    .form-input::placeholder, .form-textarea::placeholder { color: #B0B7C3; }
 
     .form-select {
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath fill='%236C3CE1' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
       background-position: right 14px center;
+      background-size: 20px 20px;
       padding-right: 44px;
       cursor: pointer;
     }
-    .form-select option { color: var(--text); }
-
-    .form-textarea {
-      min-height: 100px;
-      resize: vertical;
+    .form-select.blue {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath fill='%230EA5E9' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      background-size: 20px 20px;
     }
+    .form-textarea { min-height: 100px; resize: vertical; }
 
-    /* Batch/Cluster Section */
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    /* ---- BATCH/CLUSTER CHIPS ---- */
     .batch-section { margin-top: 8px; }
-    .batch-group {
-      margin-bottom: 20px;
-    }
+    .batch-group { margin-bottom: 18px; }
     .batch-group-label {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.8px;
       color: var(--primary);
       margin-bottom: 10px;
-      padding: 6px 12px;
-      background: rgba(108, 60, 225, 0.08);
-      border-radius: 8px;
+      padding: 5px 12px;
+      background: rgba(108,60,225,0.08);
+      border-radius: 7px;
       display: inline-block;
+    }
+    .batch-group-label.blue-label {
+      color: var(--accent-blue);
+      background: rgba(14,165,233,0.08);
     }
     .batch-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-      gap: 8px;
+      grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+      gap: 7px;
     }
-    .batch-item {
-      display: flex;
-      align-items: center;
-      gap: 0;
-    }
-    .batch-item input[type="checkbox"] {
-      display: none;
-    }
+    .batch-item { display: flex; }
+    .batch-item input[type="checkbox"] { display: none; }
     .batch-item label {
       display: flex;
       align-items: center;
       justify-content: center;
       width: 100%;
-      padding: 8px 4px;
+      padding: 7px 4px;
       border: 2px solid var(--border);
       border-radius: 8px;
-      font-size: 13px;
-      font-weight: 500;
+      font-size: 12px;
+      font-weight: 600;
       color: var(--text-muted);
       cursor: pointer;
       transition: all 0.15s ease;
@@ -203,151 +382,50 @@
       border-color: var(--primary);
       background: var(--primary);
       color: #fff;
-      transform: scale(1.03);
-      box-shadow: 0 2px 8px rgba(108, 60, 225, 0.3);
+      transform: scale(1.04);
+      box-shadow: 0 2px 8px rgba(108,60,225,0.3);
     }
-    .batch-item label:hover {
-      border-color: var(--primary-light);
-      background: rgba(108, 60, 225, 0.06);
-      color: var(--primary);
+    .batch-item.blue-chip input[type="checkbox"]:checked + label {
+      border-color: var(--accent-blue);
+      background: var(--accent-blue);
+      box-shadow: 0 2px 8px rgba(14,165,233,0.3);
     }
-    .batch-item input[type="checkbox"]:checked + label:hover {
-      background: var(--primary-dark);
-      color: #fff;
-    }
+    .batch-item label:hover { border-color: var(--primary-light); background: rgba(108,60,225,0.06); color: var(--primary); }
+    .batch-item.blue-chip label:hover { border-color: var(--accent-blue-light); background: rgba(14,165,233,0.06); color: var(--accent-blue); }
+    .batch-item input[type="checkbox"]:checked + label:hover { background: var(--primary-dark); color: #fff; }
+    .batch-item.blue-chip input[type="checkbox"]:checked + label:hover { background: var(--accent-blue-dark); color: #fff; }
 
-    /* Special batch items (Gacoan, Lainnya) */
-    .batch-special .batch-grid {
-      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    }
+    .batch-special .batch-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
 
-    /* Select/Deselect All buttons */
-    .batch-actions {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 16px;
-      flex-wrap: wrap;
-    }
+    .batch-actions { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
     .batch-btn {
-      padding: 6px 14px;
-      border-radius: 8px;
+      padding: 6px 13px;
+      border-radius: 7px;
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
       border: 2px solid var(--primary);
       transition: all 0.15s ease;
     }
-    .batch-btn.select-all {
-      background: var(--primary);
-      color: #fff;
-    }
+    .batch-btn.select-all { background: var(--primary); color: #fff; }
     .batch-btn.select-all:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
-    .batch-btn.clear-all {
-      background: transparent;
-      color: var(--primary);
-    }
-    .batch-btn.clear-all:hover { background: rgba(108, 60, 225, 0.1); }
+    .batch-btn.clear-all { background: transparent; color: var(--primary); }
+    .batch-btn.clear-all:hover { background: rgba(108,60,225,0.08); }
+    .batch-btn.blue { border-color: var(--accent-blue); }
+    .batch-btn.blue.select-all { background: var(--accent-blue); color: #fff; }
+    .batch-btn.blue.select-all:hover { background: var(--accent-blue-dark); border-color: var(--accent-blue-dark); }
+    .batch-btn.blue.clear-all { color: var(--accent-blue); }
+    .batch-btn.blue.clear-all:hover { background: rgba(14,165,233,0.08); }
 
     .selected-count {
-      font-size: 13px;
-      color: var(--text-muted);
-      margin-left: auto;
-      display: flex;
-      align-items: center;
-      gap: 4px;
+      font-size: 13px; color: var(--text-muted);
+      margin-left: auto; display: flex; align-items: center; gap: 4px;
     }
-    .selected-count span {
-      font-weight: 700;
-      color: var(--primary);
-    }
+    .selected-count span { font-weight: 700; color: var(--primary); }
+    .selected-count span.blue { color: var(--accent-blue); }
 
-    /* File Upload */
-    .file-drop-zone {
-      border: 2px dashed var(--border);
-      border-radius: 12px;
-      padding: 32px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      background: #FAFAFA;
-    }
-    .file-drop-zone:hover, .file-drop-zone.dragover {
-      border-color: var(--primary);
-      background: rgba(108, 60, 225, 0.04);
-    }
-    .file-drop-zone .upload-icon {
-      width: 48px;
-      height: 48px;
-      background: rgba(108, 60, 225, 0.1);
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 12px;
-    }
-    .file-drop-zone .upload-icon svg { color: var(--primary); }
-    .file-drop-zone p { color: var(--text-muted); font-size: 14px; }
-    .file-drop-zone .upload-link {
-      color: var(--primary);
-      font-weight: 600;
-      text-decoration: underline;
-      cursor: pointer;
-    }
-    .file-drop-zone small { display: block; color: #B0B7C3; font-size: 12px; margin-top: 6px; }
-    #fileInput { display: none; }
-
-    .file-list {
-      margin-top: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .file-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 14px;
-      background: rgba(108, 60, 225, 0.06);
-      border-radius: 10px;
-      border: 1px solid rgba(108, 60, 225, 0.2);
-    }
-    .file-item .file-icon {
-      width: 32px;
-      height: 32px;
-      background: var(--primary);
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-    .file-item .file-icon svg { color: #fff; }
-    .file-item .file-info { flex: 1; min-width: 0; }
-    .file-item .file-name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .file-item .file-size { font-size: 12px; color: var(--text-muted); }
-    .file-item .file-remove {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      border: none;
-      background: transparent;
-      color: #EF4444;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      transition: background 0.15s;
-    }
-    .file-item .file-remove:hover { background: rgba(239, 68, 68, 0.1); }
-
-    /* Per-batch Output List */
-    .batch-output-list {
-      margin-top: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
+    /* ---- BATCH OUTPUT ROWS ---- */
+    .batch-output-list { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
     .batch-output-row {
       background: #FAFAFA;
       border: 2px solid var(--border);
@@ -355,910 +433,2357 @@
       padding: 14px 16px;
       transition: border-color 0.2s;
     }
-    .batch-output-row.has-error { border-color: var(--error); background: rgba(239,68,68,0.04); }
-    .batch-output-row.is-ok { border-color: #10B981; background: rgba(16,185,129,0.04); }
-    .batch-output-row.is-full { border-color: var(--error); background: rgba(239,68,68,0.06); }
-    .bor-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 8px;
-    }
+    .batch-output-row.has-error { border-color: var(--error); background: rgba(239,68,68,0.03); }
+    .batch-output-row.is-ok { border-color: #10B981; background: rgba(16,185,129,0.03); }
+    .batch-output-row.is-full { border-color: var(--error); background: rgba(239,68,68,0.05); }
+    .bor-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
     .bor-badge {
-      background: var(--primary);
-      color: #fff;
-      font-size: 12px;
-      font-weight: 700;
-      padding: 3px 10px;
-      border-radius: 20px;
-      white-space: nowrap;
+      background: var(--primary); color: #fff;
+      font-size: 12px; font-weight: 700;
+      padding: 3px 10px; border-radius: 20px; white-space: nowrap;
     }
-    .bor-cap-info {
-      font-size: 12px;
-      color: var(--text-muted);
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      flex: 1;
-    }
-    .bor-cap-info .cap-chip {
-      background: rgba(108,60,225,0.08);
-      color: var(--primary);
-      padding: 2px 8px;
-      border-radius: 6px;
-      font-weight: 600;
-    }
-    .bor-cap-info .cap-chip.full { background: rgba(239,68,68,0.1); color: #DC2626; }
-    .bor-cap-info .cap-chip.warn { background: rgba(245,158,11,0.1); color: #B45309; }
-    .bor-cap-info .cap-chip.ok { background: rgba(16,185,129,0.1); color: #059669; }
-    .bor-input-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
+    .bor-badge.blue { background: var(--accent-blue); }
+    .bor-cap-info { font-size: 12px; color: var(--text-muted); display: flex; gap: 7px; flex-wrap: wrap; flex: 1; }
+    .cap-chip { background: rgba(108,60,225,0.07); color: var(--primary); padding: 2px 8px; border-radius: 5px; font-weight: 600; }
+    .cap-chip.full { background: rgba(239,68,68,0.08); color: #DC2626; }
+    .cap-chip.warn { background: rgba(245,158,11,0.08); color: #B45309; }
+    .cap-chip.ok { background: rgba(16,185,129,0.08); color: #059669; }
+    .bor-input-row { display: flex; align-items: center; gap: 10px; }
     .bor-input {
-      flex: 1;
-      padding: 10px 14px;
-      border: 2px solid var(--border);
-      border-radius: 8px;
-      font-family: 'Inter', sans-serif;
-      font-size: 15px;
-      color: var(--text);
-      background: #fff;
-      outline: none;
+      flex: 1; padding: 10px 14px;
+      border: 2px solid var(--border); border-radius: 8px;
+      font-family: 'Inter', sans-serif; font-size: 14px;
+      color: var(--text); background: #fff; outline: none;
       transition: border-color 0.2s;
     }
     .bor-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(108,60,225,0.1); }
+    .bor-input.blue:focus { border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(14,165,233,0.1); }
     .bor-input:disabled { background: #f3f4f6; color: #9CA3AF; cursor: not-allowed; }
-    .bor-satuan {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-muted);
-      white-space: nowrap;
-    }
-    .bor-error {
-      font-size: 12px;
-      color: var(--error);
-      margin-top: 6px;
-      display: none;
-    }
+    .bor-satuan { font-size: 13px; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+    .bor-error { font-size: 12px; color: var(--error); margin-top: 6px; display: none; }
     .bor-error.visible { display: block; }
     .batch-output-empty {
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 14px;
-      padding: 20px;
-      background: rgba(108,60,225,0.04);
-      border-radius: 10px;
-      border: 2px dashed var(--border);
-      margin-top: 12px;
+      text-align: center; color: var(--text-muted); font-size: 13px;
+      padding: 20px; background: rgba(108,60,225,0.03);
+      border-radius: 10px; border: 2px dashed var(--border); margin-top: 12px;
     }
-    /* Progress bar mini */
     .bor-progress { margin-top: 6px; height: 4px; background: rgba(0,0,0,0.07); border-radius: 99px; overflow: hidden; }
     .bor-progress-fill { height: 100%; border-radius: 99px; transition: width 0.4s; }
     .bor-progress-fill.ok { background: linear-gradient(90deg, #10B981, #34D399); }
     .bor-progress-fill.warn { background: linear-gradient(90deg, #F59E0B, #FCD34D); }
     .bor-progress-fill.full { background: linear-gradient(90deg, #EF4444, #DC2626); }
 
-    /* Error */
+    /* ---- FILE UPLOAD ---- */
+    .file-drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: #FAFAFA;
+    }
+    .file-drop-zone:hover, .file-drop-zone.dragover {
+      border-color: var(--primary);
+      background: rgba(108,60,225,0.03);
+    }
+    .file-drop-zone .upload-icon {
+      width: 44px; height: 44px;
+      background: rgba(108,60,225,0.08);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 12px;
+      transition: transform 0.3s;
+    }
+    .file-drop-zone:hover .upload-icon { transform: translateY(-4px); background: rgba(108,60,225,0.14); }
+    .file-drop-zone .upload-icon svg { color: var(--primary); }
+    .file-drop-zone p { color: var(--text-muted); font-size: 14px; }
+    .file-drop-zone .upload-link { color: var(--primary); font-weight: 600; }
+    .file-drop-zone small { display: block; color: #B0B7C3; font-size: 12px; margin-top: 6px; }
+
+    .file-list { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .file-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px;
+      background: rgba(108,60,225,0.05);
+      border-radius: 10px;
+      border: 1px solid rgba(108,60,225,0.15);
+      animation: fadeIn 0.2s ease;
+    }
+    .file-item .file-icon {
+      width: 32px; height: 32px; background: var(--primary);
+      border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .file-item .file-info { flex: 1; min-width: 0; }
+    .file-item .file-name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .file-item .file-size { font-size: 11px; color: var(--text-muted); }
+    .file-item .file-remove {
+      width: 28px; height: 28px; border-radius: 50%; border: none;
+      background: transparent; color: #EF4444;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s; flex-shrink: 0;
+    }
+    .file-item .file-remove:hover { background: rgba(239,68,68,0.1); }
+
+    /* ---- FIELD ERROR ---- */
     .field-error {
-      color: var(--error);
-      font-size: 13px;
-      margin-top: 8px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      display: none;
+      color: var(--error); font-size: 12px; margin-top: 8px;
+      display: none; align-items: center; gap: 4px;
     }
     .field-error.visible { display: flex; }
 
-    /* Submit Button */
-    .form-actions {
+    /* ---- LOADER TOTAL CARD ---- */
+    .total-kontainer-card {
+      background: linear-gradient(135deg, rgba(14,165,233,0.08), rgba(56,189,248,0.05));
+      border: 2px solid rgba(14,165,233,0.2);
+      border-radius: 14px;
+      padding: 18px 20px;
       display: flex;
       align-items: center;
-      gap: 16px;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 4px;
+    }
+    .total-kontainer-card .tc-label {
+      font-size: 13px; font-weight: 700;
+      color: var(--accent-blue-dark);
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .total-kontainer-card .tc-value {
+      font-size: 32px; font-weight: 800;
+      color: var(--accent-blue);
+      line-height: 1;
+    }
+    .total-kontainer-card .tc-unit { font-size: 14px; font-weight: 600; color: var(--accent-blue-dark); opacity: 0.7; margin-top: 2px; }
+
+    /* tc-details-list styling */
+    .tc-details-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 14px 16px;
+      background: rgba(14,165,233,0.02);
+      border: 1px dashed rgba(14,165,233,0.25);
+      border-radius: 12px;
+      margin-top: 12px;
+    }
+    .tc-details-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+    .tc-details-name {
+      display: flex;
+      align-items: center;
+    }
+    .tc-details-val {
+      font-weight: 700;
+      color: var(--text);
+    }
+    .tc-spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid rgba(14, 165, 233, 0.15);
+      border-top-color: var(--accent-blue);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+    }
+
+    /* Non-group section */
+    .non-group-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
       margin-top: 8px;
     }
-    .btn-submit {
-      padding: 14px 40px;
-      background: linear-gradient(135deg, var(--primary), var(--primary-light));
-      color: #fff;
-      border: none;
+    .non-group-item {
+      background: #FAFAFA;
+      border: 2px solid var(--border);
       border-radius: 12px;
-      font-family: 'Inter', sans-serif;
-      font-size: 15px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      box-shadow: 0 4px 16px rgba(108, 60, 225, 0.3);
+      padding: 12px 12px;
+      transition: border-color 0.2s, outline-color 0.2s;
+      min-width: 0;
+    }
+    .non-group-item:focus-within { border-color: var(--accent-blue); outline: 3px solid rgba(14,165,233,0.18); outline-offset: 0px; }
+    .non-group-label {
+      font-size: 11px; font-weight: 700;
+      color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .non-group-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+    .non-group-input {
+      flex: 1; min-width: 0; padding: 7px 8px;
+      border: 2px solid var(--border); border-radius: 8px;
+      font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700;
+      color: var(--text); background: #fff; outline: none;
+      transition: border-color 0.2s;
+    }
+    .non-group-input:focus { border-color: var(--accent-blue); }
+    .non-group-unit { font-size: 10px; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+
+    /* ---- PREMIUM DYNAMIC ARMADA STYLES ---- */
+    .armada-card {
+      margin-bottom: 20px;
+      border: 1px solid rgba(14, 165, 233, 0.12);
+      border-radius: 16px;
+      box-shadow: 0 10px 30px -8px rgba(14, 165, 233, 0.04), 0 4px 12px -5px rgba(0, 0, 0, 0.02);
+      background: #ffffff;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
       position: relative;
       overflow: hidden;
+      animation: armadaSlideIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      padding: 20px;
     }
-    .btn-submit:hover:not(:disabled) {
+    .armada-card:hover {
+      border-color: rgba(14, 165, 233, 0.25);
+      box-shadow: 0 12px 35px -8px rgba(14, 165, 233, 0.08), 0 5px 15px -4px rgba(0, 0, 0, 0.03);
       transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(108, 60, 225, 0.4);
     }
+    @keyframes armadaSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(24px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+    .armada-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      border-bottom: 1.5px solid rgba(14, 165, 233, 0.08);
+      padding-bottom: 12px;
+    }
+    .armada-title {
+      font-weight: 800;
+      font-size: 14px;
+      color: var(--accent-blue-dark);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .armada-title svg {
+      color: var(--accent-blue);
+      animation: truckDrive 1.2s ease-in-out infinite alternate;
+    }
+    @keyframes truckDrive {
+      from { transform: translateX(-1px); }
+      to { transform: translateX(2px); }
+    }
+    .btn-delete-armada {
+      background: rgba(239, 68, 68, 0.06);
+      border: 1px dashed rgba(239, 68, 68, 0.25);
+      color: #EF4444;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      transition: all 0.2s ease;
+    }
+    .btn-delete-armada:hover {
+      background: #EF4444;
+      border-color: #EF4444;
+      color: #ffffff;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+    }
+    .btn-delete-armada:hover svg {
+      animation: trashWiggle 0.4s ease infinite;
+    }
+    @keyframes trashWiggle {
+      0% { transform: rotate(0deg); }
+      25% { transform: rotate(-8deg); }
+      75% { transform: rotate(8deg); }
+      100% { transform: rotate(0deg); }
+    }
+    .btn-add-armada {
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-blue-dark));
+      color: #ffffff;
+      border: none;
+      box-shadow: 0 4px 14px 0 rgba(14, 165, 233, 0.3);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .btn-add-armada:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px 0 rgba(14, 165, 233, 0.45);
+      filter: brightness(1.05);
+    }
+    .btn-add-armada:active {
+      transform: translateY(0);
+    }
+    
+    /* ---- CHIP COMPONENT DESIGN ---- */
+    .batch-item.blue-chip.disabled {
+      animation: lockPulse 2s infinite ease-in-out;
+    }
+    @keyframes lockPulse {
+      0% { border-color: rgba(239, 68, 68, 0.2); }
+      50% { border-color: rgba(239, 68, 68, 0.45); }
+      100% { border-color: rgba(239, 68, 68, 0.2); }
+    }
+
+    /* ---- SUBMIT / ACTION BUTTONS ---- */
+    .form-actions { display: flex; align-items: center; gap: 14px; margin-top: 4px; }
+    .btn-submit {
+      padding: 13px 36px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      color: #fff; border: none; border-radius: 12px;
+      font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 700;
+      cursor: pointer; transition: all 0.2s ease;
+      box-shadow: 0 4px 16px rgba(108,60,225,0.28);
+      position: relative; overflow: hidden;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .btn-submit.blue {
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-blue-light));
+      box-shadow: 0 4px 16px rgba(14,165,233,0.28);
+    }
+    .btn-submit:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(108,60,225,0.35); }
+    .btn-submit.blue:hover:not(:disabled) { box-shadow: 0 8px 24px rgba(14,165,233,0.35); }
     .btn-submit:active:not(:disabled) { transform: translateY(0); }
     .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
     .btn-submit .spinner {
-      display: none;
-      width: 18px;
-      height: 18px;
-      border: 2px solid rgba(255,255,255,0.4);
-      border-top-color: #fff;
-      border-radius: 50%;
+      display: none; width: 17px; height: 17px;
+      border: 2px solid rgba(255,255,255,0.35);
+      border-top-color: #fff; border-radius: 50%;
       animation: spin 0.7s linear infinite;
     }
     .btn-submit.loading .btn-text { display: none; }
     .btn-submit.loading .spinner { display: inline-block; }
-
     .btn-clear {
-      padding: 14px 24px;
-      background: transparent;
-      color: var(--primary);
-      border: 2px solid var(--primary);
-      border-radius: 12px;
-      font-family: 'Inter', sans-serif;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
+      padding: 13px 22px;
+      background: transparent; color: var(--primary);
+      border: 2px solid var(--primary); border-radius: 12px;
+      font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s ease;
     }
-    .btn-clear:hover { background: rgba(108, 60, 225, 0.06); }
+    .btn-clear:hover { background: rgba(108,60,225,0.06); }
 
-    @keyframes spin { to { transform: rotate(360deg); } }
+    /* ---- SUCCESS SCREEN ---- */
+    .success-screen {
+      display: none; text-align: center; padding: 52px 28px;
+      animation: fadeInUp 0.4s ease;
+    }
+    .success-screen.visible { display: block; }
+    .success-icon-wrap {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, #059669, #10B981);
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 24px;
+      box-shadow: 0 8px 28px rgba(16,185,129,0.3);
+      animation: successPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .success-screen h2 { font-size: 22px; font-weight: 800; color: var(--text); margin-bottom: 10px; }
+    .success-screen p { color: var(--text-muted); font-size: 14px; line-height: 1.6; }
+    .btn-new-form {
+      margin-top: 26px; padding: 12px 30px;
+      background: var(--primary); color: #fff; border: none; border-radius: 12px;
+      font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700;
+      cursor: pointer; transition: all 0.2s ease;
+      box-shadow: 0 4px 14px rgba(108,60,225,0.25);
+    }
+    .btn-new-form:hover { background: var(--primary-dark); transform: translateY(-2px); }
 
-    /* Toast notification */
+    /* ---- TOAST ---- */
     .toast {
-      position: fixed;
-      bottom: 32px;
-      right: 32px;
-      padding: 16px 24px;
-      border-radius: 14px;
-      font-weight: 600;
-      font-size: 14px;
-      color: #fff;
+      position: fixed; bottom: 28px; right: 28px;
+      padding: 14px 20px; border-radius: 14px;
+      font-weight: 600; font-size: 14px; color: #fff;
       z-index: 9999;
-      transform: translateY(100px);
-      opacity: 0;
+      transform: translateY(100px); opacity: 0;
       transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-      max-width: 360px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      max-width: 360px; display: flex; align-items: center; gap: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
     }
     .toast.show { transform: translateY(0); opacity: 1; }
     .toast.success { background: linear-gradient(135deg, #059669, #10B981); }
     .toast.error { background: linear-gradient(135deg, #DC2626, #EF4444); }
+    .toast.info { background: linear-gradient(135deg, var(--accent-blue-dark), var(--accent-blue)); }
 
-    /* Success Screen */
-    .success-screen {
-      display: none;
-      text-align: center;
-      padding: 48px 32px;
+    /* ---- LOADING OVERLAY ---- */
+    .page-loader {
+      position: fixed; inset: 0;
+      background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 9998;
+      transition: opacity 0.3s;
     }
-    .success-screen.visible { display: block; }
-    .success-icon {
-      width: 80px;
-      height: 80px;
-      background: linear-gradient(135deg, #059669, #10B981);
+    .page-loader.hidden { opacity: 0; pointer-events: none; }
+    .loader-spin {
+      width: 42px; height: 42px;
+      border: 3px solid rgba(108,60,225,0.15);
+      border-top-color: var(--primary);
       border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 24px;
-      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
+      animation: spin 0.8s linear infinite;
     }
-    .success-screen h2 { font-size: 24px; font-weight: 700; color: var(--text); margin-bottom: 12px; }
-    .success-screen p { color: var(--text-muted); font-size: 15px; }
-    .btn-new-form {
-      margin-top: 28px;
-      padding: 12px 32px;
-      background: var(--primary);
-      color: #fff;
-      border: none;
-      border-radius: 12px;
-      font-family: 'Inter', sans-serif;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    .btn-new-form:hover { background: var(--primary-dark); transform: translateY(-2px); }
 
+    /* ---- RESPONSIVE ---- */
     @media (max-width: 600px) {
-      .title-card-inner, .form-card { padding: 20px 18px; }
-      .title-card h1 { font-size: 20px; }
-      .batch-grid { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
+      .app-header { padding: 0 14px; }
+      .header-user-info { display: none; }
+      .tabs-bar { padding: 0 8px; }
+      .tab-btn { padding: 12px 12px; font-size: 13px; }
+      .container { padding: 16px 10px; }
+      .form-card { padding: 18px 16px; }
+      .form-row { grid-template-columns: 1fr; }
+      .non-group-grid { grid-template-columns: 1fr; }
       .form-actions { flex-direction: column; align-items: stretch; }
-      .btn-submit, .btn-clear { width: 100%; }
-      .toast { left: 16px; right: 16px; bottom: 20px; }
+      .btn-submit, .btn-clear { width: 100%; justify-content: center; }
+      .batch-grid { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
+      .toast { left: 12px; right: 12px; bottom: 16px; }
+      .total-kontainer-card { flex-direction: column; text-align: center; }
     }
   </style>
 </head>
 <body>
 
-<div class="header-banner">
-  <span>📋 Sistem Digital Pencapaian Kerja SS08 — Sebelum mengisi pastikan menyiapkan lembar register yang sudah berisi nama lengkap, tanggal, dan shift pada setiap kotak bagian nomor batch.</span>
+<!-- Page Loader -->
+<div class="page-loader" id="pageLoader">
+  <div class="loader-spin"></div>
 </div>
 
-<div class="container">
-  <!-- Title Card -->
-  <div class="title-card">
-    <div class="title-card-inner">
-      <h1>Formulir Register Pencapaian Kerja — SS08</h1>
-      <p>Isi formulir ini dengan data yang akurat berdasarkan lembar register Anda. Nama, alamat email, dan foto yang terkirim melalui Akun Google Anda akan direkam saat Anda mengupload file dan mengirimkan formulir ini.</p>
-      <p class="required-note">* Menunjukkan pertanyaan yang wajib diisi</p>
+<!-- Background Blobs -->
+<div class="bg-blobs">
+  <div class="bg-blob bg-blob-1"></div>
+  <div class="bg-blob bg-blob-2"></div>
+  <div class="bg-blob bg-blob-3"></div>
+</div>
+
+<!-- ===== HEADER ===== -->
+<header class="app-header">
+  <div class="header-logo">
+    <div class="header-logo-icon">
+      <svg width="20" height="20" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+      </svg>
+    </div>
+    <div class="header-logo-text">
+      <div class="logo-name">SS08</div>
+      <div class="logo-sub">Pencapaian Kerja</div>
     </div>
   </div>
-
-  <form id="mainForm" novalidate>
-
-    <!-- Tanggal Carian -->
-    <div class="form-card" id="card-tanggal_carian">
-      <label class="field-label" for="tanggal_carian">Tanggal Carian <span class="required">*</span></label>
-      <p class="field-hint">Diisi berdasarkan tanggal carian PB</p>
-      <input type="date" id="tanggal_carian" name="tanggal_carian" class="form-input" required>
-      <div class="field-error" id="err-tanggal_carian">
-        <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-        Pertanyaan ini wajib diisi
-      </div>
-    </div>
-
-    <!-- Tanggal Pengerjaan -->
-    <div class="form-card" id="card-tanggal_pengerjaan">
-      <label class="field-label" for="tanggal_pengerjaan">Tanggal Pengerjaan <span class="required">*</span></label>
-      <p class="field-hint">Diisi berdasarkan tanggal pengerjaan</p>
-      <input type="date" id="tanggal_pengerjaan" name="tanggal_pengerjaan" class="form-input" required>
-      <div class="field-error" id="err-tanggal_pengerjaan">
-        <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-        Pertanyaan ini wajib diisi
-      </div>
-    </div>
-
-    <!-- Nama -->
-    <div class="form-card" id="card-nama">
-      <label class="field-label" for="nama">Nama <span class="required">*</span></label>
-      <select id="nama" name="nama" class="form-select" required>
-        <option value="">-- Pilih Nama --</option>
-        <option>RIZKI HASIAN OKTAMA</option>
-        <option>FAJAR HIDAYAT</option>
-        <option>DANIEL GAMAINO</option>
-        <option>JAKY</option>
-        <option>MULYAWAN</option>
-        <option>RENDY</option>
-        <option>M. ILHAM KURNIAWAN</option>
-        <option>M JAYAN IHSANUL AMAL</option>
-        <option>ARES SETIADI</option>
-        <option>SAMBA SUMIRAT</option>
-        <option>ANDI NURMAWAN</option>
-        <option>RAFLI SAEPUL ANWAR</option>
-        <option>ANDRI SETIAWAN</option>
-        <option>RIZKY AGUNG</option>
-        <option>DENI SEPTIAWAN</option>
-        <option>AZHAR</option>
-        <option>MUHAMAD RISAM ALKAELANI</option>
-        <option>RIDWAN NUGRAHA</option>
-        <option>ERZY MAULANA SAPUTRA</option>
-        <option>DERA ARI SANJAYA</option>
-        <option>MUCHAMAD FIRDAUS</option>
-        <option>AZIS</option>
-        <option>AGUNG NUGRAHA</option>
-        <option>AHMAD HIDAYAT</option>
-        <option>MUHAMMAD IRVANI</option>
-        <option>YUZAR HAEKALSA RAJAB</option>
-        <option>ADAM JULIANTO</option>
-        <option>MUHAMMAD REVY FARIZQY</option>
-        <option>TEZAR MAULANA</option>
-        <option>ALDI TRIANA</option>
-        <option>BAGUS MAULANA YUSUP</option>
-        <option>ARVIN KUSMARDIYANA</option>
-        <option>CEPTIANA HIDAYAT</option>
-        <option>ADI SEPTIAN</option>
-        <option>PARIL IRWANSAH</option>
-        <option>HAMDAN RAMDANI</option>
-        <option>AHMAD MIFTAH MUTAQIN</option>
-        <option>RIKI</option>
-        <option>LUTFI ABDUL AZIZ</option>
-        <option>SYAHRUL NUGRAHA</option>
-        <option>MIRWANSYAH</option>
-        <option>RENO MAULANA</option>
-        <option>MUHAMAD AHSANU NADYYA</option>
-        <option>DILAN ADRIANSYAH</option>
-        <option>WISNU NUGRAHA</option>
-        <option>MUHAMMAD DAFFA ALFAZRI</option>
-        <option>CHAIRUL YOGASWARA</option>
-        <option>MUHAMAD IRGI FAUZI</option>
-        <option>DASEP SAEPUDIN</option>
-        <option>MUHAMMAD RAMDAN</option>
-        <option>DIAN PERMANA</option>
-        <option>RENALDI AGUSTIANA</option>
-        <option>AHWAL KUSUMAH</option>
-        <option>MUHAMAD SALMAN ALFARISI</option>
-        <option>MUHAMMAD AKBAR SAPUTRA</option>
-        <option>BAGAS ADITIA PRAMUDITA</option>
-        <option>AWIGS PRASTYO</option>
-        <option>NOVAL SANDIKA</option>
-        <option>INDRA SUKMANA</option>
-        <option>ARIS FIRMANSYAH</option>
-        <option>SAMSUL ARIFIN</option>
-        <option>MUHAMMAD ARYA YUDA</option>
-        <option>INDRA JAYA KUSUMAH</option>
-        <option>DARMANSYAH</option>
-        <option>MUHAMAD NURDIANSYAH</option>
-        <option>DESTIAN FIRDAUS</option>
-        <option>MUHAMAD RAMDANI</option>
-      </select>
-      <div class="field-error" id="err-nama">
-        <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-        Pertanyaan ini wajib diisi
-      </div>
-    </div>
-
-    <!-- Posisi -->
-    <div class="form-card" id="card-posisi">
-      <label class="field-label" for="posisi">Posisi <span class="required">*</span></label>
-      <select id="posisi" name="posisi" class="form-select" required>
-        <option value="">-- Pilih Posisi --</option>
-        <option>Picker</option>
-        <option>Sorter</option>
-        <option>Loader</option>
-      </select>
-      <div class="field-error" id="err-posisi">
-        <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-        Pertanyaan ini wajib diisi
-      </div>
-    </div>
-
-    <!-- Tipe Lokasi -->
-    <div class="form-card" id="card-tipe_lokasi">
-      <label class="field-label" for="tipe_lokasi">Tipe Lokasi <span class="required">*</span></label>
-      <select id="tipe_lokasi" name="tipe_lokasi" class="form-select" required>
-        <option value="">-- Pilih Tipe Lokasi --</option>
-        <option>Chiller (R)</option>
-        <option>Freezer (F)</option>
-        <option>Ambient (T)</option>
-        <option>Loading Dock</option>
-      </select>
-      <div class="field-error" id="err-tipe_lokasi">
-        <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-        Pertanyaan ini wajib diisi
-      </div>
-    </div>
-
-    <!-- Zona -->
-    <div class="form-card" id="card-zona">
-      <label class="field-label" for="zona">Zona <span class="required">*</span></label>
-      <p class="field-hint">Picker dan Sorter diisi sesuai dengan Zona, dan Loader diisi dengan Loading Dock</p>
-      <select id="zona" name="zona" class="form-select" required>
-        <option value="">-- Pilih Zona --</option>
-        <option>F1</option>
-        <option>R1</option>
-        <option>R2</option>
-        <option>R3</option>
-        <option>T1</option>
-        <option>T2</option>
-        <option>T3</option>
-        <option>T4</option>
-        <option>T5</option>
-        <option>Loading Dock</option>
-      </select>
-      <div class="field-error" id="err-zona">
-        <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-        Pertanyaan ini wajib diisi
-      </div>
-    </div>
-
-    <!-- Batch / Cluster -->
-    <div class="form-card" id="card-batch">
-      <div class="field-label">Batch / Cluster <span class="required">*</span></div>
-      <p class="field-hint">Picker dan Sorter diisi dengan batch. Loader diisi sesuai dengan pengerjaan Cluster.</p>
-      <div class="batch-actions">
-        <button type="button" class="batch-btn select-all" onclick="selectAllBatch()">Pilih Semua</button>
-        <button type="button" class="batch-btn clear-all" onclick="clearAllBatch()">Hapus Semua</button>
-        <div class="selected-count">Dipilih: <span id="selectedCount">0</span></div>
-      </div>
-      <div class="batch-section" id="batchSection">
-        <!-- Angka 1-23 -->
-        <div class="batch-group">
-          <div class="batch-group-label">Angka</div>
-          <div class="batch-grid" id="grid-angka"></div>
-        </div>
-        <!-- BOG -->
-        <div class="batch-group">
-          <div class="batch-group-label">BOG</div>
-          <div class="batch-grid" id="grid-bog"></div>
-        </div>
-        <!-- BOY -->
-        <div class="batch-group">
-          <div class="batch-group-label">BOY</div>
-          <div class="batch-grid" id="grid-boy"></div>
-        </div>
-        <!-- CJR -->
-        <div class="batch-group">
-          <div class="batch-group-label">CJR</div>
-          <div class="batch-grid" id="grid-cjr"></div>
-        </div>
-        <!-- KWG -->
-        <div class="batch-group">
-          <div class="batch-group-label">KWG</div>
-          <div class="batch-grid" id="grid-kwg"></div>
-        </div>
-        <!-- PRN -->
-        <div class="batch-group">
-          <div class="batch-group-label">PRN</div>
-          <div class="batch-grid" id="grid-prn"></div>
-        </div>
-        <!-- Special -->
-        <div class="batch-group batch-special">
-          <div class="batch-group-label">Lainnya</div>
-          <div class="batch-grid" id="grid-special"></div>
+  <div class="header-right">
+    <div class="header-user">
+      <div class="header-avatar" id="headerAvatar">?</div>
+      <div class="header-user-info">
+        <div class="header-user-name" id="headerName">Memuat...</div>
+        <div>
+          <span class="header-posisi-badge" id="headerPosisiBadge">—</span>
         </div>
       </div>
-      <div class="field-error" id="err-batch">
-        <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-        Pilih minimal satu batch/cluster
+    </div>
+    <button class="btn-logout" onclick="logout()">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+      </svg>
+      Keluar
+    </button>
+  </div>
+</header>
+
+<!-- ===== TABS BAR ===== -->
+<div class="tabs-bar">
+  <button class="tab-btn active-purple" id="tab-picker" onclick="switchTab('picker')">
+    <span class="tab-icon">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/>
+      </svg>
+    </span>
+    Entry Picker &amp; Sorter
+  </button>
+  <button class="tab-btn" id="tab-loader" onclick="switchTab('loader')">
+    <span class="tab-icon">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h11a2 2 0 012 2v3m-6 12a2 2 0 002 2h6a2 2 0 002-2v-7a2 2 0 00-2-2h-6a2 2 0 00-2 2v7z"/>
+      </svg>
+    </span>
+    Entry Loader
+  </button>
+</div>
+
+<!-- ============================= TAB 1: PICKER & SORTER ============================= -->
+<div class="tab-panel active" id="panel-picker">
+  <div class="container">
+
+    <div class="section-intro">
+      <div class="section-intro-inner">
+        <h1>Entry Picker &amp; Sorter</h1>
+        <p>Isi formulir ini dengan data yang akurat berdasarkan lembar register Anda. Nama Anda otomatis diisi sesuai akun yang login.</p>
+        <p class="required-note">* Menunjukkan pertanyaan yang wajib diisi</p>
       </div>
     </div>
 
-    <!-- Jumlah Output Per Batch -->
-    <div class="form-card" id="card-jumlah_output">
-      <div class="field-label">Jumlah Output per Batch <span class="required">*</span></div>
-      <p class="field-hint">Isi jumlah output untuk setiap batch yang Anda kerjakan. Picker: pcs, Sorter/Loader: kontainer/rps.</p>
+    <form id="pickerForm" novalidate>
 
-      <!-- Dynamic per-batch output rows -->
-      <div id="batchOutputList">
-        <div class="batch-output-empty" id="batchOutputEmpty">Pilih batch terlebih dahulu untuk mengisi jumlah output.</div>
+      <!-- Tanggal Row -->
+      <div class="form-card">
+        <div class="form-row">
+          <div>
+            <label class="field-label" for="ps_tanggal_carian">Tanggal Carian <span class="required">*</span></label>
+            <p class="field-hint">Berdasarkan tanggal carian PB</p>
+            <input type="date" id="ps_tanggal_carian" class="form-input" required>
+            <div class="field-error" id="err-ps_tanggal_carian">
+              <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+              Wajib diisi
+            </div>
+          </div>
+          <div>
+            <label class="field-label" for="ps_tanggal_pengerjaan">Tanggal Pengerjaan <span class="required">*</span></label>
+            <p class="field-hint">Tanggal Anda mengerjakan</p>
+            <input type="date" id="ps_tanggal_pengerjaan" class="form-input" required>
+            <div class="field-error" id="err-ps_tanggal_pengerjaan">
+              <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+              Wajib diisi
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="field-error" id="err-jumlah_output" style="margin-top:8px;">
-        <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-        <span id="errOutputMsg">Isi jumlah output untuk setiap batch yang dipilih</span>
+      <!-- Nama (readonly) -->
+      <div class="form-card">
+        <div class="field-label">Nama</div>
+        <p class="field-hint">Nama Anda otomatis diisi berdasarkan akun yang sedang login.</p>
+        <div class="name-display">
+          <div class="nd-avatar" id="psNamaAvatar">?</div>
+          <div>
+            <div class="nd-name" id="psNamaDisplay">Memuat...</div>
+            <div class="nd-locked">
+              <svg width="11" height="11" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
+              Tidak dapat diubah
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <!-- Lembar Register (File Upload) -->
-    <div class="form-card">
-      <div class="field-label">Lembar Register</div>
-      <p class="field-hint">Upload maksimum 5 file yang diizinkan: drawing atau image. Maks 10 MB per file.</p>
-      <div class="file-drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-        <div class="upload-icon">
-          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M4 16l4-4 4 4 4-8 4 8"/>
-            <path d="M3 21h18M3 3h18"/>
+      <!-- Posisi -->
+      <div class="form-card">
+        <label class="field-label" for="ps_posisi">Posisi <span class="required">*</span></label>
+        <select id="ps_posisi" class="form-select" required>
+          <option value="">-- Pilih Posisi --</option>
+          <option>Picker</option>
+          <option>Sorter</option>
+        </select>
+        <div class="field-error" id="err-ps_posisi">
+          <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+          Wajib diisi
+        </div>
+      </div>
+
+      <!-- Tipe Lokasi -->
+      <div class="form-card">
+        <label class="field-label" for="ps_tipe_lokasi">Tipe Lokasi <span class="required">*</span></label>
+        <select id="ps_tipe_lokasi" class="form-select" required>
+          <option value="">-- Pilih Tipe Lokasi --</option>
+          <option>Chiller (R)</option>
+          <option>Freezer (F)</option>
+          <option>Ambient (T)</option>
+          <option>Loading Dock</option>
+        </select>
+        <div class="field-error" id="err-ps_tipe_lokasi">
+          <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+          Wajib diisi
+        </div>
+      </div>
+
+      <!-- Zona -->
+      <div class="form-card">
+        <label class="field-label" for="ps_zona">Zona <span class="required">*</span></label>
+        <p class="field-hint">Diisi sesuai zona pengerjaan Anda</p>
+        <select id="ps_zona" class="form-select" required>
+          <option value="">-- Pilih Zona --</option>
+          <option>F1</option>
+          <option>R1</option>
+          <option>R2</option>
+          <option>R3</option>
+          <option>T1</option>
+          <option>T2</option>
+          <option>T3</option>
+          <option>T4</option>
+          <option>T5</option>
+          <option>Loading Dock</option>
+        </select>
+        <div class="field-error" id="err-ps_zona">
+          <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+          Wajib diisi
+        </div>
+      </div>
+
+      <!-- Batch -->
+      <div class="form-card">
+        <div class="field-label">Batch <span class="required">*</span></div>
+        <p class="field-hint">Pilih batch yang Anda kerjakan</p>
+        <div class="batch-actions">
+          <button type="button" class="batch-btn select-all" onclick="psSelectAll()">Pilih Semua</button>
+          <button type="button" class="batch-btn clear-all" onclick="psClearAll()">Hapus Semua</button>
+          <div class="selected-count">Dipilih: <span id="psSelectedCount">0</span></div>
+        </div>
+        <div id="psBatchPlaceholder" class="batch-output-empty" style="margin-bottom: 12px;">
+          Pilih Tanggal Carian, Posisi, dan Zona terlebih dahulu untuk memuat daftar batch.
+        </div>
+        <div class="batch-section" id="psBatchSection" style="display: none;">
+          <div class="batch-group">
+            <div class="batch-group-label">Angka</div>
+            <div class="batch-grid" id="ps-grid-angka"></div>
+          </div>
+          <div class="batch-group">
+            <div class="batch-group-label">BDG</div>
+            <div class="batch-grid" id="ps-grid-BDG"></div>
+          </div>
+          <div class="batch-group">
+            <div class="batch-group-label">BDY</div>
+            <div class="batch-grid" id="ps-grid-BDY"></div>
+          </div>
+          <div class="batch-group">
+            <div class="batch-group-label">CJR</div>
+            <div class="batch-grid" id="ps-grid-cjr"></div>
+          </div>
+          <div class="batch-group">
+            <div class="batch-group-label">KWG</div>
+            <div class="batch-grid" id="ps-grid-kwg"></div>
+          </div>
+          <div class="batch-group">
+            <div class="batch-group-label">PBN</div>
+            <div class="batch-grid" id="ps-grid-PBN"></div>
+          </div>
+          <div class="batch-group batch-special">
+            <div class="batch-group-label">Lainnya</div>
+            <div class="batch-grid" id="ps-grid-special"></div>
+          </div>
+        </div>
+        <div class="field-error" id="err-ps_batch">
+          <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+          Pilih minimal satu batch
+        </div>
+      </div>
+
+      <!-- Jumlah Output Per Batch -->
+      <div class="form-card">
+        <div class="field-label">Jumlah Output per Batch <span class="required">*</span></div>
+        <p class="field-hint">Isi jumlah output untuk setiap batch yang dikerjakan. Picker: pcs, Sorter: kontainer.</p>
+        <div id="psBatchOutputList">
+          <div class="batch-output-empty" id="psBatchOutputEmpty">Pilih batch terlebih dahulu untuk mengisi jumlah output.</div>
+        </div>
+        <div class="field-error" id="err-ps_jumlah_output" style="margin-top:8px;">
+          <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+          <span id="psErrOutputMsg">Isi jumlah output untuk minimal satu batch</span>
+        </div>
+      </div>
+
+      <!-- Lembar Register -->
+      <div class="form-card">
+        <div class="field-label">Lembar Register</div>
+        <p class="field-hint">Upload foto lembar register Anda. Maks 5 file, 10MB per file.</p>
+        <div class="file-drop-zone" id="psDropZone" onclick="document.getElementById('psFileInput').click()">
+          <div class="upload-icon">
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M4 16l4-4 4 4 4-8 4 8"/><path d="M3 21h18M3 3h18"/>
+            </svg>
+          </div>
+          <p><span class="upload-link">Klik untuk upload</span> atau drag &amp; drop di sini</p>
+          <small>JPG, PNG, GIF, WEBP, PDF — Maks 10MB per file, 5 file</small>
+        </div>
+        <input type="file" id="psFileInput" multiple accept="image/*,.pdf" style="display:none">
+        <div class="file-list" id="psFileList"></div>
+      </div>
+
+
+      <!-- Catatan -->
+      <div class="form-card">
+        <label class="field-label" for="ps_catatan">Catatan Tambahan <span class="required" id="psCatatanRequiredAsterisk" style="display:none;">*</span></label>
+        <textarea id="ps_catatan" class="form-textarea" placeholder="Catatan opsional..."></textarea>
+      </div>
+
+      <!-- Submit -->
+      <div class="form-card">
+        <div class="form-actions">
+          <button type="submit" class="btn-submit" id="psSubmitBtn">
+            <span class="btn-text">Kirim Formulir</span>
+            <div class="spinner"></div>
+          </button>
+          <button type="button" class="btn-clear" onclick="psClearForm()">Kosongkan</button>
+        </div>
+      </div>
+
+    </form>
+
+    <!-- Success Screen -->
+    <div class="form-card" id="psSuccessCard" style="display:none;">
+      <div class="success-screen visible">
+        <div class="success-icon-wrap">
+          <svg width="36" height="36" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
           </svg>
         </div>
-        <p><span class="upload-link">Klik untuk upload</span> atau drag & drop file di sini</p>
-        <small>JPG, PNG, GIF, BMP, WEBP — Max 10MB per file, max 5 file</small>
-      </div>
-      <input type="file" id="fileInput" name="lembar_register" multiple accept="image/*,.pdf" style="display:none">
-      <div class="file-list" id="fileList"></div>
-    </div>
-
-    <!-- Catatan Tambahan -->
-    <div class="form-card">
-      <label class="field-label" for="catatan_tambahan">Catatan Tambahan</label>
-      <textarea id="catatan_tambahan" name="catatan_tambahan" class="form-textarea" placeholder="Jawaban Anda..."></textarea>
-    </div>
-
-    <!-- Submit -->
-    <div class="form-card">
-      <div class="form-actions">
-        <button type="submit" class="btn-submit" id="submitBtn">
-          <span class="btn-text">Kirim</span>
-          <div class="spinner"></div>
-        </button>
-        <button type="button" class="btn-clear" onclick="clearForm()">Kosongkan Formulir</button>
+        <h2>Formulir Berhasil Dikirim! 🎉</h2>
+        <p>Data Anda telah tersimpan dengan baik. Terima kasih telah mengisi formulir Pencapaian Kerja SS08.</p>
+        <button class="btn-new-form" onclick="psResetToForm()">Isi Formulir Baru</button>
       </div>
     </div>
 
-  </form>
-
-  <!-- Success Screen (di luar form agar tidak ikut hidden saat form disembunyikan) -->
-  <div class="form-card" id="successCard" style="display:none;">
-    <div class="success-screen visible">
-      <div class="success-icon">
-        <svg width="40" height="40" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-        </svg>
-      </div>
-      <h2>Formulir Berhasil Dikirim!</h2>
-      <p>Data Anda telah tersimpan. Terima kasih telah mengisi formulir Register Pencapaian Kerja SS08.</p>
-      <button class="btn-new-form" onclick="resetToForm()">Isi Formulir Baru</button>
-    </div>
   </div>
+</div><!-- end panel-picker -->
 
-</div>
+
+<!-- ============================= TAB 2: ENTRY LOADER ============================= -->
+<div class="tab-panel" id="panel-loader">
+  <div class="container">
+
+    <div class="section-intro blue-accent">
+      <div class="section-intro-inner">
+        <h1>Entry Loader</h1>
+        <p>Formulir pencatatan pengiriman Loader. Pilih cluster yang dikerjakan dan isi jumlah kontainer per cluster serta non-group.</p>
+        <p class="required-note">* Menunjukkan pertanyaan yang wajib diisi</p>
+      </div>
+    </div>
+
+    <form id="loaderForm" novalidate>
+
+      <!-- Tanggal Row -->
+      <div class="form-card blue-card">
+        <div class="form-row">
+          <div>
+            <label class="field-label" for="ld_tanggal_carian">Tanggal Carian <span class="required">*</span></label>
+            <p class="field-hint">Tanggal carian PB</p>
+            <input type="date" id="ld_tanggal_carian" class="form-input blue" required>
+            <div class="field-error" id="err-ld_tanggal_carian">
+              <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+              Wajib diisi
+            </div>
+          </div>
+          <div>
+            <label class="field-label" for="ld_tanggal_kirim">Tanggal Kirim <span class="required">*</span></label>
+            <p class="field-hint">Tanggal pengiriman</p>
+            <input type="date" id="ld_tanggal_kirim" class="form-input blue" required>
+            <div class="field-error" id="err-ld_tanggal_kirim">
+              <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+              Wajib diisi
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cluster Picker -->
+      <div class="form-card blue-card">
+        <label class="field-label" for="ld_cluster_picker">Cluster (Tipe Zona) <span class="required">*</span></label>
+        <p class="field-hint">Pilih cluster yang Anda kerjakan hari ini</p>
+        <select id="ld_cluster_picker" class="form-select blue" required>
+          <option value="">-- Pilih Cluster --</option>
+          <option value="FREZZER">FREZZER (F1)</option>
+          <option value="CHILLER">CHILLER (R1, R2, R3)</option>
+          <option value="AMBIENT">AMBIENT (T1-T5)</option>
+        </select>
+        <div class="field-error" id="err-ld_cluster_picker">
+          <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+          Wajib diisi
+        </div>
+      </div>
+
+      <!-- Section: Daftar Armada (Trucks) -->
+      <div id="ldArmadaSection" style="display:none; margin-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; margin-top: 8px;">
+          <label class="field-label" style="margin: 0; font-size: 14px; font-weight: 700; color: var(--accent-blue-dark);">Daftar Armada (No. Polisi & Muatan) <span class="required">*</span></label>
+          <button type="button" class="btn-add-armada" onclick="ldAddArmada()">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20" style="vertical-align: middle;"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+            Tambah Armada
+          </button>
+        </div>
+        <div id="ldArmadaListContainer"></div>
+      </div>
+
+      <!-- Jumlah Kontainer per Cluster Terpilih (auto-loaded) -->
+      <div class="form-card blue-card" id="ldCapacityCard" style="display:none;">
+        <div class="field-label">Target Kontainer (dari Data Carian)</div>
+        <p class="field-hint">Total kontainer yang harus dimuat berdasarkan data carian yang diupload</p>
+        <div id="ldCapacityLoading" style="display: none; align-items: center; justify-content: center; gap: 12px; padding: 24px; background: rgba(14,165,233,0.04); border: 2px dashed rgba(14,165,233,0.2); border-radius: 14px; margin-top: 4px;">
+          <div class="tc-spinner"></div>
+          <span style="font-size: 14px; font-weight: 600; color: var(--accent-blue-dark);">Memuat target kontainer...</span>
+        </div>
+        <div id="ldCapacityInfo" class="total-kontainer-card">
+          <div>
+            <div class="tc-label" id="ldCapacityClusterLabel">Cluster</div>
+            <div class="tc-unit">Total dari data carian</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="tc-value" id="ldCapacityValue">0</div>
+            <div class="tc-unit">kontainer</div>
+          </div>
+        </div>
+        <div id="ldCapacityDetails" class="tc-details-list" style="display:none;"></div>
+      </div>
+
+      <!-- Input Jumlah Kontainer Aktual -->
+      <div class="form-card blue-card">
+        <div class="field-label">Jumlah Kontainer Aktual <span class="required">*</span></div>
+        <p class="field-hint">Masukkan total kontainer yang berhasil dimuat. Harus sesuai dengan target kapasitas.</p>
+        <div class="batch-output-empty" id="ldClusterOutputEmpty">Pilih Tanggal Carian dan Cluster terlebih dahulu.</div>
+        <div id="ldClusterOutputList"></div>
+        <div class="field-error" id="err-ld_kontainer">
+          <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+          <span id="ldErrKontainerMsg">Isi jumlah kontainer aktual</span>
+        </div>
+      </div>
+
+      <!-- Non-Group -->
+      <div class="form-card blue-card">
+        <div class="field-label">Non-Group</div>
+        <p class="field-hint">Isi jumlah kontainer untuk item non-cluster (jika ada)</p>
+        <div class="non-group-grid">
+          <div class="non-group-item">
+            <div class="non-group-label">Gacoan</div>
+            <div class="non-group-row">
+              <input type="number" class="non-group-input" id="ld_gacoan" value="0" min="0" oninput="ldUpdateTotal()">
+              <span class="non-group-unit">kontainer</span>
+            </div>
+          </div>
+          <div class="non-group-item">
+            <div class="non-group-label">Dikichi</div>
+            <div class="non-group-row">
+              <input type="number" class="non-group-input" id="ld_dikichi" value="0" min="0" oninput="ldUpdateTotal()">
+              <span class="non-group-unit">kontainer</span>
+            </div>
+          </div>
+          <div class="non-group-item">
+            <div class="non-group-label">Benfarm</div>
+            <div class="non-group-row">
+              <input type="number" class="non-group-input" id="ld_benfarm" value="0" min="0" oninput="ldUpdateTotal()">
+              <span class="non-group-unit">kontainer</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Total Kontainer -->
+      <div class="form-card blue-card">
+        <div class="field-label">Total Kontainer</div>
+        <p class="field-hint">Dihitung otomatis dari semua cluster + non-group</p>
+        <div class="total-kontainer-card">
+          <div>
+            <div class="tc-label">Total Kontainer</div>
+            <div class="tc-unit">Cluster + Non-Group</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="tc-value" id="ldTotalKontainer">0</div>
+            <div class="tc-unit">kontainer</div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- Lembar Register (Loader) -->
+      <div class="form-card blue-card">
+        <div class="field-label">Lembar Register</div>
+        <p class="field-hint">Upload foto lembar register Anda. Maks 5 file, 10MB per file.</p>
+        <div class="file-drop-zone" id="ldDropZone" onclick="document.getElementById('ldFileInput').click()" style="border-color: var(--accent-blue); background: rgba(14,165,233,0.03);">
+          <div class="upload-icon">
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M4 16l4-4 4 4 4-8 4 8"/><path d="M3 21h18M3 3h18"/>
+            </svg>
+          </div>
+          <p><span class="upload-link">Klik untuk upload</span> atau drag &amp; drop di sini</p>
+          <small>JPG, PNG, GIF, WEBP, PDF — Maks 10MB per file, 5 file</small>
+        </div>
+        <input type="file" id="ldFileInput" multiple accept="image/*,.pdf" style="display:none">
+        <div class="file-list" id="ldFileList"></div>
+      </div>
+
+      <!-- Catatan -->
+      <div class="form-card blue-card">
+        <label class="field-label" for="ld_catatan">Catatan <span class="required" id="ldCatatanRequiredAsterisk" style="display:none;">*</span></label>
+        <textarea id="ld_catatan" class="form-textarea blue" placeholder="Catatan opsional..."></textarea>
+      </div>
+
+      <!-- Submit -->
+      <div class="form-card blue-card">
+        <div class="form-actions">
+          <button type="submit" class="btn-submit blue" id="ldSubmitBtn">
+            <span class="btn-text">Kirim Entry Loader</span>
+            <div class="spinner"></div>
+          </button>
+          <button type="button" class="btn-clear" onclick="ldClearForm()" style="border-color:var(--accent-blue);color:var(--accent-blue);">Kosongkan</button>
+        </div>
+      </div>
+
+    </form>
+
+  </div>
+</div><!-- end panel-loader -->
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
 <script>
-  // ============= BATCH GENERATION =============
-  function pad(n) { return String(n).padStart(2, '0'); }
+const formatNum = (v) => (v !== null && v !== undefined && !isNaN(v)) ? Number(v).toLocaleString('id-ID') : '0';
 
-  function renderBatchGroup(containerId, items) {
-    const container = document.getElementById(containerId);
-    items.forEach(item => {
-      const div = document.createElement('div');
-      div.className = 'batch-item';
-      const id = 'batch_' + item.replace(/\s/g, '_');
-      div.innerHTML = `
-        <input type="checkbox" id="${id}" name="batch_cluster" value="${item}" onchange="updateCount()">
-        <label for="${id}">${item}</label>
-      `;
-      container.appendChild(div);
+// ===================== AUTH =====================
+let currentUser = null;
+
+async function initAuth() {
+  try {
+    const r = await fetch('/api/check-auth');
+    const auth = await r.json();
+    if (!auth.authenticated) { window.location.href = '/login'; return; }
+    if (auth.role === 'admin') { window.location.href = '/admin'; return; }
+    currentUser = auth;
+    populateUserUI();
+  } catch(e) {
+    window.location.href = '/login';
+  } finally {
+    document.getElementById('pageLoader').classList.add('hidden');
+    setTimeout(() => document.getElementById('pageLoader').remove(), 400);
+  }
+}
+
+function getInitials(name) {
+  if (!name) return '?';
+  return name.trim().split(/\s+/).slice(0,2).map(w => w[0]).join('').toUpperCase();
+}
+
+function populateUserUI() {
+  const u = currentUser;
+  const initials = getInitials(u.nama_lengkap);
+  document.getElementById('headerAvatar').textContent = initials;
+  document.getElementById('headerName').textContent = u.nama_lengkap || '—';
+
+  const badge = document.getElementById('headerPosisiBadge');
+  badge.textContent = u.posisi || '—';
+  if (u.posisi) {
+    const p = u.posisi.toLowerCase();
+    badge.classList.add(p === 'picker' ? 'picker' : p === 'sorter' ? 'sorter' : 'loader');
+  }
+
+  // Tab 1 - name display
+  document.getElementById('psNamaAvatar').textContent = initials;
+  document.getElementById('psNamaDisplay').textContent = u.nama_lengkap || '—';
+
+  // Pre-select posisi if available
+  if (u.posisi && (u.posisi === 'Picker' || u.posisi === 'Sorter')) {
+    const sel = document.getElementById('ps_posisi');
+    for (let opt of sel.options) {
+      if (opt.value === u.posisi) { opt.selected = true; break; }
+    }
+    psBatchCapacityCache = {};
+    schedulePsRender();
+  }
+}
+
+async function logout() {
+  try { await fetch('/api/logout', { method: 'POST' }); } catch(e) {}
+  window.location.href = '/login';
+}
+
+// ===================== TABS =====================
+function switchTab(tab) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.remove('active-purple', 'active-blue');
+  });
+  if (tab === 'picker') {
+    document.getElementById('panel-picker').classList.add('active');
+    document.getElementById('tab-picker').classList.add('active-purple');
+  } else {
+    document.getElementById('panel-loader').classList.add('active');
+    document.getElementById('tab-loader').classList.add('active-blue');
+  }
+}
+// Init tab-loader with no active class
+document.getElementById('tab-loader').classList.remove('active-purple');
+
+// ===================== BATCH GENERATION =====================
+function pad(n) { return String(n).padStart(2, '0'); }
+
+function renderBatchGroup(containerId, items, chipClass = '') {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  items.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'batch-item' + (chipClass ? ' ' + chipClass : '');
+    const id = containerId + '_' + item.replace(/\s/g, '_');
+    div.innerHTML = `
+      <input type="checkbox" id="${id}" value="${item}">
+      <label for="${id}">${item}</label>
+    `;
+    container.appendChild(div);
+  });
+}
+
+// --- TAB 1 batches ---
+const angka   = Array.from({length: 23}, (_, i) => String(i + 1));
+const BDGArr  = Array.from({length: 35}, (_, i) => 'BDG' + pad(i + 1));
+const BDYArr  = Array.from({length: 21}, (_, i) => 'BDY' + pad(i + 1));
+const cjrArr  = Array.from({length: 27}, (_, i) => 'CJR' + pad(i + 1));
+const kwgArr  = Array.from({length: 32}, (_, i) => 'KWG' + pad(i + 1));
+const PBNArr  = Array.from({length: 24}, (_, i) => 'PBN' + pad(i + 1));
+const special = ['Gacoan', 'Lainnya'];
+
+renderBatchGroup('ps-grid-angka', angka);
+renderBatchGroup('ps-grid-BDG',   BDGArr);
+renderBatchGroup('ps-grid-BDY',   BDYArr);
+renderBatchGroup('ps-grid-cjr',   cjrArr);
+renderBatchGroup('ps-grid-kwg',   kwgArr);
+renderBatchGroup('ps-grid-PBN',   PBNArr);
+renderBatchGroup('ps-grid-special', special);
+
+// --- TAB 2: ld-grid tidak dipakai lagi (cluster dipilih via dropdown) ---
+
+// Helper to get checked values from a section
+function getChecked(sectionId) {
+  return Array.from(document.querySelectorAll(`#${sectionId} input[type="checkbox"]:checked`)).map(cb => cb.value);
+}
+
+// ===================== TAB 1: PICKER/SORTER LOGIC =====================
+let psBatchCapacityCache = {};
+let psRenderTimeout = null;
+let psRenderGen = 0;
+let psSelectedFiles = [];
+
+let psCatatanRequired = false;
+
+function psUpdateCount() {
+  const c = getChecked('psBatchSection').length;
+  document.getElementById('psSelectedCount').textContent = c;
+  schedulePsRender();
+}
+function psSelectAll() {
+  document.querySelectorAll('#psBatchSection input[type="checkbox"]').forEach(cb => {
+    const item = cb.closest('.batch-item');
+    if (item && item.style.display !== 'none') {
+      cb.checked = true;
+    }
+  });
+  psUpdateCount();
+}
+function psClearAll() {
+  document.querySelectorAll('#psBatchSection input[type="checkbox"]').forEach(cb => cb.checked = false);
+  psUpdateCount();
+}
+
+document.querySelectorAll('#psBatchSection input[type="checkbox"]').forEach(cb => {
+  cb.addEventListener('change', psUpdateCount);
+});
+
+// Mapping Tipe Lokasi to Zona
+const mapTipeLokasiToZona = {
+  'Chiller (R)': ['R1', 'R2', 'R3'],
+  'Freezer (F)': ['F1'],
+  'Ambient (T)': ['T1', 'T2', 'T3', 'T4', 'T5'],
+  'Loading Dock': ['Loading Dock']
+};
+
+// Event listener for Tipe Lokasi change to update Zona options dynamically
+document.getElementById('ps_tipe_lokasi').addEventListener('change', function() {
+  const tipe = this.value;
+  const zonaSelect = document.getElementById('ps_zona');
+  
+  // Clear existing options except the first placeholder option
+  zonaSelect.innerHTML = '<option value="">-- Pilih Zona --</option>';
+  
+  if (tipe && mapTipeLokasiToZona[tipe]) {
+    mapTipeLokasiToZona[tipe].forEach(zona => {
+      const opt = document.createElement('option');
+      opt.value = zona;
+      opt.textContent = zona;
+      zonaSelect.appendChild(opt);
+    });
+  } else if (!tipe) {
+    // Fallback if no location type selected: show all zones
+    const allZonas = ['F1', 'R1', 'R2', 'R3', 'T1', 'T2', 'T3', 'T4', 'T5', 'Loading Dock'];
+    allZonas.forEach(zona => {
+      const opt = document.createElement('option');
+      opt.value = zona;
+      opt.textContent = zona;
+      zonaSelect.appendChild(opt);
     });
   }
+  
+  // Reset selected zona value and trigger change event
+  zonaSelect.value = '';
+  zonaSelect.dispatchEvent(new Event('change'));
+});
 
-  // Generate arrays
-  const angka = Array.from({length: 23}, (_, i) => String(i + 1));
-  const bog = Array.from({length: 35}, (_, i) => 'BOG' + pad(i + 1));
-  const boy = Array.from({length: 21}, (_, i) => 'BOY' + pad(i + 1));
-  const cjr = Array.from({length: 27}, (_, i) => 'CJR' + pad(i + 1));
-  const kwg = Array.from({length: 32}, (_, i) => 'KWG' + pad(i + 1));
-  const prn = Array.from({length: 24}, (_, i) => 'PRN' + pad(i + 1));
-  const special = ['Gacoan', 'Lainnya'];
+// Trigger change event initially to apply correct options on load
+document.getElementById('ps_tipe_lokasi').dispatchEvent(new Event('change'));
 
-  renderBatchGroup('grid-angka', angka);
-  renderBatchGroup('grid-bog', bog);
-  renderBatchGroup('grid-boy', boy);
-  renderBatchGroup('grid-cjr', cjr);
-  renderBatchGroup('grid-kwg', kwg);
-  renderBatchGroup('grid-prn', prn);
-  renderBatchGroup('grid-special', special);
+['ps_posisi','ps_zona','ps_tanggal_carian'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => {
+    psBatchCapacityCache = {};
+    psLoadActiveBatches();
+  });
+});
 
-  // ============= PER-BATCH OUTPUT =============
-  let batchCapacityCache = {}; // {key: capacityData}
-  let batchOutputRenderTimeout = null;
-  let renderGeneration = 0; // tambah ini: untuk cegah race condition
+async function psLoadActiveBatches() {
+  const tanggal = document.getElementById('ps_tanggal_carian').value;
+  const posisi  = document.getElementById('ps_posisi').value;
+  const zona    = document.getElementById('ps_zona').value;
+  
+  const section     = document.getElementById('psBatchSection');
+  const placeholder = document.getElementById('psBatchPlaceholder');
 
-  function updateCount() {
-    const checked = document.querySelectorAll('input[name="batch_cluster"]:checked').length;
-    document.getElementById('selectedCount').textContent = checked;
-    scheduleBatchOutputRender();
-  }
-  function selectAllBatch() {
-    document.querySelectorAll('input[name="batch_cluster"]').forEach(cb => cb.checked = true);
-    updateCount();
-  }
-  function clearAllBatch() {
-    document.querySelectorAll('input[name="batch_cluster"]').forEach(cb => cb.checked = false);
-    updateCount();
+  if (!tanggal || !posisi || !zona) {
+    placeholder.style.display = 'block';
+    placeholder.textContent = 'Pilih Tanggal Carian, Posisi, dan Zona terlebih dahulu untuk memuat daftar batch.';
+    section.style.display = 'none';
+    document.querySelectorAll('#psBatchSection input[type="checkbox"]').forEach(cb => cb.checked = false);
+    psUpdateCount();
+    return;
   }
 
-  document.getElementById('posisi').addEventListener('change', () => { batchCapacityCache = {}; scheduleBatchOutputRender(); });
-  document.getElementById('zona').addEventListener('change', () => { batchCapacityCache = {}; scheduleBatchOutputRender(); });
-  document.getElementById('tanggal_carian').addEventListener('change', () => { batchCapacityCache = {}; scheduleBatchOutputRender(); });
+  placeholder.style.display = 'block';
+  placeholder.textContent = 'Memuat daftar batch...';
+  section.style.display = 'none';
 
-  function scheduleBatchOutputRender() {
-    clearTimeout(batchOutputRenderTimeout);
-    batchOutputRenderTimeout = setTimeout(renderBatchOutputRows, 300);
+  try {
+    const r = await fetch(`/api/data-carian?tanggal=${tanggal}`);
+    const records = await r.json();
+    
+    const activeRecords = records.filter(rec => 
+      rec.posisi === posisi && 
+      String(rec.zona).trim().toUpperCase() === String(zona).trim().toUpperCase()
+    );
+
+    if (activeRecords.length === 0) {
+      placeholder.style.display = 'block';
+      placeholder.textContent = `⚠️ Tidak ada data carian untuk tanggal ${tanggal}, posisi ${posisi}, dan zona ${zona}.`;
+      section.style.display = 'none';
+      document.querySelectorAll('#psBatchSection input[type="checkbox"]').forEach(cb => cb.checked = false);
+      psUpdateCount();
+      return;
+    }
+
+    const activeBatches = new Set(activeRecords.map(rec => String(rec.batch).trim()));
+
+    placeholder.style.display = 'none';
+    section.style.display = 'block';
+
+    section.querySelectorAll('.batch-group').forEach(group => {
+      let visibleCount = 0;
+      group.querySelectorAll('.batch-item').forEach(item => {
+        const cb = item.querySelector('input[type="checkbox"]');
+        const batchVal = cb ? String(cb.value).trim() : '';
+        if (activeBatches.has(batchVal)) {
+          item.style.display = 'flex';
+          visibleCount++;
+        } else {
+          item.style.display = 'none';
+          if (cb) cb.checked = false;
+        }
+      });
+
+      if (visibleCount > 0) {
+        group.style.display = 'block';
+      } else {
+        group.style.display = 'none';
+      }
+    });
+
+    psUpdateCount();
+  } catch (err) {
+    console.error('psLoadActiveBatches error:', err);
+    placeholder.style.display = 'block';
+    placeholder.textContent = '❌ Gagal memuat daftar batch dari server.';
+    section.style.display = 'none';
   }
+}
 
-  async function renderBatchOutputRows() {
-    const myGen = ++renderGeneration; // tandai generasi ini
-    const tanggal = document.getElementById('tanggal_carian').value;
-    const posisi = document.getElementById('posisi').value;
-    const zona = document.getElementById('zona').value;
-    const checkedBatches = Array.from(document.querySelectorAll('input[name="batch_cluster"]:checked')).map(cb => cb.value);
-    const list = document.getElementById('batchOutputList');
-    const empty = document.getElementById('batchOutputEmpty');
+function schedulePsRender() {
+  clearTimeout(psRenderTimeout);
+  psRenderTimeout = setTimeout(psRenderBatchOutputRows, 50);
+}
+
+function showOnscreenError(source, err) {
+  console.error(`[ONSCREEN ERROR] ${source}:`, err);
+  const container = document.getElementById('onscreen-error-container') || (() => {
+    const div = document.createElement('div');
+    div.id = 'onscreen-error-container';
+    div.style.position = 'fixed';
+    div.style.bottom = '20px';
+    div.style.left = '20px';
+    div.style.right = '20px';
+    div.style.background = '#FEE2E2';
+    div.style.border = '2px solid #EF4444';
+    div.style.color = '#B91C1C';
+    div.style.padding = '14px';
+    div.style.borderRadius = '8px';
+    div.style.zIndex = '99999';
+    div.style.fontSize = '12px';
+    div.style.fontFamily = 'monospace';
+    div.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)';
+    div.style.maxHeight = '200px';
+    div.style.overflowY = 'auto';
+    div.innerHTML = `<strong>Error in ${source}:</strong> <span id="onscreen-error-msg"></span><button onclick="this.parentElement.remove()" style="margin-left: 10px; background: #EF4444; color: white; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; float: right;">Tutup</button>`;
+    document.body.appendChild(div);
+    return div;
+  })();
+  document.getElementById('onscreen-error-msg').textContent = `${err.name}: ${err.message}\n${err.stack || ''}`;
+}
+
+function psRenderBatchOutputRows() {
+  try {
+    const tanggal = document.getElementById('ps_tanggal_carian').value;
+    const posisi  = document.getElementById('ps_posisi').value;
+    const zona    = document.getElementById('ps_zona').value;
+    const checkedBatches = getChecked('psBatchSection');
+    const list  = document.getElementById('psBatchOutputList');
+    const empty = document.getElementById('psBatchOutputEmpty');
+
+    console.log('[DEBUG PS] Render called:', { tanggal, posisi, zona, checkedCount: checkedBatches.length, checkedBatches });
 
     if (checkedBatches.length === 0) {
-      if (myGen !== renderGeneration) return; // sudah ada render baru, batalkan
-      list.innerHTML = '';
-      list.appendChild(empty);
-      empty.style.display = '';
+      list.querySelectorAll('.batch-output-row').forEach(r => r.remove());
+      if (empty) empty.style.display = '';
+      psCheckOverInput();
       return;
     }
-    empty.style.display = 'none';
 
-    // Fetch capacity for each batch (use cache)
-    const capMap = {};
-    if (tanggal && posisi && zona) {
-      await Promise.all(checkedBatches.map(async batch => {
-        const cacheKey = `${tanggal}|${posisi}|${zona}|${batch}`;
-        if (batchCapacityCache[cacheKey]) {
-          capMap[batch] = batchCapacityCache[cacheKey];
-        } else {
-          try {
-            const r = await fetch(`/api/batch-capacity?tanggal_carian=${tanggal}&posisi=${encodeURIComponent(posisi)}&zona=${encodeURIComponent(zona)}&batch=${encodeURIComponent(batch)}`);
-            const data = await r.json();
-            batchCapacityCache[cacheKey] = data;
-            capMap[batch] = data;
-          } catch(e) { capMap[batch] = null; }
-        }
-      }));
-    }
+    if (empty) empty.style.display = 'none';
 
-    // Setelah await, cek apakah masih generasi terbaru
-    if (myGen !== renderGeneration) return; // ada render baru yang lebih segar, batalkan
+    const checkedSet = new Set(checkedBatches.map(String));
 
-    // Preserve existing input values
-    const existingVals = {};
-    list.querySelectorAll('.bor-input').forEach(inp => {
-      existingVals[inp.dataset.batch] = inp.value;
-    });
-
-    // Render rows
-    list.innerHTML = '';
-    checkedBatches.forEach(batch => {
-      const cap = capMap[batch];
-      const isFull = cap && cap.ada_data_carian && cap.sisa <= 0;
-      const isWarn = cap && cap.ada_data_carian && cap.sisa > 0 && (cap.sudah_diisi / cap.total_output) >= 0.75;
-      const satuan = cap && cap.ada_data_carian ? cap.satuan : '';
-      const pct = cap && cap.ada_data_carian && cap.total_output > 0
-        ? Math.min(100, Math.round((cap.sudah_diisi / cap.total_output) * 100)) : 0;
-      const pfClass = isFull ? 'full' : isWarn ? 'warn' : 'ok';
-
-      let capHtml = '';
-      if (cap && cap.ada_data_carian) {
-        const sisaClass = isFull ? 'full' : isWarn ? 'warn' : 'ok';
-        capHtml = `
-          <div class="bor-cap-info">
-            <span class="cap-chip">Kapasitas: ${cap.total_output.toLocaleString('id-ID')} ${satuan}</span>
-            <span class="cap-chip">Terisi: ${cap.sudah_diisi.toLocaleString('id-ID')}</span>
-            <span class="cap-chip ${sisaClass}">Sisa: ${cap.sisa.toLocaleString('id-ID')}</span>
-          </div>
-          <div class="bor-progress"><div class="bor-progress-fill ${pfClass}" style="width:${pct}%"></div></div>
-        `;
-      } else {
-        capHtml = `<div class="bor-cap-info"><span class="cap-chip" style="background:rgba(0,0,0,0.05);color:#9CA3AF">Belum ada data kapasitas</span></div>`;
+    // Hapus row yang sudah tidak dicheck
+    list.querySelectorAll('.batch-output-row').forEach(row => {
+      const bRow = row.getAttribute('data-batch-row');
+      if (!checkedSet.has(String(bRow))) {
+        console.log('[DEBUG PS] Removing unchecked row:', bRow);
+        row.remove();
       }
-
-      const row = document.createElement('div');
-      row.className = `batch-output-row${isFull ? ' is-full' : ''}`;
-      row.innerHTML = `
-        <div class="bor-header">
-          <span class="bor-badge">Batch ${batch}</span>
-          ${capHtml}
-        </div>
-        <div class="bor-input-row">
-          <input type="number" class="bor-input" data-batch="${batch}" placeholder="Jumlah output..." min="0"
-            value="${existingVals[batch] || ''}" ${isFull ? 'disabled' : ''}
-            oninput="validateBorInput(this)">
-          <span class="bor-satuan">${satuan || (posisi === 'Picker' ? 'pcs' : 'kontainer')}</span>
-        </div>
-        ${isFull ? '<div class="bor-error visible">🚫 Batch ini sudah penuh, tidak bisa diisi.</div>' : '<div class="bor-error"></div>'}
-      `;
-      list.appendChild(row);
     });
-  }
 
-  function validateBorInput(inp) {
-    const batch = inp.dataset.batch;
-    const tanggal = document.getElementById('tanggal_carian').value;
-    const posisi = document.getElementById('posisi').value;
-    const zona = document.getElementById('zona').value;
+    // Cari row yang sudah ada di DOM
+    const existingRowBatches = new Set();
+    list.querySelectorAll('.batch-output-row').forEach(row => {
+      const bRow = row.getAttribute('data-batch-row');
+      if (bRow) existingRowBatches.add(String(bRow));
+    });
+
+    console.log('[DEBUG PS] Existing rows in DOM:', Array.from(existingRowBatches));
+
+    // Tambah row untuk batch yang belum ada
+    checkedBatches.forEach(batch => {
+      if (existingRowBatches.has(String(batch))) {
+        console.log('[DEBUG PS] Batch already exists in DOM, skipping:', batch);
+        return;
+      }
+      console.log('[DEBUG PS] Creating row for batch:', batch);
+      const key = `${tanggal}|${posisi}|${zona}|${batch}`;
+      const cap = psBatchCapacityCache[key];
+      const row = document.createElement('div');
+      row.className = 'batch-output-row';
+      row.setAttribute('data-batch-row', String(batch));
+      row.innerHTML = psBuildRowHtml(batch, cap, posisi, '');
+      list.appendChild(row);
+      
+      if (tanggal && posisi && zona && !cap) {
+        console.log('[DEBUG PS] Fetching capacity for batch:', batch);
+        psFetchCapacity(batch, tanggal, posisi, zona);
+      }
+    });
+
+    psCheckOverInput();
+  } catch (err) {
+    showOnscreenError('psRenderBatchOutputRows', err);
+  }
+}
+
+function psBuildRowHtml(batch, cap, posisi, existingVal) {
+  try {
+    const isFull = cap && cap.ada_data_carian && cap.sisa <= 0;
+    const isWarn = cap && cap.ada_data_carian && cap.sisa > 0 && (cap.sudah_diisi / cap.total_output) >= 0.75;
+    const satuan = cap && cap.ada_data_carian ? cap.satuan : (posisi === 'Picker' ? 'pcs' : 'kontainer');
+    const pct    = cap && cap.ada_data_carian && cap.total_output > 0
+      ? Math.min(100, Math.round((cap.sudah_diisi / cap.total_output) * 100)) : 0;
+    const pfClass = isFull ? 'full' : isWarn ? 'warn' : 'ok';
+    let capHtml = '';
+    if (cap) {
+      if (cap.ada_data_carian) {
+        const sisaClass = isFull ? 'full' : isWarn ? 'warn' : 'ok';
+        capHtml = `<div class="bor-cap-info"><span class="cap-chip">Kapasitas: ${formatNum(cap.total_output)} ${satuan}</span><span class="cap-chip">Terisi: ${formatNum(cap.sudah_diisi)}</span><span class="cap-chip ${sisaClass}">Sisa: ${formatNum(cap.sisa)}</span></div><div class="bor-progress"><div class="bor-progress-fill ${pfClass}" style="width:${pct}%"></div></div>`;
+      } else {
+        capHtml = `<div class="bor-cap-info"><span class="cap-chip" style="background:rgba(0,0,0,0.05);color:#9CA3AF;">Belum ada data kapasitas</span></div>`;
+      }
+    } else {
+      capHtml = `<div class="bor-cap-info skeleton-pulse" style="display:flex;gap:8px;"><div style="background:rgba(0,0,0,0.06);height:18px;width:80px;border-radius:4px;"></div><div style="background:rgba(0,0,0,0.06);height:18px;width:60px;border-radius:4px;"></div><div style="background:rgba(0,0,0,0.06);height:18px;width:50px;border-radius:4px;"></div></div><div class="bor-progress skeleton-pulse" style="margin-top:6px;"><div class="bor-progress-fill" style="width:0%;"></div></div>`;
+    }
+    return `
+      <div class="bor-header">
+        <span class="bor-badge">Batch ${batch}</span>
+        <div class="bor-cap-container" style="flex:1;">${capHtml}</div>
+      </div>
+      <div class="bor-input-row">
+        <input type="number" class="bor-input" data-batch="${batch}" placeholder="Jumlah output..." min="0"
+          value="${existingVal || ''}"
+          oninput="psValidateBorInput(this)">
+        <span class="bor-satuan">${satuan}</span>
+      </div>
+      <div class="bor-note-row" id="ps-note-row-${batch}" style="display:none; margin-top:8px;">
+        <input type="text" class="form-input bor-note-input" data-batch="${batch}" placeholder="Tulis alasan / keterangan over-input untuk Batch ${batch}..." style="font-size:12px; padding:8px 12px; border-radius:8px; border: 1.5px dashed var(--error); width: 100%; box-sizing: border-box; outline: none; background: rgba(239,68,68,0.01);">
+      </div>
+      <div class="bor-error${isFull ? ' visible' : ''}">${isFull ? '⚠️ Kapasitas sudah habis! Input ini akan masuk status Pending untuk divalidasi admin.' : ''}</div>
+    `;
+  } catch (err) {
+    showOnscreenError('psBuildRowHtml', err);
+    return `<div>Error rendering Batch ${batch}</div>`;
+  }
+}
+
+async function psFetchCapacity(batch, tanggal, posisi, zona) {
+  const key = `${tanggal}|${posisi}|${zona}|${batch}`;
+  if (psBatchCapacityCache[key]) return;
+  try {
+    const r = await fetch(`/api/batch-capacity?tanggal_carian=${tanggal}&posisi=${encodeURIComponent(posisi)}&zona=${encodeURIComponent(zona)}&batch=${encodeURIComponent(batch)}`);
+    const d = await r.json();
+    psBatchCapacityCache[key] = d;
+    const list = document.getElementById('psBatchOutputList');
+    const row  = list ? list.querySelector(`[data-batch-row="${batch}"]`) : null;
+    if (!row) return;
+    const existingInput = row.querySelector('.bor-input');
+    const existingVal   = existingInput ? existingInput.value : '';
+    row.innerHTML = psBuildRowHtml(batch, d, posisi, existingVal);
+    const inp = row.querySelector('.bor-input');
+    if (inp) psValidateBorInput(inp);
+    psCheckOverInput();
+  } catch(e) {
+    console.error('Batch capacity fetch error:', batch, e);
+    showOnscreenError(`psFetchCapacity (Batch ${batch})`, e);
+  }
+}
+
+function psValidateBorInput(inp) {
+  try {
+    const batch = inp.getAttribute('data-batch') || inp.dataset.batch;
+    const tanggal = document.getElementById('ps_tanggal_carian').value;
+    const posisi  = document.getElementById('ps_posisi').value;
+    const zona    = document.getElementById('ps_zona').value;
     const cacheKey = `${tanggal}|${posisi}|${zona}|${batch}`;
-    const cap = batchCapacityCache[cacheKey];
-    const errEl = inp.closest('.batch-output-row').querySelector('.bor-error');
+    const cap = psBatchCapacityCache[cacheKey];
     const row = inp.closest('.batch-output-row');
-    const val = parseInt(inp.value) || 0;
+    if (!row) return;
+    const errEl = row.querySelector('.bor-error');
+    const val   = parseInt(inp.value) || 0;
 
     row.classList.remove('has-error', 'is-ok', 'is-full');
-    errEl.classList.remove('visible');
-    errEl.textContent = '';
+    if (errEl) {
+      errEl.classList.remove('visible');
+      errEl.textContent = '';
+    }
 
+    const noteRow = row.querySelector('.bor-note-row');
     if (cap && cap.ada_data_carian) {
       if (cap.sisa <= 0) {
-        row.classList.add('is-full');
-        errEl.textContent = '🚫 Batch ini sudah penuh.';
-        errEl.classList.add('visible');
+        if (val > 0) {
+          row.classList.add('has-error');
+          if (errEl) {
+            errEl.innerHTML = `⚠️ Kapasitas sudah habis! Sisa: 0. Submission akan masuk status <strong>Pending</strong> dan perlu validasi admin.`;
+            errEl.classList.add('visible');
+          }
+          if (noteRow) noteRow.style.display = 'block';
+        } else {
+          row.classList.add('is-full');
+          if (errEl) {
+            errEl.innerHTML = `⚠️ Kapasitas sudah habis! Input ini akan masuk status <strong>Pending</strong>.`;
+            errEl.classList.add('visible');
+          }
+          if (noteRow) noteRow.style.display = 'none';
+        }
       } else if (val > cap.sisa) {
         row.classList.add('has-error');
-        errEl.textContent = `⚠️ Melebihi sisa! Maksimal: ${cap.sisa.toLocaleString('id-ID')} ${cap.satuan}.`;
-        errEl.classList.add('visible');
+        if (errEl) {
+          errEl.innerHTML = `⚠️ Melebihi sisa kapasitas! Sisa: ${formatNum(cap.sisa)} ${cap.satuan}. Submission akan masuk status <strong>Pending</strong> dan perlu validasi admin.`;
+          errEl.classList.add('visible');
+        }
+        if (noteRow) noteRow.style.display = 'block';
       } else if (val > 0) {
         row.classList.add('is-ok');
+        if (noteRow) noteRow.style.display = 'none';
+      } else {
+        if (noteRow) noteRow.style.display = 'none';
       }
-    } else if (val > 0) {
-      row.classList.add('is-ok');
+    } else {
+      if (val > 0) {
+        row.classList.add('is-ok');
+      }
+      if (noteRow) noteRow.style.display = 'none';
     }
+    psCheckOverInput();
+  } catch (err) {
+    showOnscreenError('psValidateBorInput', err);
   }
+}
 
-  // ============= FILE UPLOAD =============
-  let selectedFiles = [];
+function psCheckOverInput() {
+  // No-op: NIK leader validation is removed
+}
 
-  const dropZone = document.getElementById('dropZone');
-  const fileInput = document.getElementById('fileInput');
-  const fileList = document.getElementById('fileList');
+// ---- File Upload (Tab 1) ----
+const psDropZone = document.getElementById('psDropZone');
+const psFileInput = document.getElementById('psFileInput');
 
-  dropZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropZone.classList.add('dragover');
+psDropZone.addEventListener('dragover', e => { e.preventDefault(); psDropZone.classList.add('dragover'); });
+psDropZone.addEventListener('dragleave', () => psDropZone.classList.remove('dragover'));
+psDropZone.addEventListener('drop', e => {
+  e.preventDefault(); psDropZone.classList.remove('dragover');
+  psHandleFiles(Array.from(e.dataTransfer.files));
+});
+psFileInput.addEventListener('change', () => { psHandleFiles(Array.from(psFileInput.files)); psFileInput.value = ''; });
+
+function psHandleFiles(files) {
+  const allowed = /\.(jpg|jpeg|png|gif|bmp|webp|pdf)$/i;
+  files.forEach(file => {
+    if (!allowed.test(file.name)) { showToast('Format tidak didukung: ' + file.name, 'error'); return; }
+    if (file.size > 10 * 1024 * 1024) { showToast('File terlalu besar (maks 10MB): ' + file.name, 'error'); return; }
+    if (psSelectedFiles.length >= 5) { showToast('Maksimum 5 file.', 'error'); return; }
+    psSelectedFiles.push(file);
   });
-  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-  dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.classList.remove('dragover');
-    handleFiles(Array.from(e.dataTransfer.files));
+  psRenderFileList();
+}
+function psRenderFileList() {
+  const fl = document.getElementById('psFileList');
+  fl.innerHTML = '';
+  psSelectedFiles.forEach((file, idx) => {
+    const div = document.createElement('div');
+    div.className = 'file-item';
+    div.innerHTML = `
+      <div class="file-icon"><svg width="15" height="15" fill="white" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8" stroke="white" stroke-width="2" fill="none"/></svg></div>
+      <div class="file-info">
+        <div class="file-name">${file.name}</div>
+        <div class="file-size">${formatSize(file.size)}</div>
+      </div>
+      <button type="button" class="file-remove" onclick="psRemoveFile(${idx})">
+        <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+      </button>
+    `;
+    fl.appendChild(div);
   });
-  fileInput.addEventListener('change', () => handleFiles(Array.from(fileInput.files)));
+}
+function psRemoveFile(idx) { psSelectedFiles.splice(idx, 1); psRenderFileList(); }
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1024/1024).toFixed(1) + ' MB';
+}
 
-  function handleFiles(files) {
-    const allowed = /\.(jpg|jpeg|png|gif|bmp|webp|pdf)$/i;
-    files.forEach(file => {
-      if (!allowed.test(file.name)) { showToast('Format file tidak didukung: ' + file.name, 'error'); return; }
-      if (file.size > 10 * 1024 * 1024) { showToast('File terlalu besar (max 10MB): ' + file.name, 'error'); return; }
-      if (selectedFiles.length >= 5) { showToast('Maksimum 5 file yang dapat diupload.', 'error'); return; }
-      selectedFiles.push(file);
+// ---- Validation & Submit (Tab 1) ----
+function psShowErr(id, show) {
+  const el = document.getElementById('err-' + id);
+  if (el) el.classList.toggle('visible', show);
+}
+
+function psValidate() {
+  let valid = true;
+  ['ps_tanggal_carian','ps_tanggal_pengerjaan','ps_posisi','ps_tipe_lokasi','ps_zona'].forEach(id => {
+    const el = document.getElementById(id);
+    const empty = !el.value.trim();
+    psShowErr(id, empty);
+    if (empty) valid = false;
+  });
+
+  const batchOk = getChecked('psBatchSection').length > 0;
+  psShowErr('ps_batch', !batchOk);
+  if (!batchOk) valid = false;
+
+  const borInputs = document.querySelectorAll('#psBatchOutputList .bor-input:not(:disabled)');
+  const errEl  = document.getElementById('err-ps_jumlah_output');
+  const errMsg = document.getElementById('psErrOutputMsg');
+  errEl.classList.remove('visible');
+
+  if (batchOk) {
+    let anyFilled = false;
+    borInputs.forEach(inp => {
+      if ((parseInt(inp.value)||0) > 0) anyFilled = true;
     });
-    renderFileList();
-    fileInput.value = '';
+    if (!anyFilled) { errEl.classList.add('visible'); errMsg.textContent = 'Isi jumlah output untuk minimal satu batch.'; valid = false; }
   }
 
-  function formatSize(bytes) {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+  // Validasi catatan per-batch jika over capacity
+  const overCapacityRows = document.querySelectorAll('#psBatchOutputList .batch-output-row.has-error');
+  overCapacityRows.forEach(row => {
+    const batch = row.getAttribute('data-batch-row');
+    const noteInp = row.querySelector('.bor-note-input');
+    if (noteInp && !noteInp.value.trim()) {
+      noteInp.style.borderColor = 'var(--error)';
+      valid = false;
+      showToast(`Harap isi keterangan alasan over-input untuk Batch ${batch}.`, 'error');
+    } else if (noteInp) {
+      noteInp.style.borderColor = '';
+    }
+  });
+
+  // Global catatan tidak lagi wajib
+  document.getElementById('ps_catatan').style.borderColor = '';
+
+
+
+  return valid;
+}
+
+document.getElementById('pickerForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!psValidate()) {
+    showToast('Mohon lengkapi semua field yang wajib diisi.', 'error');
+    const firstErr = document.querySelector('#pickerForm .field-error.visible, #psBatchOutputList .bor-error.visible');
+    if (firstErr) firstErr.closest('.form-card, .batch-output-row')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
   }
 
-  function renderFileList() {
-    fileList.innerHTML = '';
-    selectedFiles.forEach((file, idx) => {
-      const div = document.createElement('div');
-      div.className = 'file-item';
-      div.innerHTML = `
-        <div class="file-icon">
-          <svg width="16" height="16" fill="white" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8" stroke="white" stroke-width="2" fill="none"/></svg>
+  const btn = document.getElementById('psSubmitBtn');
+  btn.classList.add('loading'); btn.disabled = true;
+
+  const batchOutputs = [];
+  document.querySelectorAll('#psBatchOutputList .bor-input').forEach(inp => {
+    const val = parseInt(inp.value) || 0;
+    if (val > 0 && !inp.disabled) {
+      const batch = inp.getAttribute('data-batch') || inp.dataset.batch;
+      const noteInput = document.querySelector(`#psBatchOutputList .bor-note-input[data-batch="${batch}"]`);
+      const keterangan = noteInput ? noteInput.value.trim() : '';
+      batchOutputs.push({ batch, jumlah: val, keterangan });
+    }
+  });
+
+  let finalCatatan = document.getElementById('ps_catatan').value;
+
+  const fd = new FormData();
+  fd.append('tanggal_carian',    document.getElementById('ps_tanggal_carian').value);
+  fd.append('tanggal_pengerjaan',document.getElementById('ps_tanggal_pengerjaan').value);
+  fd.append('nama',              currentUser.nama_lengkap);
+  fd.append('posisi',            document.getElementById('ps_posisi').value);
+  fd.append('tipe_lokasi',       document.getElementById('ps_tipe_lokasi').value);
+  fd.append('zona',              document.getElementById('ps_zona').value);
+  fd.append('catatan_tambahan',  finalCatatan);
+  fd.append('batch_outputs',     JSON.stringify(batchOutputs));
+  getChecked('psBatchSection').forEach(v => fd.append('batch_cluster', v));
+  psSelectedFiles.forEach(f => fd.append('lembar_register', f));
+
+  try {
+    const r = await fetch('/api/submit', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.success) {
+      document.getElementById('pickerForm').style.display = 'none';
+      document.getElementById('psSuccessCard').style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      showToast(d.error || 'Terjadi kesalahan. Coba lagi.', 'error');
+    }
+  } catch(err) {
+    showToast('Gagal menghubungi server. Periksa koneksi Anda.', 'error');
+  } finally {
+    btn.classList.remove('loading'); btn.disabled = false;
+  }
+});
+
+function psClearForm() {
+  if (!confirm('Kosongkan formulir?')) return;
+  document.getElementById('pickerForm').reset();
+  psClearAll();
+  psSelectedFiles = []; psRenderFileList();
+  psBatchCapacityCache = {}; psRenderBatchOutputRows();
+
+  document.getElementById('psCatatanRequiredAsterisk').style.display = 'none';
+  psCatatanRequired = false;
+  document.querySelectorAll('#pickerForm .field-error.visible').forEach(el => el.classList.remove('visible'));
+
+  // Reset zona options to empty and sync with newly cleared Tipe Lokasi
+  document.getElementById('ps_tipe_lokasi').dispatchEvent(new Event('change'));
+}
+
+function psResetToForm() {
+  document.getElementById('pickerForm').style.display = 'block';
+  document.getElementById('psSuccessCard').style.display = 'none';
+  psClearForm();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ===================== TAB 2: LOADER LOGIC =====================
+let ldBatchCapacityCache = {};
+let ldCatatanRequired = false;
+let ldArmadas = [{ id: Date.now(), no_polisi: '', selectedGms: [] }];
+let ldAvailableGroupMobils = [];
+let ldSelectedFiles = [];
+
+// File upload handler for Loader
+const ldDropZone  = document.getElementById('ldDropZone');
+const ldFileInput = document.getElementById('ldFileInput');
+
+ldDropZone.addEventListener('dragover', e => { e.preventDefault(); ldDropZone.classList.add('dragover'); });
+ldDropZone.addEventListener('dragleave', () => ldDropZone.classList.remove('dragover'));
+ldDropZone.addEventListener('drop', e => {
+  e.preventDefault(); ldDropZone.classList.remove('dragover');
+  ldHandleFiles(Array.from(e.dataTransfer.files));
+});
+ldFileInput.addEventListener('change', () => { ldHandleFiles(Array.from(ldFileInput.files)); ldFileInput.value = ''; });
+
+function ldHandleFiles(files) {
+  files.forEach(file => {
+    if (ldSelectedFiles.length >= 5) { showToast('Maksimum 5 file.', 'error'); return; }
+    if (file.size > 10 * 1024 * 1024) { showToast(`${file.name} terlalu besar (maks 10MB).`, 'error'); return; }
+    ldSelectedFiles.push(file);
+  });
+  ldRenderFileList();
+}
+function ldRenderFileList() {
+  const fl = document.getElementById('ldFileList');
+  fl.innerHTML = '';
+  ldSelectedFiles.forEach((file, idx) => {
+    const item = document.createElement('div');
+    item.className = 'file-item';
+    const sizeKB = (file.size / 1024).toFixed(1);
+    item.innerHTML = `
+      <div class="file-icon">📎</div>
+      <div class="file-info"><div class="file-name">${file.name}</div><div class="file-size">${sizeKB} KB</div></div>
+      <button type="button" class="file-remove" onclick="ldRemoveFile(${idx})" aria-label="Hapus file">&times;</button>`;
+    fl.appendChild(item);
+  });
+}
+function ldRemoveFile(idx) { ldSelectedFiles.splice(idx, 1); ldRenderFileList(); }
+
+['ld_cluster_picker', 'ld_tanggal_carian'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => {
+    ldBatchCapacityCache = {};
+    ldLoadGroupMobils();
+  });
+});
+
+function ldUpdateCount() {
+  let count = 0;
+  ldArmadas.forEach(a => {
+    count += a.selectedGms.length;
+  });
+  const countEl = document.getElementById('ldSelectedCount');
+  if (countEl) countEl.textContent = count;
+  return count;
+}
+
+function ldRenderArmadas() {
+  const container = document.getElementById('ldArmadaListContainer');
+  if (!container) return;
+  
+  if (ldArmadas.length === 0) {
+    ldArmadas.push({ id: Date.now(), no_polisi: '', selectedGms: [] });
+  }
+  
+  container.innerHTML = ldArmadas.map((truck, index) => {
+    return `
+      <div class="armada-card">
+        <div class="armada-header">
+          <div class="armada-title">
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/><path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H11a1 1 0 001-1v-1h3.05a2.5 2.5 0 014.9 0H21a1 1 0 001-1v-5a1 1 0 00-.293-.707l-4-4A1 1 0 0017 4h-3a1 1 0 00-1-1H3zm13 4.414L18.586 11H15V8.414z"/></svg>
+            Armada #${index + 1}
+          </div>
+          ${index > 0 ? `
+          <button type="button" class="btn-delete-armada" onclick="ldRemoveArmada(${index})">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+            Hapus Armada
+          </button>
+          ` : ''}
         </div>
-        <div class="file-info">
-          <div class="file-name">${file.name}</div>
-          <div class="file-size">${formatSize(file.size)}</div>
+        
+        <div style="margin-bottom: 16px;">
+          <label class="field-label" style="font-size:12px; margin-bottom:6px; font-weight:700; color:var(--text); display:block;">No. Polisi <span class="required" style="color:var(--error);">*</span></label>
+          <input type="text" 
+                 placeholder="CONTOH: B1234XYZ" 
+                 class="form-input blue no-polisi-input" 
+                 value="${truck.no_polisi}" 
+                 oninput="ldUpdateTruckPolisi(${index}, this.value)" 
+                 style="text-transform: uppercase; padding: 10px 14px; font-size: 13px; border-radius: 10px; border: 2px solid var(--border); font-weight:700; font-family:'Inter', sans-serif;"
+                 required>
         </div>
-        <button type="button" class="file-remove" onclick="removeFile(${idx})" title="Hapus file">
-          <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
-        </button>
+        
+        <div>
+          <label class="field-label" style="font-size:12px; margin-bottom:4px; font-weight:700; color:var(--text); display:block;">Muatan Group Mobil (No. Mobil) <span class="required" style="color:var(--error);">*</span></label>
+          <p class="field-hint" style="font-size:11px; margin-bottom:8px; color:var(--text-muted);">Pilih group mobil yang dimuat oleh armada ini</p>
+          
+          <div class="batch-grid" id="ldArmadaGrid_${index}" style="grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin-top: 6px;">
+            <!-- Chips rendered dynamically -->
+          </div>
+        </div>
+        
+        <div class="field-error" id="ld_armada_error_${index}" style="display: none; align-items: center; gap: 4px; margin-top: 8px;">
+          <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+          No. Polisi dan Muatan Group Mobil wajib diisi.
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  ldArmadas.forEach((truck, index) => {
+    ldRenderArmadaGrid(index);
+  });
+}
+
+function ldRenderArmadaGrid(index) {
+  const grid = document.getElementById(`ldArmadaGrid_${index}`);
+  if (!grid) return;
+  
+  const truck = ldArmadas[index];
+  
+  grid.innerHTML = ldAvailableGroupMobils.map(gm => {
+    const isChecked = truck.selectedGms.includes(gm);
+    const isSelectedByOther = ldArmadas.some((t, idx) => idx !== index && t.selectedGms.includes(gm));
+    const id = `ld_gm_${index}_${gm.replace(/\s/g, '_')}`;
+    
+    if (isSelectedByOther) {
+      return `
+        <div class="batch-item blue-chip disabled" style="opacity: 0.85; pointer-events: none;">
+          <input type="checkbox" id="${id}" value="${gm}" disabled>
+          <label for="${id}" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; min-height: 48px; padding: 4px 2px; border: 2px dashed rgba(239, 68, 68, 0.35); background: repeating-linear-gradient(45deg, rgba(239, 68, 68, 0.02), rgba(239, 68, 68, 0.02) 6px, rgba(239, 68, 68, 0.05) 6px, rgba(239, 68, 68, 0.05) 12px); color: #EF4444; border-radius: 8px; cursor: not-allowed; transition: all 0.2s;">
+            <span style="font-weight: 700; font-size: 11px; letter-spacing: 0.3px; opacity: 0.8;">${gm}</span>
+            <span style="font-size: 8px; font-weight: 800; background: rgba(239, 68, 68, 0.1); padding: 1px 4px; border-radius: 4px; margin-top: 3px; display: inline-flex; align-items: center; gap: 2px;">
+              🔒 TERPAKAI
+            </span>
+          </label>
+        </div>
       `;
-      fileList.appendChild(div);
-    });
-  }
-
-  function removeFile(idx) {
-    selectedFiles.splice(idx, 1);
-    renderFileList();
-  }
-
-  // ============= FORM VALIDATION & SUBMIT =============
-  function showError(fieldId, show) {
-    const err = document.getElementById('err-' + fieldId);
-    if (err) err.classList.toggle('visible', show);
-  }
-
-  function validateForm() {
-    let valid = true;
-    const required = ['tanggal_carian', 'tanggal_pengerjaan', 'nama', 'posisi', 'tipe_lokasi', 'zona'];
-    required.forEach(id => {
-      const el = document.getElementById(id);
-      const isEmpty = !el.value.trim();
-      showError(id, isEmpty);
-      if (isEmpty) valid = false;
-    });
-    const batchChecked = document.querySelectorAll('input[name="batch_cluster"]:checked').length > 0;
-    showError('batch', !batchChecked);
-    if (!batchChecked) valid = false;
-
-    // Validasi per-batch output: minimal 1 batch harus diisi > 0, tidak ada yang error
-    const borInputs = document.querySelectorAll('.bor-input:not(:disabled)');
-    const errEl = document.getElementById('err-jumlah_output');
-    const errMsg = document.getElementById('errOutputMsg');
-    errEl.classList.remove('visible');
-
-    if (batchChecked) {
-      let anyFilled = false;
-      let hasCapError = false;
-      borInputs.forEach(inp => {
-        const val = parseInt(inp.value) || 0;
-        if (val > 0) anyFilled = true;
-        if (inp.closest('.batch-output-row').classList.contains('has-error')) hasCapError = true;
-      });
-      if (!anyFilled) {
-        errEl.classList.add('visible');
-        errMsg.textContent = 'Isi jumlah output untuk minimal satu batch yang dikerjakan.';
-        valid = false;
-      } else if (hasCapError) {
-        errEl.classList.add('visible');
-        errMsg.textContent = 'Ada jumlah output yang melebihi kapasitas batch. Mohon perbaiki.';
-        valid = false;
-      }
     }
+    
+    return `
+      <div class="batch-item blue-chip ${isChecked ? 'selected' : ''}">
+        <input type="checkbox" 
+               id="${id}" 
+               value="${gm}" 
+               ${isChecked ? 'checked' : ''} 
+               onchange="ldToggleTruckGm(${index}, '${gm}', this.checked)">
+        <label for="${id}" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; min-height: 48px; padding: 6px 4px; cursor: pointer; transition: all 0.2s;">
+          <span style="font-weight: 700; font-size: 12px;">${gm}</span>
+        </label>
+      </div>
+    `;
+  }).join('');
+}
 
-    return valid;
+function ldUpdateTruckPolisi(index, val) {
+  ldArmadas[index].no_polisi = val.trim().toUpperCase();
+  
+  const headerEl = document.getElementById(`ld_actual_header_${index}`);
+  if (headerEl) {
+    headerEl.innerHTML = `<svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20" style="vertical-align: middle; margin-right: 4px; color: var(--accent-blue);"><path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/><path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H11a1 1 0 001-1v-1h3.05a2.5 2.5 0 014.9 0H21a1 1 0 001-1v-5a1 1 0 00-.293-.707l-4-4A1 1 0 0017 4h-3a1 1 0 00-1-1H3zm13 4.414L18.586 11H15V8.414z"/></svg> Armada: ${ldArmadas[index].no_polisi || '(Belum diisi)'}`;
   }
 
-  document.getElementById('mainForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!validateForm()) {
-      showToast('Mohon lengkapi semua field yang wajib diisi.', 'error');
-      const firstErr = document.querySelector('.field-error.visible, .bor-error.visible');
-      if (firstErr) firstErr.closest('.form-card, .batch-output-row').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const detailsHeaderEl = document.getElementById(`ld_details_header_${index}`);
+  if (detailsHeaderEl) {
+    detailsHeaderEl.textContent = `Armada: ${ldArmadas[index].no_polisi || '-'}`;
+  }
+}
+
+function ldToggleTruckGm(index, gm, checked) {
+  const truck = ldArmadas[index];
+  if (checked) {
+    if (!truck.selectedGms.includes(gm)) {
+      truck.selectedGms.push(gm);
+    }
+  } else {
+    truck.selectedGms = truck.selectedGms.filter(x => x !== gm);
+  }
+  
+  ldArmadas.forEach((t, idx) => {
+    ldRenderArmadaGrid(idx);
+  });
+  
+  ldUpdateCount();
+  ldLoadClusterCapacity();
+}
+
+function ldAddArmada() {
+  ldArmadas.push({ id: Date.now(), no_polisi: '', selectedGms: [] });
+  ldRenderArmadas();
+  ldLoadClusterCapacity();
+}
+
+function ldRemoveArmada(index) {
+  ldArmadas.splice(index, 1);
+  ldRenderArmadas();
+  ldLoadClusterCapacity();
+}
+
+async function ldLoadGroupMobils() {
+  try {
+    const tanggal = document.getElementById('ld_tanggal_carian').value;
+    const cluster = document.getElementById('ld_cluster_picker').value;
+    const armadaSection = document.getElementById('ldArmadaSection');
+    const armadaListContainer = document.getElementById('ldArmadaListContainer');
+    
+    const outputList = document.getElementById('ldClusterOutputList');
+    const empty      = document.getElementById('ldClusterOutputEmpty');
+    const capCard    = document.getElementById('ldCapacityCard');
+    const capLoading = document.getElementById('ldCapacityLoading');
+    const capInfo    = document.getElementById('ldCapacityInfo');
+
+    // Reset all
+    if (armadaListContainer) armadaListContainer.innerHTML = '';
+    if (armadaSection) armadaSection.style.display = 'none';
+    
+    outputList.innerHTML = '';
+    empty.style.display = '';
+    if (capCard) capCard.style.display = 'none';
+    if (capLoading) capLoading.style.display = 'none';
+    if (capInfo) capInfo.style.display = 'none';
+    
+    ldArmadas = [{ id: Date.now(), no_polisi: '', selectedGms: [] }];
+    ldAvailableGroupMobils = [];
+    
+    ldUpdateTotal();
+
+    if (!tanggal || !cluster) return;
+
+    empty.textContent = 'Memuat daftar Group Mobil dari server...';
+
+    const r = await fetch(`/api/data-carian?tanggal=${tanggal}`);
+    const records = await r.json();
+    
+    // Filter records Loader for this cluster
+    const activeRecords = records.filter(rec => 
+      rec.posisi === 'Loader' && 
+      String(rec.zona).trim().toUpperCase() === String(cluster).trim().toUpperCase()
+    );
+
+    if (activeRecords.length === 0) {
+      empty.textContent = `⚠️ Tidak ada data carian untuk tanggal ${tanggal} dan cluster ${cluster}.`;
       return;
     }
 
-    const btn = document.getElementById('submitBtn');
-    btn.classList.add('loading');
-    btn.disabled = true;
+    // Unique list of group mobil (rec.batch)
+    ldAvailableGroupMobils = Array.from(new Set(activeRecords.map(rec => String(rec.batch).trim()))).sort();
+    
+    if (armadaSection) armadaSection.style.display = 'block';
+    empty.textContent = 'Masukkan armada dan pilih Group Mobil yang dimuat.';
+    
+    ldRenderArmadas();
+  } catch (err) {
+    console.error('ldLoadGroupMobils error:', err);
+    showOnscreenError('ldLoadGroupMobils', err);
+  }
+}
 
-    // Kumpulkan batch_outputs: [{batch, jumlah}] hanya yang diisi > 0
-    const batchOutputs = [];
-    document.querySelectorAll('.bor-input').forEach(inp => {
-      const val = parseInt(inp.value) || 0;
-      if (val > 0 && !inp.disabled) {
-        batchOutputs.push({ batch: inp.dataset.batch, jumlah: val });
+async function ldLoadClusterCapacity() {
+  try {
+    const tanggal = document.getElementById('ld_tanggal_carian').value;
+    const cluster = document.getElementById('ld_cluster_picker').value; // FREZZER/CHILLER/AMBIENT
+    const outputList = document.getElementById('ldClusterOutputList');
+    const empty      = document.getElementById('ldClusterOutputEmpty');
+    const capCard    = document.getElementById('ldCapacityCard');
+    const detailsContainer = document.getElementById('ldCapacityDetails');
+    const capLoading = document.getElementById('ldCapacityLoading');
+    const capInfo    = document.getElementById('ldCapacityInfo');
+
+    // Aggregate all selected group mobils
+    const allSelectedGms = [];
+    ldArmadas.forEach(a => {
+      a.selectedGms.forEach(gm => {
+        if (!allSelectedGms.includes(gm)) allSelectedGms.push(gm);
+      });
+    });
+
+    // Keep active inputs values to not overwrite them when checking new boxes
+    const activeValues = {};
+    document.querySelectorAll('#ldClusterOutputList .bor-input').forEach(inp => {
+      activeValues[inp.getAttribute('data-batch') || inp.dataset.batch] = inp.value;
+    });
+
+    // Reset output list completely
+    outputList.innerHTML = '';
+    
+    if (detailsContainer) {
+      detailsContainer.innerHTML = '';
+      detailsContainer.style.display = 'none';
+    }
+    
+    if (!tanggal || !cluster || allSelectedGms.length === 0) {
+      empty.style.display = '';
+      empty.textContent = 'Pilih satu atau beberapa Group Mobil terlebih dahulu.';
+      if (capCard) capCard.style.display = 'none';
+      if (capLoading) capLoading.style.display = 'none';
+      if (capInfo) capInfo.style.display = 'none';
+      ldUpdateTotal();
+      return;
+    }
+
+    empty.style.display = 'none';
+    
+    // Show card and loading spinner immediately!
+    if (capCard) capCard.style.display = 'block';
+    if (capLoading) capLoading.style.display = 'flex';
+    if (capInfo) capInfo.style.display = 'none';
+    
+    // Fetch capacities for all selected group mobils in parallel
+    const promises = allSelectedGms.map(async gm => {
+      if (ldBatchCapacityCache[gm]) return { gm, cap: ldBatchCapacityCache[gm] };
+      
+      const r = await fetch(`/api/batch-capacity?tanggal_carian=${tanggal}&posisi=Loader&zona=${encodeURIComponent(cluster)}&batch=${encodeURIComponent(gm)}`);
+      const cap = await r.json();
+      ldBatchCapacityCache[gm] = cap;
+      return { gm, cap };
+    });
+
+    const results = await Promise.all(promises);
+
+    // Sum total target capacity for all selected group mobils
+    let totalTarget = 0;
+    let anyHasTarget = false;
+    results.forEach(({ cap }) => {
+      if (cap.ada_data_carian && cap.total_output > 0) {
+        totalTarget += cap.total_output;
+        anyHasTarget = true;
       }
     });
 
-    const formData = new FormData();
-    formData.append('tanggal_carian', document.getElementById('tanggal_carian').value);
-    formData.append('tanggal_pengerjaan', document.getElementById('tanggal_pengerjaan').value);
-    formData.append('nama', document.getElementById('nama').value);
-    formData.append('posisi', document.getElementById('posisi').value);
-    formData.append('tipe_lokasi', document.getElementById('tipe_lokasi').value);
-    formData.append('zona', document.getElementById('zona').value);
-    formData.append('catatan_tambahan', document.getElementById('catatan_tambahan').value);
-    formData.append('batch_outputs', JSON.stringify(batchOutputs));
-    // Tetap kirim batch_cluster untuk kompatibilitas
-    document.querySelectorAll('input[name="batch_cluster"]:checked').forEach(cb => {
-      formData.append('batch_cluster', cb.value);
-    });
-    selectedFiles.forEach(file => formData.append('lembar_register', file));
+    // Hide loading spinner
+    if (capLoading) capLoading.style.display = 'none';
 
-    try {
-      const response = await fetch('/api/submit', { method: 'POST', body: formData });
-      const data = await response.json();
-      if (data.success) {
-        document.getElementById('mainForm').style.display = 'none';
-        document.getElementById('successCard').style.display = 'block';
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (anyHasTarget) {
+      if (capCard) capCard.style.display = 'block';
+      if (capInfo) {
+        capInfo.style.display = 'flex';
+        const plates = ldArmadas.map(a => a.no_polisi || '-').filter(p => p !== '-');
+        const plateLabel = plates.length > 0 ? plates.join(', ') : 'Daftar Armada';
+        document.getElementById('ldCapacityClusterLabel').textContent = `${plateLabel} (${cluster})`;
+        document.getElementById('ldCapacityValue').textContent = formatNum(totalTarget);
+      }
+      
+      // Render details grouped by truck
+      if (detailsContainer) {
+        let detailsHtml = '';
+        ldArmadas.forEach((truck, index) => {
+          if (truck.selectedGms.length === 0) return;
+          
+          let truckDetailsHtml = '';
+          truck.selectedGms.forEach(gm => {
+            const res = results.find(r => r.gm === gm);
+            if (res && res.cap.ada_data_carian && res.cap.total_output > 0) {
+              truckDetailsHtml += `
+                <div class="tc-details-item" style="margin-left: 12px; padding: 4px 0;">
+                  <span class="tc-details-name">
+                    <span class="bor-badge blue" style="font-size: 10px; padding: 2px 6px; margin: 0; margin-right: 6px;">${gm}</span>
+                    <span style="font-size: 12px; color: var(--text-muted);">Kapasitas Target</span>
+                  </span>
+                  <span class="tc-details-val">${formatNum(res.cap.total_output)} kontainer</span>
+                </div>
+              `;
+            }
+          });
+          
+          if (truckDetailsHtml) {
+            detailsHtml += `
+              <div style="margin-bottom: 8px;">
+                <div id="ld_details_header_${index}" style="font-weight:700; font-size:12px; color:var(--accent-blue-dark); margin: 6px 0; border-bottom: 1px dashed rgba(14,165,233,0.15); padding-bottom: 2px;">
+                  Armada: ${truck.no_polisi || '-'}
+                </div>
+                ${truckDetailsHtml}
+              </div>
+            `;
+          }
+        });
+        
+        if (detailsHtml) {
+          detailsContainer.innerHTML = detailsHtml;
+          detailsContainer.style.display = 'flex';
+        }
+      }
+    } else {
+      if (capCard) capCard.style.display = 'none';
+      if (capInfo) capInfo.style.display = 'none';
+    }
+
+    // Render input row grouped by truck!
+    ldArmadas.forEach((truck, index) => {
+      if (truck.selectedGms.length === 0) return;
+      
+      const truckDiv = document.createElement('div');
+      truckDiv.id = `ld_truck_actual_group_${index}`;
+      truckDiv.style.marginBottom = '16px';
+      
+      truckDiv.innerHTML = `
+        <div id="ld_actual_header_${index}" style="font-weight: 700; font-size: 13px; color: var(--accent-blue-dark); margin-top: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 4px;">
+          <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20" style="vertical-align: middle; margin-right: 4px; color: var(--accent-blue);"><path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/><path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H11a1 1 0 001-1v-1h3.05a2.5 2.5 0 014.9 0H21a1 1 0 001-1v-5a1 1 0 00-.293-.707l-4-4A1 1 0 0017 4h-3a1 1 0 00-1-1H3zm13 4.414L18.586 11H15V8.414z"/></svg>
+          Armada: ${truck.no_polisi || '(Belum diisi)'}
+        </div>
+        <div id="ld_truck_actual_rows_${index}"></div>
+      `;
+      outputList.appendChild(truckDiv);
+      
+      const rowsContainer = document.getElementById(`ld_truck_actual_rows_${index}`);
+      truck.selectedGms.forEach(gm => {
+        const res = results.find(r => r.gm === gm);
+        if (res) {
+          ldRenderClusterInputRow(gm, res.cap, rowsContainer);
+        }
+      });
+    });
+
+    // Restore previously typed values if they are still selected
+    document.querySelectorAll('#ldClusterOutputList .bor-input').forEach(inp => {
+      const gm = inp.getAttribute('data-batch') || inp.dataset.batch;
+      if (activeValues[gm] !== undefined) {
+        inp.value = activeValues[gm];
+        ldValidateBorInput(inp);
+      }
+    });
+
+    ldUpdateTotal();
+  } catch(err) {
+    const capCard    = document.getElementById('ldCapacityCard');
+    const capLoading = document.getElementById('ldCapacityLoading');
+    const capInfo    = document.getElementById('ldCapacityInfo');
+    if (capCard) capCard.style.display = 'none';
+    if (capLoading) capLoading.style.display = 'none';
+    if (capInfo) capInfo.style.display = 'none';
+
+    console.error('ldLoadClusterCapacity error:', err);
+    showOnscreenError('ldLoadClusterCapacity', err);
+  }
+}
+
+function ldRenderClusterInputRow(groupMobil, cap, customContainer = null) {
+  try {
+    const outputList = customContainer || document.getElementById('ldClusterOutputList');
+    const empty      = document.getElementById('ldClusterOutputEmpty');
+    if (empty) empty.style.display = 'none';
+
+    const isFull = cap && cap.ada_data_carian && cap.sisa <= 0;
+    const isWarn = cap && cap.ada_data_carian && cap.sisa > 0 && (cap.sudah_diisi / cap.total_output) >= 0.75;
+    const satuan = 'kontainer';
+
+    let capHtml = '';
+    if (cap && cap.ada_data_carian) {
+      const sisaClass = isFull ? 'full' : isWarn ? 'warn' : 'ok';
+      const pct = cap.total_output > 0 ? Math.min(100, Math.round((cap.sudah_diisi / cap.total_output) * 100)) : 0;
+      const pfClass = isFull ? 'full' : isWarn ? 'warn' : 'ok';
+      capHtml = `
+        <div class="bor-cap-info">
+          <span class="cap-chip">Target: ${formatNum(cap.total_output)} ${satuan}</span>
+          <span class="cap-chip">Terisi: ${formatNum(cap.sudah_diisi)}</span>
+          <span class="cap-chip ${sisaClass}">Sisa: ${formatNum(cap.sisa)}</span>
+        </div>
+        <div class="bor-progress"><div class="bor-progress-fill ${pfClass}" style="width:${pct}%"></div></div>
+      `;
+    } else {
+      capHtml = `<div class="bor-cap-info"><span class="cap-chip" style="background:rgba(0,0,0,0.05);color:#9CA3AF;">Belum ada data kapasitas untuk group mobil ini</span></div>`;
+    }
+
+    const row = document.createElement('div');
+    row.className = `batch-output-row${isFull ? ' is-full' : ''}`;
+    row.setAttribute('data-batch-row', groupMobil);
+    row.innerHTML = `
+      <div class="bor-header">
+        <span class="bor-badge blue">${groupMobil}</span>
+        <div class="bor-cap-container" style="flex: 1;">${capHtml}</div>
+      </div>
+      <div class="bor-input-row">
+        <input type="number" class="bor-input blue" data-batch="${groupMobil}" placeholder="Jumlah kontainer aktual..." min="0"
+          oninput="ldValidateBorInput(this); ldUpdateTotal()">
+        <span class="bor-satuan">${satuan}</span>
+      </div>
+      <div class="bor-note-row" id="ld-note-row-${groupMobil}" style="display:none; margin-top:8px;">
+        <input type="text" class="form-input bor-note-input blue" data-batch="${groupMobil}" placeholder="Tulis alasan / keterangan over-input untuk Group Mobil ${groupMobil}..." style="font-size:12px; padding:8px 12px; border-radius:8px; border: 1.5px dashed var(--error); width: 100%; box-sizing: border-box; outline: none; background: rgba(14,165,233,0.01);">
+      </div>
+      <div class="bor-error${isFull ? ' visible' : ''}">${isFull ? '⚠️ Kapasitas sudah habis! Input ini akan masuk status Pending untuk divalidasi admin.' : ''}</div>
+    `;
+    outputList.appendChild(row);
+
+    ldUpdateTotal();
+    ldCheckOverInput();
+  } catch (err) {
+    showOnscreenError('ldRenderClusterInputRow', err);
+  }
+}
+
+function ldValidateBorInput(inp) {
+  try {
+    const groupMobil = inp.getAttribute('data-batch') || inp.dataset.batch;
+    const cap = ldBatchCapacityCache[groupMobil];
+    const row = inp.closest('.batch-output-row');
+    if (!row) return;
+    const errEl = row.querySelector('.bor-error');
+    const val   = parseInt(inp.value) || 0;
+
+    row.classList.remove('has-error', 'is-ok', 'is-full');
+    if (errEl) {
+      errEl.classList.remove('visible');
+      errEl.textContent = '';
+    }
+
+    const noteRow = row.querySelector('.bor-note-row');
+    if (cap && cap.ada_data_carian) {
+      if (cap.sisa <= 0) {
+        if (val > 0) {
+          row.classList.add('has-error');
+          if (errEl) {
+            errEl.innerHTML = `⚠️ Kapasitas sudah habis! Sisa: 0. Submission akan masuk status <strong>Pending</strong> dan perlu validasi admin.`;
+            errEl.classList.add('visible');
+          }
+          if (noteRow) noteRow.style.display = 'block';
+        } else {
+          row.classList.add('is-full');
+          if (errEl) {
+            errEl.innerHTML = `⚠️ Kapasitas sudah habis! Input ini akan masuk status <strong>Pending</strong>.`;
+            errEl.classList.add('visible');
+          }
+          if (noteRow) noteRow.style.display = 'none';
+        }
+      } else if (val > cap.sisa) {
+        row.classList.add('has-error');
+        if (errEl) {
+          errEl.innerHTML = `⚠️ Melebihi sisa kapasitas! Sisa: ${formatNum(cap.sisa)} kontainer. Submission akan masuk status <strong>Pending</strong> dan perlu validasi admin.`;
+          errEl.classList.add('visible');
+        }
+        if (noteRow) noteRow.style.display = 'block';
+      } else if (val > 0) {
+        row.classList.add('is-ok');
+        if (noteRow) noteRow.style.display = 'none';
       } else {
-        showToast(data.error || 'Terjadi kesalahan. Coba lagi.', 'error');
+        if (noteRow) noteRow.style.display = 'none';
       }
-    } catch (err) {
-      showToast('Gagal menghubungi server. Periksa koneksi Anda.', 'error');
-    } finally {
-      btn.classList.remove('loading');
-      btn.disabled = false;
+    } else {
+      if (val > 0) {
+        row.classList.add('is-ok');
+      }
+      if (noteRow) noteRow.style.display = 'none';
+    }
+    ldCheckOverInput();
+  } catch (err) {
+    showOnscreenError('ldValidateBorInput', err);
+  }
+}
+
+function ldCheckOverInput() {
+  // No-op: NIK leader validation is removed
+}
+
+function ldUpdateTotal() {
+  let total = 0;
+  document.querySelectorAll('#ldClusterOutputList .bor-input').forEach(inp => {
+    total += parseInt(inp.value) || 0;
+  });
+  total += parseInt(document.getElementById('ld_gacoan').value)  || 0;
+  total += parseInt(document.getElementById('ld_dikichi').value) || 0;
+  total += parseInt(document.getElementById('ld_benfarm').value) || 0;
+  document.getElementById('ldTotalKontainer').textContent = total.toLocaleString('id-ID');
+}
+
+function ldShowErr(id, show) {
+  const el = document.getElementById('err-' + id);
+  if (el) el.classList.toggle('visible', show);
+}
+
+function ldValidate() {
+  let valid = true;
+  
+  // Validate global fields
+  ['ld_tanggal_carian','ld_tanggal_kirim','ld_cluster_picker'].forEach(id => {
+    const el = document.getElementById(id);
+    const errId = id === 'ld_cluster_picker' ? 'ld_cluster_picker' : id;
+    const empty = !el.value.trim();
+    ldShowErr(errId, empty);
+    if (empty) valid = false;
+  });
+
+  // Validate each armada
+  ldArmadas.forEach((truck, index) => {
+    const errEl = document.getElementById(`ld_armada_error_${index}`);
+    const plateEmpty = !truck.no_polisi.trim();
+    const gmsEmpty = truck.selectedGms.length === 0;
+    
+    if (plateEmpty || gmsEmpty) {
+      if (errEl) errEl.style.display = 'flex';
+      valid = false;
+    } else {
+      if (errEl) errEl.style.display = 'none';
     }
   });
 
-  function clearForm() {
-    if (!confirm('Apakah Anda yakin ingin mengosongkan formulir?')) return;
-    document.getElementById('mainForm').reset();
-    clearAllBatch();
-    selectedFiles = [];
-    renderFileList();
-    batchCapacityCache = {};
-    renderBatchOutputRows();
-    document.querySelectorAll('.field-error.visible').forEach(el => el.classList.remove('visible'));
+  const errKont = document.getElementById('err-ld_kontainer');
+  const errMsg  = document.getElementById('ldErrKontainerMsg');
+  if (errKont) errKont.classList.remove('visible');
+
+  const inputs = document.querySelectorAll('#ldClusterOutputList .bor-input:not(:disabled)');
+  let anyFilled = false;
+  inputs.forEach(inp => {
+    if ((parseInt(inp.value)||0) > 0) anyFilled = true;
+  });
+  if (!anyFilled) {
+    if (errKont) {
+      errKont.classList.add('visible');
+      errMsg.textContent = 'Isi jumlah kontainer aktual.';
+    }
+    valid = false;
   }
 
-  function resetToForm() {
-    document.getElementById('mainForm').style.display = 'block';
-    document.getElementById('successCard').style.display = 'none';
-    document.getElementById('mainForm').reset();
-    clearAllBatch();
-    selectedFiles = [];
-    renderFileList();
-    batchCapacityCache = {};
-    renderBatchOutputRows();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  // Validasi catatan per group mobil jika over capacity
+  const overCapacityLdRows = document.querySelectorAll('#ldClusterOutputList .batch-output-row.has-error');
+  overCapacityLdRows.forEach(row => {
+    const gm = row.getAttribute('data-batch-row');
+    const noteInp = row.querySelector('.bor-note-input');
+    if (noteInp && !noteInp.value.trim()) {
+      noteInp.style.borderColor = 'var(--error)';
+      valid = false;
+      showToast(`Harap isi keterangan alasan over-input untuk Group Mobil ${gm}.`, 'error');
+    } else if (noteInp) {
+      noteInp.style.borderColor = '';
+    }
+  });
+
+  // Global catatan tidak lagi wajib
+  document.getElementById('ld_catatan').style.borderColor = '';
+
+
+
+  return valid;
+}
+
+document.getElementById('loaderForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!ldValidate()) {
+    showToast('Mohon lengkapi semua field yang wajib diisi.', 'error');
+    return;
   }
 
-  // ============= TOAST =============
-  let toastTimer;
-  function showToast(msg, type = 'success') {
-    const toast = document.getElementById('toast');
-    const icon = type === 'success'
-      ? '<svg width="20" height="20" fill="white" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>'
-      : '<svg width="20" height="20" fill="white" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>';
-    toast.innerHTML = icon + msg;
-    toast.className = `toast ${type} show`;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toast.classList.remove('show'), 4000);
+  const btn = document.getElementById('ldSubmitBtn');
+  btn.classList.add('loading'); btn.disabled = true;
+
+  // Ambil files loader
+  const ldFiles = ldSelectedFiles.slice();
+  const cluster = document.getElementById('ld_cluster_picker').value;
+  const clusterOutputs = {};
+  document.querySelectorAll('#ldClusterOutputList .bor-input').forEach(inp => {
+    if (!inp.disabled) {
+      clusterOutputs[inp.getAttribute('data-batch') || inp.dataset.batch] = parseInt(inp.value) || 0;
+    }
+  });
+
+  const nonGroup = {
+    gacoan:  parseInt(document.getElementById('ld_gacoan').value)  || 0,
+    dikichi: parseInt(document.getElementById('ld_dikichi').value) || 0,
+    benfarm: parseInt(document.getElementById('ld_benfarm').value) || 0,
+  };
+
+  let finalCatatan = document.getElementById('ld_catatan').value;
+  
+  // Ambil semua keterangan per group mobil yang over
+  const ldNotes = [];
+  document.querySelectorAll('#ldClusterOutputList .bor-note-input').forEach(inp => {
+    const val = inp.value.trim();
+    if (val) {
+      const gm = inp.getAttribute('data-batch') || inp.dataset.batch;
+      ldNotes.push(`${gm}: ${val}`);
+    }
+  });
+  if (ldNotes.length > 0) {
+    finalCatatan = finalCatatan ? `${finalCatatan} [Detail Over-input -> ${ldNotes.join('; ')}]` : `[Detail Over-input -> ${ldNotes.join('; ')}]`;
   }
+
+
+
+  try {
+    const promises = ldArmadas.map(async (truck, index) => {
+      const truckOutputs = {};
+      truck.selectedGms.forEach(gm => {
+        truckOutputs[gm] = clusterOutputs[gm] || 0;
+      });
+      const truckTotal = Object.values(truckOutputs).reduce((a, b) => a + b, 0);
+      
+      const fd = new FormData();
+      fd.append('tanggal_carian',    document.getElementById('ld_tanggal_carian').value);
+      fd.append('tanggal_kirim',     document.getElementById('ld_tanggal_kirim').value);
+      fd.append('nama',              currentUser.nama_lengkap);
+      fd.append('zona',              cluster);
+      fd.append('no_polisi',         truck.no_polisi);
+      fd.append('clusters',          JSON.stringify(truck.selectedGms));
+      fd.append('cluster_outputs',   JSON.stringify(truckOutputs));
+      fd.append('non_group',         JSON.stringify(index === 0 ? nonGroup : { gacoan: 0, dikichi: 0, benfarm: 0 }));
+      fd.append('jumlah_kontainer',  String(index === 0 ? (truckTotal + nonGroup.gacoan + nonGroup.dikichi + nonGroup.benfarm) : truckTotal));
+      fd.append('catatan',           finalCatatan);
+      // Lampirkan foto hanya ke armada pertama (index 0)
+      if (index === 0) {
+        ldFiles.forEach(file => fd.append('lembar_register', file));
+      }
+
+      const r = await fetch('/api/loader-entries', {
+        method: 'POST',
+        body: fd
+      });
+      if (!r.ok) {
+        const d = await r.json();
+        throw new Error(d.error || `Gagal mengirim armada ${truck.no_polisi}`);
+      }
+      return r.json();
+    });
+
+    await Promise.all(promises);
+    showToast('Semua Entry Loader berhasil dikirim! ✅', 'info');
+    ldResetForm();
+  } catch(err) {
+    showToast(err.message || 'Gagal menghubungi server. Periksa koneksi.', 'error');
+  } finally {
+    btn.classList.remove('loading'); btn.disabled = false;
+  }
+});
+
+function ldResetForm() {
+  document.getElementById('loaderForm').reset();
+  ldBatchCapacityCache = {};
+  document.getElementById('ldClusterOutputList').innerHTML = '';
+  document.getElementById('ldClusterOutputEmpty').style.display = '';
+  const capCard    = document.getElementById('ldCapacityCard');
+  const capLoading = document.getElementById('ldCapacityLoading');
+  const capInfo    = document.getElementById('ldCapacityInfo');
+  if (capCard) capCard.style.display = 'none';
+  if (capLoading) capLoading.style.display = 'none';
+  if (capInfo) capInfo.style.display = 'none';
+  
+  const armadaSection = document.getElementById('ldArmadaSection');
+  if (armadaSection) armadaSection.style.display = 'none';
+  const armadaListContainer = document.getElementById('ldArmadaListContainer');
+  if (armadaListContainer) armadaListContainer.innerHTML = '';
+  
+  ldArmadas = [{ id: Date.now(), no_polisi: '', selectedGms: [] }];
+  ldAvailableGroupMobils = [];
+
+  ldUpdateTotal();
+
+  // Reset file upload loader
+  ldSelectedFiles = [];
+  document.getElementById('ldFileInput').value = '';
+  document.getElementById('ldFileList').innerHTML = '';
+
+  document.getElementById('ldCatatanRequiredAsterisk').style.display = 'none';
+  ldCatatanRequired = false;
+  document.querySelectorAll('#loaderForm .field-error.visible').forEach(el => el.classList.remove('visible'));
+}
+
+function ldClearForm() {
+  if (!confirm('Kosongkan formulir?')) return;
+  ldResetForm();
+}
+
+// ===================== TOAST =====================
+let toastTimer;
+function showToast(msg, type = 'success') {
+  const toast = document.getElementById('toast');
+  const icons = {
+    success: '<svg width="18" height="18" fill="white" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>',
+    error:   '<svg width="18" height="18" fill="white" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>',
+    info:    '<svg width="18" height="18" fill="white" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>',
+  };
+  toast.innerHTML = (icons[type] || icons.info) + msg;
+  toast.className = `toast ${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 4500);
+}
+
+// ===================== INIT =====================
+initAuth();
 </script>
 </body>
 </html>

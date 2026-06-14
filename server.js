@@ -8,7 +8,9 @@ const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const XLSX = require('xlsx');
+const ExcelJS = require('exceljs');
 const db = require('./db');
+const googleSheets = require('./googleSheets');
 
 const app = express();
 
@@ -101,23 +103,26 @@ app.post('/api/submit', (req, res, next) => {
       return res.status(400).json({ error: 'Isi jumlah output untuk minimal satu batch.' });
     }
 
-    // ===== VALIDASI KAPASITAS PER BATCH =====
-    const validationErrors = [];
+    // ===== CEK KAPASITAS — tentukan status submission =====
+    // Jika ada batch yang melebihi kapasitas → status 'pending' (butuh validasi admin)
+    // Jika semua dalam batas → status 'approved'
+    const pendingBatches = []; // batch yang melebihi kapasitas
+    const overCapacityInfo = {}; // detail info per batch yang over
     for (const { batch, jumlah } of batchOutputs) {
       const outputValue = parseInt(jumlah);
       const capacity = await db.getBatchCapacity(tanggal_carian, posisi, zona, batch);
-      if (capacity.ada_data_carian) {
-        if (capacity.sisa <= 0) {
-          validationErrors.push(`Batch ${batch} sudah penuh (kapasitas: ${capacity.total_output} ${capacity.satuan}, sudah terisi: ${capacity.sudah_diisi} ${capacity.satuan}).`);
-        } else if (outputValue > capacity.sisa) {
-          validationErrors.push(`Batch ${batch}: jumlah output Anda (${outputValue}) melebihi sisa kapasitas (${capacity.sisa} ${capacity.satuan} dari total ${capacity.total_output} ${capacity.satuan}).`);
-        }
+      if (capacity.ada_data_carian && outputValue > capacity.sisa) {
+        pendingBatches.push(batch);
+        overCapacityInfo[batch] = {
+          input: outputValue,
+          sisa: capacity.sisa,
+          total: capacity.total_output,
+          satuan: capacity.satuan
+        };
       }
     }
-    if (validationErrors.length > 0) {
-      return res.status(400).json({ error: 'Validasi gagal: ' + validationErrors.join(' | '), validation_errors: validationErrors });
-    }
-    // ===== AKHIR VALIDASI =====
+    const submissionStatus = pendingBatches.length > 0 ? 'pending' : 'approved';
+    // ===== AKHIR CEK KAPASITAS =====
 
     // Upload files dulu (shared ke semua submission batch ini)
     const uploadedFiles = [];
@@ -131,8 +136,18 @@ app.post('/api/submit', (req, res, next) => {
     }
 
     // Insert satu submission per batch
-    for (const { batch, jumlah } of batchOutputs) {
+    for (const { batch, jumlah, keterangan } of batchOutputs) {
       const submissionId = uuidv4();
+      const batchStatus = pendingBatches.includes(batch) ? 'pending' : 'approved';
+      
+      // Gabungkan keterangan per batch dengan catatan_tambahan (jika mengandung otorisasi Leader NIK)
+      let finalCatatan = keterangan || '';
+      if (catatan_tambahan && catatan_tambahan.includes('[Validasi Leader:')) {
+        const match = catatan_tambahan.match(/\[Validasi Leader:[^\]]+\]/);
+        const leaderInfo = match ? match[0] : '';
+        finalCatatan = finalCatatan ? `${finalCatatan} ${leaderInfo}` : leaderInfo;
+      }
+
       await db.insertSubmission({
         id: submissionId,
         tanggal_carian,
@@ -143,7 +158,8 @@ app.post('/api/submit', (req, res, next) => {
         zona,
         batch_cluster: JSON.stringify([batch]),
         jumlah_output: parseInt(jumlah),
-        catatan_tambahan: catatan_tambahan || '',
+        catatan_tambahan: finalCatatan,
+        status: batchStatus,
       });
 
       // Attach files ke setiap submission
@@ -158,7 +174,43 @@ app.post('/api/submit', (req, res, next) => {
       }
     }
 
-    res.json({ success: true, message: `Formulir berhasil dikirim! ${batchOutputs.length} batch tersimpan. Terima kasih.` });
+    invalidateDcCache(tanggal_carian); // clear cache setelah submit baru
+
+    const hasPending = pendingBatches.length > 0;
+    const message = hasPending
+      ? `Formulir terkirim! ${batchOutputs.length} batch tersimpan. ⚠️ ${pendingBatches.length} batch melebihi kapasitas dan menunggu validasi admin.`
+      : `Formulir berhasil dikirim! ${batchOutputs.length} batch tersimpan. Terima kasih.`;
+
+    res.json({
+      success: true,
+      hasPending,
+      pendingBatches,
+      overCapacityInfo,
+      message
+    });
+
+    // ===== AUTO-SYNC ke Google Sheets (fire-and-forget, tidak block response) =====
+    if (googleSheets.isConfigured()) {
+      setImmediate(async () => {
+        try {
+          // Ambil semua submissions terbaru
+          const allSubs = await db.getAllSubmissions();
+
+          // Fetch files per submission untuk link foto di Sheets
+          const filesMap = new Map();
+          await Promise.all(allSubs.map(async (s) => {
+            const files = await db.getFilesBySubmissionId(s.id);
+            if (files && files.length > 0) filesMap.set(s.id, files);
+          }));
+
+          await googleSheets.pushAllSubmissions(allSubs, filesMap);
+        } catch(e) {
+          console.error('[AutoSync] Google Sheets sync error:', e.message);
+        }
+      });
+    }
+    // ====================================================================
+
   } catch (err) {
     console.error('Submit error:', err);
     res.status(500).json({ error: 'Terjadi kesalahan server. Silakan coba lagi.' });
@@ -185,19 +237,47 @@ app.get('/api/batch-capacity', async (req, res) => {
 // POST /api/login
 app.post('/api/login', async (req, res) => {
   try {
-    const { username, password } = req.body;
-    const user = await db.getUserByUsername(username);
-    
-    if (!user || !bcrypt.compareSync(password, user.password)) {
-      return res.status(401).json({ error: 'Username atau password salah.' });
+    const { username, password, nik, mode } = req.body;
+
+    let user = null;
+    let tokenPayload = {};
+
+    if (mode === 'operasional') {
+      // Login Operasional: username + NIK (plaintext)
+      if (!username || !nik) {
+        return res.status(400).json({ error: 'Username dan NIK wajib diisi.' });
+      }
+      user = await db.getUserByUsernameAndNik(username.trim(), nik.trim());
+      if (!user) {
+        return res.status(401).json({ error: 'Username atau NIK tidak ditemukan. Hubungi HR/Admin.' });
+      }
+      tokenPayload = {
+        userId: user.id,
+        username: user.username,
+        nama_lengkap: user.nama_lengkap,
+        posisi: user.posisi,
+        role: 'operasional'
+      };
+    } else {
+      // Login Admin: username + password (bcrypt)
+      if (!username || !password) {
+        return res.status(400).json({ error: 'Username dan password wajib diisi.' });
+      }
+      user = await db.getUserByUsername(username.trim());
+      if (!user || user.role === 'operasional' || !bcrypt.compareSync(password, user.password)) {
+        return res.status(401).json({ error: 'Username atau password salah.' });
+      }
+      tokenPayload = {
+        userId: user.id,
+        username: user.username,
+        nama_lengkap: user.nama_lengkap || user.username,
+        posisi: null,
+        role: 'admin'
+      };
     }
 
     // Generate stateless token
-    const token = jwt.sign(
-      { userId: user.id, username: user.username },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '24h' });
 
     // Set cookie
     res.cookie('token', token, {
@@ -207,7 +287,7 @@ app.post('/api/login', async (req, res) => {
       maxAge: 24 * 60 * 60 * 1000 // 24 hours
     });
 
-    res.json({ success: true });
+    res.json({ success: true, role: tokenPayload.role, nama_lengkap: tokenPayload.nama_lengkap, posisi: tokenPayload.posisi });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Terjadi kesalahan server.' });
@@ -226,7 +306,13 @@ app.get('/api/check-auth', (req, res) => {
   if (token) {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
-      return res.json({ authenticated: true, username: decoded.username });
+      return res.json({
+        authenticated: true,
+        username: decoded.username,
+        nama_lengkap: decoded.nama_lengkap || decoded.username,
+        role: decoded.role || 'admin',
+        posisi: decoded.posisi || null
+      });
     } catch (err) {
       // Token invalid or expired
     }
@@ -235,6 +321,20 @@ app.get('/api/check-auth', (req, res) => {
 });
 
 // ==================== ADMIN ROUTES ====================
+
+// Middleware: admin only
+const requireAdmin = (req, res, next) => {
+  const token = req.cookies.token;
+  if (!token) return res.status(401).json({ error: 'Unauthorized.' });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin') return res.status(403).json({ error: 'Akses ditolak. Hanya untuk Admin.' });
+    req.user = decoded;
+    next();
+  } catch (err) {
+    res.status(401).json({ error: 'Sesi tidak valid.' });
+  }
+};
 
 // GET /api/submissions
 app.get('/api/submissions', requireAuth, async (req, res) => {
@@ -263,7 +363,10 @@ app.get('/api/submissions/:id', requireAuth, async (req, res) => {
 // DELETE /api/submissions/:id
 app.delete('/api/submissions/:id', requireAuth, async (req, res) => {
   try {
+    const sub = await db.getSubmissionById(req.params.id);
+    const date = sub ? sub.tanggal_carian : null;
     await db.deleteSubmission(req.params.id);
+    if (date) invalidateDcCache(date); // clear cache setelah hapus
     res.json({ success: true });
   } catch (err) {
     console.error('Delete submission error:', err);
@@ -282,39 +385,203 @@ app.get('/api/stats', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/export - Export to Excel
+// GET /api/submissions/pending-count — Jumlah submission pending (untuk badge admin)
+app.get('/api/submissions/pending-count', requireAuth, async (req, res) => {
+  try {
+    const count = await db.getPendingCount();
+    res.json({ count });
+  } catch (err) {
+    console.error('Pending count error:', err);
+    res.status(500).json({ error: 'Gagal mengambil data.' });
+  }
+});
+
+// PUT /api/submissions/:id/status — Admin approve atau reject submission pending
+app.put('/api/submissions/:id/status', requireAdmin, async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['approved', 'rejected', 'pending'].includes(status)) {
+      return res.status(400).json({ error: 'Status tidak valid. Gunakan: approved, rejected, atau pending.' });
+    }
+    const submission = await db.getSubmissionById(req.params.id);
+    if (!submission) return res.status(404).json({ error: 'Submission tidak ditemukan.' });
+
+    const updated = await db.updateSubmissionStatus(req.params.id, status);
+    // Invalidate cache kapasitas setelah approve (karena approved submission ikut dihitung)
+    if (submission.tanggal_carian) invalidateDcCache(submission.tanggal_carian);
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    console.error('Update submission status error:', err);
+    res.status(500).json({ error: 'Gagal mengubah status submission.' });
+  }
+});
+
+
+// GET /api/export - Export to Styled Excel (ExcelJS) with optional filters
+// Query params: tanggal_mulai, tanggal_akhir, posisi, zona, status
 app.get('/api/export', requireAuth, async (req, res) => {
   try {
-    const submissions = await db.getAllSubmissions();
+    let submissions = await db.getAllSubmissions();
 
-    const data = submissions.map((s, i) => ({
-      'No': i + 1,
-      'Tanggal Carian': s.tanggal_carian,
-      'Tanggal Pengerjaan': s.tanggal_pengerjaan,
-      'Nama': s.nama,
-      'Posisi': s.posisi,
-      'Tipe Lokasi': s.tipe_lokasi,
-      'Zona': s.zona,
-      'Batch/Cluster': JSON.parse(s.batch_cluster || '[]').join(', '),
-      'Jumlah Output': s.jumlah_output,
-      'Catatan Tambahan': s.catatan_tambahan,
-      'Waktu Submit': s.created_at
-    }));
+    // ===== Terapkan Filter =====
+    const { tanggal_mulai, tanggal_akhir, posisi: filterPosisi, zona: filterZona, status: filterStatus } = req.query;
+    if (tanggal_mulai) submissions = submissions.filter(s => s.tanggal_carian >= tanggal_mulai);
+    if (tanggal_akhir) submissions = submissions.filter(s => s.tanggal_carian <= tanggal_akhir);
+    if (filterPosisi && filterPosisi !== 'semua') submissions = submissions.filter(s => s.posisi === filterPosisi);
+    if (filterZona && filterZona !== 'semua') submissions = submissions.filter(s => s.zona === filterZona);
+    if (filterStatus && filterStatus !== 'semua') submissions = submissions.filter(s => s.status === filterStatus);
+    // ===========================
 
-    const ws = XLSX.utils.json_to_sheet(data);
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Formulir Pencapaian Kerja SS08';
+    workbook.created = new Date();
 
-    // Set column widths
-    ws['!cols'] = [
-      { wch: 5 }, { wch: 15 }, { wch: 18 }, { wch: 30 },
-      { wch: 10 }, { wch: 15 }, { wch: 12 }, { wch: 40 },
-      { wch: 15 }, { wch: 25 }, { wch: 22 }
+    const sheet = workbook.addWorksheet('Pencapaian Kerja SS08', {
+      views: [{ state: 'frozen', ySplit: 1 }] // Freeze baris header
+    });
+
+    // ===== Definisi Kolom =====
+    sheet.columns = [
+      { header: 'No',                key: 'no',         width: 6  },
+      { header: 'Tanggal Carian',    key: 'tgl_carian', width: 16 },
+      { header: 'Tanggal Pengerjaan',key: 'tgl_kerja',  width: 20 },
+      { header: 'Nama',              key: 'nama',       width: 32 },
+      { header: 'Posisi',            key: 'posisi',     width: 12 },
+      { header: 'Tipe Lokasi',       key: 'tipe',       width: 16 },
+      { header: 'Zona',              key: 'zona',       width: 10 },
+      { header: 'Batch/Cluster',     key: 'batch',      width: 42 },
+      { header: 'Jumlah Output',     key: 'output',     width: 16 },
+      { header: 'Status',            key: 'status',     width: 12 },
+      { header: 'Catatan Tambahan',  key: 'catatan',    width: 30 },
+      { header: 'Waktu Submit',      key: 'waktu',      width: 24 },
     ];
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Pencapaian Kerja SS08');
+    // ===== Style Header Row =====
+    const headerRow = sheet.getRow(1);
+    headerRow.eachCell(cell => {
+      cell.fill = {
+        type: 'pattern', pattern: 'solid',
+        fgColor: { argb: 'FF1A4799' }  // biru tua
+      };
+      cell.font   = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Calibri' };
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false };
+      cell.border = {
+        bottom: { style: 'medium', color: { argb: 'FFAEC6E8' } }
+      };
+    });
+    headerRow.height = 22;
 
-    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-    const filename = `pencapaian-kerja-ss08-${new Date().toISOString().slice(0,10)}.xlsx`;
+    // ===== Warna header kolom angka berbeda (output) =====
+    ['output'].forEach(key => {
+      const col = sheet.getColumn(key);
+      sheet.getRow(1).getCell(col.number).fill = {
+        type: 'pattern', pattern: 'solid',
+        fgColor: { argb: 'FF0D6E3F' } // hijau gelap untuk kolom angka
+      };
+    });
+
+    // ===== Tambah Data =====
+    const STATUS_COLOR = {
+      approved: 'FFD4EDDA', // hijau muda
+      pending:  'FFFFF3CD', // kuning muda
+      rejected: 'FFF8D7DA', // merah muda
+    };
+
+    submissions.forEach((s, i) => {
+      let batchStr = '';
+      try { batchStr = JSON.parse(s.batch_cluster || '[]').join(', '); } catch(e) { batchStr = s.batch_cluster || ''; }
+
+      const waktuStr = s.created_at
+        ? new Date(s.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false })
+        : '';
+
+      const row = sheet.addRow({
+        no:        i + 1,
+        tgl_carian: s.tanggal_carian || '',
+        tgl_kerja:  s.tanggal_pengerjaan || '',
+        nama:      s.nama || '',
+        posisi:    s.posisi || '',
+        tipe:      s.tipe_lokasi || '',
+        zona:      s.zona || '',
+        batch:     batchStr,
+        output:    s.jumlah_output || 0,
+        status:    (s.status || 'approved').charAt(0).toUpperCase() + (s.status || 'approved').slice(1),
+        catatan:   s.catatan_tambahan || '',
+        waktu:     waktuStr,
+      });
+
+      // Warna baris alternating + tint sesuai status
+      const bgColor = STATUS_COLOR[s.status] || (i % 2 === 0 ? 'FFFAFAFA' : 'FFEFEFEF');
+      row.eachCell(cell => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+        cell.font = { name: 'Calibri', size: 10 };
+        cell.border = {
+          bottom: { style: 'thin', color: { argb: 'FFD0D0D0' } }
+        };
+      });
+
+      // Kolom angka: rata kanan + bold
+      row.getCell('output').alignment = { horizontal: 'right' };
+      row.getCell('output').font = { bold: true, name: 'Calibri', size: 10 };
+      row.getCell('no').alignment = { horizontal: 'center' };
+      row.getCell('zona').alignment = { horizontal: 'center' };
+      row.getCell('posisi').alignment = { horizontal: 'center' };
+      row.getCell('status').alignment = { horizontal: 'center' };
+      row.height = 18;
+    });
+
+    // ===== Auto-filter pada header =====
+    sheet.autoFilter = {
+      from: { row: 1, column: 1 },
+      to:   { row: 1, column: sheet.columns.length }
+    };
+
+    // ===== Sheet ringkasan per posisi =====
+    if (submissions.length > 0) {
+      const summarySheet = workbook.addWorksheet('Ringkasan');
+      summarySheet.columns = [
+        { header: 'Posisi',       key: 'posisi',  width: 14 },
+        { header: 'Zona',         key: 'zona',    width: 10 },
+        { header: 'Total Output', key: 'total',   width: 16 },
+        { header: 'Jml Entri',    key: 'entri',   width: 14 },
+      ];
+      // Style header summary
+      summarySheet.getRow(1).eachCell(cell => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4A2573' } };
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      });
+      summarySheet.getRow(1).height = 20;
+
+      // Aggregate per posisi + zona
+      const agg = {};
+      submissions.filter(s => s.status !== 'rejected').forEach(s => {
+        const key = `${s.posisi}|||${s.zona}`;
+        if (!agg[key]) agg[key] = { posisi: s.posisi, zona: s.zona, total: 0, entri: 0 };
+        agg[key].total += (s.jumlah_output || 0);
+        agg[key].entri++;
+      });
+      let sIdx = 0;
+      Object.values(agg).sort((a,b) => a.posisi.localeCompare(b.posisi) || a.zona.localeCompare(b.zona))
+        .forEach(r => {
+          const sr = summarySheet.addRow({ posisi: r.posisi, zona: r.zona, total: r.total, entri: r.entri });
+          const bgS = sIdx % 2 === 0 ? 'FFF3EFF8' : 'FFFFFFFF';
+          sr.eachCell(cell => {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgS } };
+            cell.font = { name: 'Calibri', size: 10 };
+          });
+          sr.getCell('total').font = { bold: true, name: 'Calibri', size: 10 };
+          sr.getCell('total').alignment = { horizontal: 'right' };
+          sr.getCell('zona').alignment = { horizontal: 'center' };
+          sIdx++;
+        });
+    }
+
+    // ===== Generate buffer dan kirim =====
+    const buffer = await workbook.xlsx.writeBuffer();
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const filterSuffix = filterPosisi && filterPosisi !== 'semua' ? `-${filterPosisi.toLowerCase()}` : '';
+    const filename = `pencapaian-kerja-ss08${filterSuffix}-${dateStr}.xlsx`;
 
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -328,13 +595,21 @@ app.get('/api/export', requireAuth, async (req, res) => {
 // GET /api/export-csv
 app.get('/api/export-csv', requireAuth, async (req, res) => {
   try {
-    const submissions = await db.getAllSubmissions();
+    let submissions = await db.getAllSubmissions();
 
-    const headers = ['No', 'Tanggal Carian', 'Tanggal Pengerjaan', 'Nama', 'Posisi', 'Tipe Lokasi', 'Zona', 'Batch/Cluster', 'Jumlah Output', 'Catatan Tambahan', 'Waktu Submit'];
+    // Apply filters
+    const { tanggal_mulai, tanggal_akhir, posisi: filterPosisi, zona: filterZona, status: filterStatus } = req.query;
+    if (tanggal_mulai) submissions = submissions.filter(s => s.tanggal_carian >= tanggal_mulai);
+    if (tanggal_akhir) submissions = submissions.filter(s => s.tanggal_carian <= tanggal_akhir);
+    if (filterPosisi && filterPosisi !== 'semua') submissions = submissions.filter(s => s.posisi === filterPosisi);
+    if (filterZona && filterZona !== 'semua') submissions = submissions.filter(s => s.zona === filterZona);
+    if (filterStatus && filterStatus !== 'semua') submissions = submissions.filter(s => s.status === filterStatus);
+
+    const headers = ['No', 'Tanggal Carian', 'Tanggal Pengerjaan', 'Nama', 'Posisi', 'Tipe Lokasi', 'Zona', 'Batch/Cluster', 'Jumlah Output', 'Status', 'Catatan Tambahan', 'Waktu Submit'];
     const rows = submissions.map((s, i) => [
       i + 1, s.tanggal_carian, s.tanggal_pengerjaan, s.nama, s.posisi, s.tipe_lokasi,
       s.zona, JSON.parse(s.batch_cluster || '[]').join('; '), s.jumlah_output,
-      s.catatan_tambahan, s.created_at
+      s.status || 'approved', s.catatan_tambahan, s.created_at
     ]);
 
     const csv = [headers, ...rows]
@@ -348,6 +623,86 @@ app.get('/api/export-csv', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Export CSV error:', err);
     res.status(500).send('Gagal mengekspor data.');
+  }
+});
+
+// ==================== GOOGLE SHEETS ROUTES ====================
+
+// GET /api/google-sheets/status — Cek status koneksi Google Sheets
+app.get('/api/google-sheets/status', requireAdmin, async (req, res) => {
+  try {
+    const status = await googleSheets.checkStatus();
+    res.json(status);
+  } catch (err) {
+    console.error('Google Sheets status error:', err);
+    res.status(500).json({ error: 'Gagal cek status Google Sheets.' });
+  }
+});
+
+// POST /api/google-sheets/push — Manual push semua data ke Google Sheets
+app.post('/api/google-sheets/push', requireAdmin, async (req, res) => {
+  try {
+    if (!googleSheets.isConfigured()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Google Sheets belum dikonfigurasi. Tambahkan GOOGLE_SHEETS_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL, dan GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ke file .env'
+      });
+    }
+
+    let submissions = await db.getAllSubmissions();
+    let loaderEntries = await db.getAllLoaderEntries();
+
+    // Apply optional filters dari body
+    const { tanggal_mulai, tanggal_akhir, posisi: filterPosisi } = req.body || {};
+    
+    if (tanggal_mulai) {
+      submissions = submissions.filter(s => s.tanggal_carian >= tanggal_mulai);
+      loaderEntries = loaderEntries.filter(e => e.tanggal_carian >= tanggal_mulai);
+    }
+    if (tanggal_akhir) {
+      submissions = submissions.filter(s => s.tanggal_carian <= tanggal_akhir);
+      loaderEntries = loaderEntries.filter(e => e.tanggal_carian <= tanggal_akhir);
+    }
+    
+    // Tentukan apakah Picker/Sorter dan Loader harus di-push
+    const shouldPushSubmissions = !filterPosisi || filterPosisi === 'semua' || ['Picker', 'Sorter'].includes(filterPosisi);
+    const shouldPushLoader = !filterPosisi || filterPosisi === 'semua' || filterPosisi === 'Loader';
+
+    let result = { success: true, rowCount: 0, message: '' };
+
+    if (shouldPushSubmissions) {
+      if (filterPosisi && filterPosisi !== 'semua') {
+        submissions = submissions.filter(s => s.posisi === filterPosisi);
+      }
+      const filesMap = new Map();
+      await Promise.all(submissions.map(async (s) => {
+        const files = await db.getFilesBySubmissionId(s.id);
+        if (files && files.length > 0) filesMap.set(s.id, files);
+      }));
+      const subResult = await googleSheets.pushAllSubmissions(submissions, filesMap);
+      result.success = result.success && subResult.success;
+      result.rowCount += subResult.rowCount;
+      result.message = subResult.message;
+    }
+
+    if (shouldPushLoader) {
+      const loaderFilesMap = new Map();
+      await Promise.all(loaderEntries.map(async (e) => {
+        const files = await db.getFilesBySubmissionId(e.id);
+        if (files && files.length > 0) loaderFilesMap.set(e.id, files);
+      }));
+      const loaderResult = await googleSheets.pushAllLoaderEntries(loaderEntries, loaderFilesMap);
+      result.success = result.success && loaderResult.success;
+      result.rowCount += loaderResult.rowCount;
+      result.message = result.message 
+        ? `${result.message} ${loaderResult.message}` 
+        : loaderResult.message;
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error('Google Sheets push error:', err);
+    res.status(500).json({ success: false, message: 'Gagal push ke Google Sheets: ' + err.message });
   }
 });
 
@@ -405,7 +760,7 @@ app.get('/api/data-carian/tanggal-list', requireAuth, async (req, res) => {
 // POST /api/data-carian — Tambah satu record
 app.post('/api/data-carian', requireAuth, async (req, res) => {
   try {
-    const { tanggal_carian, posisi, zona, batch, total_output } = req.body;
+    const { tanggal_carian, posisi, zona, batch, jumlah_toko, total_output } = req.body;
     if (!tanggal_carian || !posisi || !zona || !batch || !total_output) {
       return res.status(400).json({ error: 'Semua field wajib diisi.' });
     }
@@ -413,6 +768,7 @@ app.post('/api/data-carian', requireAuth, async (req, res) => {
     const satuan = posisi === 'Picker' ? 'pcs' : 'kontainer';
     const record = await db.insertDataCarian({
       tanggal_carian, posisi, zona, batch,
+      jumlah_toko: parseInt(jumlah_toko) || 0,
       total_output: parseInt(total_output),
       satuan
     });
@@ -427,13 +783,14 @@ app.post('/api/data-carian', requireAuth, async (req, res) => {
 // PUT /api/data-carian/:id — Edit satu record
 app.put('/api/data-carian/:id', requireAuth, async (req, res) => {
   try {
-    const { total_output, posisi } = req.body;
+    const { total_output, jumlah_toko, posisi } = req.body;
     if (!total_output) {
       return res.status(400).json({ error: 'Total output wajib diisi.' });
     }
     const satuan = posisi === 'Picker' ? 'pcs' : 'kontainer';
     const record = await db.updateDataCarian(req.params.id, {
       total_output: parseInt(total_output),
+      jumlah_toko: parseInt(jumlah_toko) || 0,
       satuan,
       ...(req.body.tanggal_carian && { tanggal_carian: req.body.tanggal_carian }),
       ...(req.body.posisi && { posisi: req.body.posisi }),
@@ -501,13 +858,81 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
     const skipped = [];
 
     // Detect "DATA UPLOAD SYSTEM" format (1 sheet, matrix besar: row1=posisi, row2=zona, row3=batch, row4=label, row5=QTY/ACT)
-    const dataUploadSheet = sheetNames.find(n => n.toUpperCase().includes('DATA UPLOAD') || n.toUpperCase().includes('UPLOAD SYSTEM'));
+    let dataUploadSheet = sheetNames.find(n => n.toUpperCase().includes('DATA UPLOAD') || n.toUpperCase().includes('UPLOAD SYSTEM'));
 
     // Detect SS08 format (has sheets named Picker / Sorter / Loader)
     const pickerSheetNames = sheetNames.filter(n => n.toLowerCase().includes('picker'));
     const sorterSheetNames = sheetNames.filter(n => n.toLowerCase().includes('sort'));
     const loaderSheetName  = sheetNames.find(n => n.toLowerCase().includes('load') || n.toLowerCase().includes('kontainer'));
     const isSS08Format = !!(pickerSheetNames.length || sorterSheetNames.length || loaderSheetName);
+
+    // Detect "Lembar Fix Baru" format:
+    // 1 sheet (Lembar1), row 2 = zona (F1/R1/...), row 3 = Picker/Shorter per zona,
+    // row 6 = header (TANGGAL CARI, GROUP MOBIL, KODE, INS, NAMA TOKO, BATCH, QTY, ACT QTY, KONT, ACT KONT... per zona)
+    // data mulai row 7 → batch ada di kolom F (per zona group, 5 kolom: BATCH, QTY, ACT QTY, KONT, ACT KONT)
+    // Loader kolom terakhir: FREZZER KONT (col 51), CHILLER KONT (col 53), AMBIENT KONT (col 55) [1-based dari Excel]
+    let isLembarFixFormat = false;
+    let lembarFixHeaderRowIdx = -1; // idx baris yang berisi "TANGGAL CARI"
+    let lembarFixSheet = null;
+
+    // First, check if the dataUploadSheet actually matches "Lembar Fix Baru" structure
+    if (dataUploadSheet) {
+      try {
+        const ws0 = workbook.Sheets[dataUploadSheet];
+        const probe = XLSX.utils.sheet_to_json(ws0, { header: 1, defval: '', range: { s: {r:0,c:0}, e: {r:9,c:5} } });
+        for (let ri = 0; ri < Math.min(10, probe.length); ri++) {
+          const rowCells = (probe[ri] || []).map(v => String(v).toUpperCase());
+          if (rowCells[0] === 'TANGGAL CARI' || rowCells.some(v => v === 'TANGGAL CARI')) {
+            isLembarFixFormat = true;
+            lembarFixHeaderRowIdx = ri;
+            lembarFixSheet = dataUploadSheet;
+            dataUploadSheet = null; // Reset to prevent matching the legacy format
+            break;
+          }
+        }
+      } catch(e) { /* ignore */ }
+    }
+
+    if (!isLembarFixFormat) {
+      const lembarFixSheetName = !dataUploadSheet && !isSS08Format
+        ? sheetNames.find(n => /lembar/i.test(n))
+        : null;
+      isLembarFixFormat = !!lembarFixSheetName;
+      if (isLembarFixFormat) {
+        lembarFixSheet = lembarFixSheetName;
+      }
+
+      // juga deteksi berdasarkan struktur header jika tidak ada nama "Lembar"
+      if (!isLembarFixFormat && !dataUploadSheet && !isSS08Format && sheetNames.length === 1) {
+        // Cek baris 3–8 (idx 3–8): ada yang berisi "TANGGAL CARI" di kolom 0?
+        try {
+          const ws0 = workbook.Sheets[sheetNames[0]];
+          const probe = XLSX.utils.sheet_to_json(ws0, { header: 1, defval: '', range: { s: {r:0,c:0}, e: {r:9,c:5} } });
+          for (let ri = 3; ri <= 8; ri++) {
+            const rowCells = (probe[ri] || []).map(v => String(v).toUpperCase());
+            if (rowCells[0] === 'TANGGAL CARI' || rowCells.some(v => v === 'TANGGAL CARI')) {
+              isLembarFixFormat = true;
+              lembarFixHeaderRowIdx = ri;
+              lembarFixSheet = sheetNames[0];
+              break;
+            }
+          }
+        } catch(e) { /* ignore */ }
+      } else if (lembarFixSheet) {
+        // Jika terdeteksi dari nama sheet, cari header row-nya
+        try {
+          const ws0 = workbook.Sheets[lembarFixSheet];
+          const probe = XLSX.utils.sheet_to_json(ws0, { header: 1, defval: '', range: { s: {r:0,c:0}, e: {r:9,c:5} } });
+          for (let ri = 3; ri <= 8; ri++) {
+            const rowCells = (probe[ri] || []).map(v => String(v).toUpperCase());
+            if (rowCells[0] === 'TANGGAL CARI' || rowCells.some(v => v === 'TANGGAL CARI')) {
+              lembarFixHeaderRowIdx = ri;
+              break;
+            }
+          }
+        } catch(e) { /* ignore */ }
+      }
+    }
 
     // Helper: parse single Picker sheet → array of records
     function parsePickerSheet(sheetName) {
@@ -648,7 +1073,255 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
     }
 
 
-    if (dataUploadSheet) {
+    if (isLembarFixFormat) {
+      // ====================================================
+      // FORMAT: LEMBAR FIX BARU (sheet Lembar1 atau 1 sheet dgn header TANGGAL CARI)
+      // Struktur (bisa ada 1 baris kosong extra di atas, sehingga index bisa bergeser):
+      //   - Row X: Zona group — FREZZER, CHILLER, AMBIENT
+      //   - Row X+1: Zona code — F1, R1, R2, R3, T1..T5, ALL
+      //   - Row X+2: Posisi — Picker, Shorter, LOADER
+      //   - Row X+3: Label zona — "FREZZER ZONA F1 Picker", dll
+      //   - Row HEADER (auto-detect): TANGGAL CARI, GROUP MOBIL, KODE, ...
+      //   - Row HEADER+1+: Data per toko
+      // Setiap zona = 5 kolom: BATCH, QTY, ACT QTY, KONT, ACT KONT
+      // Loader = 3 kolom terakhir: FREZZER KONT, CHILLER KONT, AMBIENT KONT
+      // ====================================================
+      const sheetName = lembarFixSheet || sheetNames[0];
+      const raw = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: '' });
+
+      // Auto-detect baris header (TANGGAL CARI) — sudah ditemukan saat deteksi format
+      // Jika belum ditemukan, cari lagi sekarang
+      let headerRowIdx = lembarFixHeaderRowIdx;
+      if (headerRowIdx === -1) {
+        for (let ri = 0; ri < Math.min(12, raw.length); ri++) {
+          const rowCells = raw[ri].map(v => String(v).toUpperCase());
+          if (rowCells[0] === 'TANGGAL CARI' || rowCells.some(v => v === 'TANGGAL CARI')) {
+            headerRowIdx = ri;
+            break;
+          }
+        }
+      }
+      // Fallback ke idx 5 (format lama)
+      if (headerRowIdx === -1) headerRowIdx = 5;
+
+      const DATA_START = headerRowIdx + 1; // baris data pertama (setelah header)
+
+      // Cari baris zona code: baris sebelum header yang mengandung F1/R1/T1/ALL
+      const ZONA_CODES = ['F1', 'R1', 'R2', 'R3', 'T1', 'T2', 'T3', 'T4', 'T5', 'ALL'];
+      let zonaRowIdx = -1;
+      for (let ri = headerRowIdx - 1; ri >= 0; ri--) {
+        const rowUpper = raw[ri].map(v => String(v).trim().toUpperCase());
+        const matchCount = ZONA_CODES.filter(z => rowUpper.includes(z)).length;
+        if (matchCount >= 2) { zonaRowIdx = ri; break; }
+      }
+      // Fallback ke idx 2
+      if (zonaRowIdx === -1) zonaRowIdx = 2;
+
+      const ZONA_START_COL = 5;
+      const ZONA_COLS = 5;
+
+      // Baca zona dari baris zona yang terdeteksi
+      const zonaRow = raw[zonaRowIdx] || [];
+
+      // Bangun daftar zona group: { zona, colBatch, colQty, colKont }
+      const zonaGroups = [];
+      for (let col = ZONA_START_COL; col < zonaRow.length; col += ZONA_COLS) {
+        const zona = String(zonaRow[col] || '').trim().toUpperCase();
+        if (!zona || zona === 'ALL') continue; // skip Loader area (ALL) dan kosong
+        // Tiap zona 5 kolom: 0=BATCH, 1=QTY, 2=ACT QTY, 3=KONT, 4=ACT KONT
+        zonaGroups.push({
+          zona,
+          colBatch: col,
+          colQty:   col + 1,
+          colKont:  col + 3,
+        });
+      }
+
+      // Auto-detect kolom Loader: scan SETIAP kolom di zonaRow untuk cari 'ALL'
+      // Loader punya 2 kolom per cluster (KONT + ACT KONT), bukan 5 seperti zona Picker/Sorter
+      const LOADER_CLUSTERS = ['FREZZER', 'CHILLER', 'AMBIENT'];
+      const LOADER_COLS = [];
+      // Baris tipe (1 baris sebelum zona) mungkin berisi FREZZER/CHILLER/AMBIENT
+      const tipeRow = raw[zonaRowIdx - 1] || [];
+      for (let col = ZONA_START_COL; col < zonaRow.length; col++) { // scan satu per satu, bukan step ZONA_COLS
+        const zonaCell = String(zonaRow[col] || '').trim().toUpperCase();
+        if (zonaCell !== 'ALL') continue;
+        // cari cluster dari baris tipe (di kolom yang sama)
+        let cluster = '';
+        const tipeVal = String(tipeRow[col] || '').trim().toUpperCase();
+        if (LOADER_CLUSTERS.includes(tipeVal)) {
+          cluster = tipeVal;
+        } else {
+          // fallback: cari dari baris label (1 sebelum header) — berisi "FREZZER ALL ZONA LOADER"
+          const labelRow = raw[headerRowIdx - 1] || [];
+          for (let off = 0; off <= 2; off++) {
+            const v = String(labelRow[col + off] || '').trim().toUpperCase();
+            const m = v.match(/^(FREZZER|CHILLER|AMBIENT)/);
+            if (m) { cluster = m[1]; break; }
+          }
+        }
+        if (cluster && !LOADER_COLS.some(l => l.cluster === cluster)) {
+          LOADER_COLS.push({ cluster, col });
+        }
+      }
+      // Fallback ke kolom default jika tidak terdeteksi
+      if (LOADER_COLS.length === 0) {
+        LOADER_COLS.push(
+          { cluster: 'FREZZER', col: 50 },
+          { cluster: 'CHILLER', col: 52 },
+          { cluster: 'AMBIENT', col: 54 }
+        );
+      }
+
+      // Aggregate: per zona+batch untuk Picker & Sorter, per cluster untuk Loader
+      const pickerAgg  = {}; // `${zona}|${batch}` → total QTY
+      const sorterAgg  = {}; // `${zona}|${batch}` → total KONT
+      const loaderAgg  = {}; // cluster → total KONT
+
+      // Baca tanggal otomatis dari kolom A (TANGGAL CARI) data row pertama
+      let tanggal_carian_excel = tanggal_carian; // default = dari form
+
+      // Cari baris data pertama yang valid untuk baca tanggal
+      for (let r = DATA_START; r < raw.length; r++) {
+        const row = raw[r];
+        const namaToko = String(row[4] || '').trim();
+        if (!namaToko) continue;
+        const tglVal = row[0]; // kolom A = TANGGAL CARI
+        if (tglVal === '' || tglVal === null || tglVal === undefined) break;
+        
+        let parsed = null;
+        if (typeof tglVal === 'number') {
+          // Excel serial date → JS Date (Excel epoch = Jan 1 1900, tapi ada bug +2 hari)
+          const jsDate = new Date(Math.round((tglVal - 25569) * 86400 * 1000));
+          if (!isNaN(jsDate)) {
+            const y = jsDate.getUTCFullYear();
+            const m = String(jsDate.getUTCMonth() + 1).padStart(2, '0');
+            const d = String(jsDate.getUTCDate()).padStart(2, '0');
+            parsed = `${y}-${m}-${d}`;
+          }
+        } else if (typeof tglVal === 'string' && tglVal.trim()) {
+          // Coba parse string tanggal — bisa "30-May-2026", "30/05/2026", "2026-05-30", dll.
+          const dt = new Date(tglVal.trim());
+          if (!isNaN(dt)) {
+            const y = dt.getFullYear();
+            const m = String(dt.getMonth() + 1).padStart(2, '0');
+            const d = String(dt.getDate()).padStart(2, '0');
+            parsed = `${y}-${m}-${d}`;
+          }
+        }
+        
+        if (parsed) {
+          tanggal_carian_excel = parsed;
+          info.push(`Tanggal dari Excel: ${parsed}`);
+        }
+        break; // cukup baca dari baris pertama
+      }
+
+      // Gunakan tanggal dari form (prioritaskan pilihan user di admin panel)
+      const tglFinal = tanggal_carian;
+
+      for (let r = DATA_START; r < raw.length; r++) {
+        const row = raw[r];
+        // Skip baris kosong (nama toko harus ada di col 4)
+        const namaToko = String(row[4] || '').trim();
+        if (!namaToko) continue;
+
+        // Parse row-specific date from Column A (TANGGAL CARI)
+        const tglVal = row[0];
+        let rowTanggal = tanggal_carian; // fallback to form date
+        if (tglVal !== '' && tglVal !== null && tglVal !== undefined) {
+          let parsed = null;
+          if (typeof tglVal === 'number') {
+            const jsDate = new Date(Math.round((tglVal - 25569) * 86400 * 1000));
+            if (!isNaN(jsDate)) {
+              const y = jsDate.getUTCFullYear();
+              const m = String(jsDate.getUTCMonth() + 1).padStart(2, '0');
+              const d = String(jsDate.getUTCDate()).padStart(2, '0');
+              parsed = `${y}-${m}-${d}`;
+            }
+          } else if (typeof tglVal === 'string' && tglVal.trim()) {
+            const dt = new Date(tglVal.trim());
+            if (!isNaN(dt)) {
+              const y = dt.getFullYear();
+              const m = String(dt.getMonth() + 1).padStart(2, '0');
+              const d = String(dt.getDate()).padStart(2, '0');
+              parsed = `${y}-${m}-${d}`;
+            }
+          }
+          if (parsed) {
+            rowTanggal = parsed;
+          }
+        }
+
+        // Picker & Sorter: tiap zona
+        for (const { zona, colBatch, colQty, colKont } of zonaGroups) {
+          const batchVal = row[colBatch];
+          const batch = (batchVal !== '' && batchVal !== null && batchVal !== undefined)
+            ? String(batchVal).trim() : '';
+          if (!batch || batch === '0') continue;
+
+          const qty  = parseFloat(row[colQty])  || 0;
+          const kont = parseFloat(row[colKont]) || 0;
+
+          if (qty > 0) {
+            const key = `${rowTanggal}|${zona}|${batch}`;
+            pickerAgg[key] = (pickerAgg[key] || 0) + qty;
+          }
+          if (kont > 0) {
+            const key = `${rowTanggal}|${zona}|${batch}`;
+            sorterAgg[key] = (sorterAgg[key] || 0) + kont;
+          }
+        }
+
+        // Loader: sum per cluster + group mobil
+        const groupMobil = String(row[1] || '').trim();
+        if (groupMobil) {
+          for (const { cluster, col } of LOADER_COLS) {
+            const kont = parseFloat(row[col]) || 0;
+            if (kont > 0) {
+              const key = `${rowTanggal}|${cluster}|${groupMobil}`;
+              loaderAgg[key] = (loaderAgg[key] || 0) + kont;
+            }
+          }
+        }
+      }
+
+
+      // Buat records Picker
+      let pickerCount = 0;
+      for (const [key, total] of Object.entries(pickerAgg)) {
+        if (total <= 0) continue;
+        const [tgl, zona, batch] = key.split('|');
+        records.push({ tanggal_carian: tgl, posisi: 'Picker', zona, batch, total_output: Math.round(total), satuan: 'pcs' });
+        pickerCount++;
+      }
+
+      // Buat records Sorter
+      let sorterCount = 0;
+      for (const [key, total] of Object.entries(sorterAgg)) {
+        if (total <= 0) continue;
+        const [tgl, zona, batch] = key.split('|');
+        records.push({ tanggal_carian: tgl, posisi: 'Sorter', zona, batch, total_output: Math.round(total), satuan: 'kontainer' });
+        sorterCount++;
+      }
+
+      // Buat records Loader per cluster + group mobil
+      let loaderCount = 0;
+      for (const [key, total] of Object.entries(loaderAgg)) {
+        if (total <= 0) continue;
+        const [tgl, cluster, groupMobil] = key.split('|');
+        records.push({ tanggal_carian: tgl, posisi: 'Loader', zona: cluster, batch: groupMobil, total_output: Math.round(total), satuan: 'kontainer' });
+        loaderCount++;
+      }
+
+      if (pickerCount > 0) info.push(`Picker: ${pickerCount} batch`);
+      if (sorterCount > 0) info.push(`Sorter: ${sorterCount} batch`);
+      if (loaderCount > 0) info.push(`Loader: ${loaderCount} cluster`);
+      if (pickerCount === 0 && sorterCount === 0 && loaderCount === 0) {
+        skipped.push('Lembar Fix: Tidak ada data valid yang ditemukan. Pastikan data toko terisi di row 7 ke bawah.');
+      }
+
+    } else if (dataUploadSheet) {
       // ====================================================
       // FORMAT: DATA UPLOAD SYSTEM (1 sheet, matrix besar)
       // Row 1 (idx 0): Posisi — PICKER / SHORTER / LOADER
@@ -735,9 +1408,12 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
       } else {
         // SUM kolom QTY langsung via cell address — mulai dari baris data pertama
         const totals = {}; // col → total
+        const loaderClusterTotals = {}; // col → { cluster → sum }
         const isDense = !!ws['!data'];
+        
         for (let r = dataStart; r <= maxRow; r++) {
-          for (const { col } of batchColMap) {
+          const clusterVal = String(cellVal(r, 3) || '').trim().toUpperCase();
+          for (const { col, posisi } of batchColMap) {
             let cell;
             if (isDense) {
               cell = ws['!data'][r] && ws['!data'][r][col];
@@ -746,26 +1422,45 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
             }
             if (cell && typeof cell.v === 'number' && cell.v > 0) {
               totals[col] = (totals[col] || 0) + cell.v;
+              if (posisi === 'Loader') {
+                if (clusterVal) {
+                  if (!loaderClusterTotals[col]) loaderClusterTotals[col] = {};
+                  loaderClusterTotals[col][clusterVal] = (loaderClusterTotals[col][clusterVal] || 0) + cell.v;
+                }
+              }
             }
           }
         }
 
         let pickerCount = 0, sorterCount = 0, loaderCount = 0;
         for (const { col, posisi, zona, batch, label } of batchColMap) {
-          const total_output = totals[col] || 0;
-          if (total_output <= 0) {
-            skipped.push(`${label}: total QTY = 0, dilewati`);
-            continue;
+          if (posisi === 'Loader') {
+            const clusterMap = loaderClusterTotals[col] || {};
+            const clusters = Object.keys(clusterMap);
+            if (clusters.length === 0) {
+              skipped.push(`${label}: tidak ada data QTY per cluster, dilewati`);
+              continue;
+            }
+            for (const cluster of clusters) {
+              const total_output = clusterMap[cluster];
+              records.push({ tanggal_carian, posisi, zona, batch: cluster, total_output, satuan: satuanOf(posisi) });
+              loaderCount++;
+            }
+          } else {
+            const total_output = totals[col] || 0;
+            if (total_output <= 0) {
+              skipped.push(`${label}: total QTY = 0, dilewati`);
+              continue;
+            }
+            records.push({ tanggal_carian, posisi, zona, batch, total_output, satuan: satuanOf(posisi) });
+            if (posisi === 'Picker')       pickerCount++;
+            else if (posisi === 'Sorter') sorterCount++;
           }
-          records.push({ tanggal_carian, posisi, zona, batch, total_output, satuan: satuanOf(posisi) });
-          if (posisi === 'Picker')       pickerCount++;
-          else if (posisi === 'Sorter') sorterCount++;
-          else if (posisi === 'Loader') loaderCount++;
         }
 
         if (pickerCount > 0) info.push(`Picker: ${pickerCount} batch`);
         if (sorterCount > 0) info.push(`Sorter: ${sorterCount} batch`);
-        if (loaderCount > 0) info.push(`Loader: ${loaderCount} batch`);
+        if (loaderCount > 0) info.push(`Loader: ${loaderCount} cluster`);
       }
 
     } else if (isSS08Format) {
@@ -836,7 +1531,7 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
       }
 
     } else {
-      // === SIMPLE TEMPLATE FORMAT: Posisi | Zona | Batch | Total Output ===
+      // === SIMPLE TEMPLATE FORMAT: Posisi | Zona | Kode Toko (Batch) | [Jumlah Toko] | Total Output ===
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
       let headerRowIdx = -1;
@@ -845,14 +1540,18 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
         const row = rawData[i].map(c => String(c).toLowerCase().trim());
         const pIdx = row.findIndex(c => c.includes('posisi'));
         const zIdx = row.findIndex(c => c.includes('zona'));
-        const bIdx = row.findIndex(c => c.includes('batch'));
-        const oIdx = row.findIndex(c => c.includes('output') || c.includes('total') || c.includes('jumlah'));
+        const bIdx = row.findIndex(c => c.includes('batch') || c.includes('kode toko') || c.includes('kode'));
+        const oIdx = row.findIndex(c => c.includes('total output') || c === 'output');
+        // Kolom jumlah_toko opsional
+        const jIdx = row.findIndex(c => c.includes('jumlah toko'));
         if (pIdx !== -1 && zIdx !== -1 && bIdx !== -1 && oIdx !== -1) {
-          headerRowIdx = i; colMap = { posisi: pIdx, zona: zIdx, batch: bIdx, output: oIdx }; break;
+          headerRowIdx = i;
+          colMap = { posisi: pIdx, zona: zIdx, batch: bIdx, output: oIdx, jumlah_toko: jIdx };
+          break;
         }
       }
       if (headerRowIdx === -1) {
-        return res.status(400).json({ error: 'Format Excel tidak dikenali.', hint: 'Gunakan: (1) File "DATA UPLOAD EXCEL" (sheet "DATA UPLOAD SYSTEM"), (2) Register SS08 (sheet Picker/Sorter/Loader), atau (3) template dengan kolom: Posisi | Zona | Batch | Total Output' });
+        return res.status(400).json({ error: 'Format Excel tidak dikenali.', hint: 'Gunakan: (1) File "DATA UPLOAD EXCEL" (sheet "DATA UPLOAD SYSTEM"), (2) Register SS08 (sheet Picker/Sorter/Loader), atau (3) template dengan kolom: Posisi | Zona | Kode Toko (Batch) | Jumlah Toko | Total Output' });
       }
       for (let i = headerRowIdx + 1; i < rawData.length; i++) {
         const row = rawData[i];
@@ -860,10 +1559,11 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
         const zona = String(row[colMap.zona] || '').trim();
         const batch = String(row[colMap.batch] || '').trim();
         const total_output = parseInt(row[colMap.output]);
+        const jumlah_toko = colMap.jumlah_toko !== -1 ? (parseInt(row[colMap.jumlah_toko]) || 0) : 0;
         if (!posisi || !zona || !batch || isNaN(total_output) || total_output <= 0) continue;
         const posisiNorm = posisi.charAt(0).toUpperCase() + posisi.slice(1).toLowerCase();
         if (!['Picker', 'Sorter', 'Loader'].includes(posisiNorm)) continue;
-        records.push({ tanggal_carian, posisi: posisiNorm, zona, batch, total_output, satuan: posisiNorm === 'Picker' ? 'pcs' : 'kontainer' });
+        records.push({ tanggal_carian, posisi: posisiNorm, zona, batch, jumlah_toko, total_output, satuan: posisiNorm === 'Picker' ? 'pcs' : 'kontainer' });
       }
     }
 
@@ -871,14 +1571,19 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
       return res.status(400).json({ error: 'Tidak ada data valid yang berhasil diparse.', skipped, info });
     }
 
-    // Jika mode = 'replace', hapus dulu data lama untuk tanggal ini
+    // Kumpulkan tanggal unik dari records (bisa berbeda dari tanggal_carian di form)
+    const uniqueTanggal = [...new Set(records.map(r => r.tanggal_carian))];
+
+    // Jika mode = 'replace', hapus dulu data lama untuk semua tanggal yang ada di records
     if (mode === 'replace') {
-      await db.deleteDataCarianByTanggal(tanggal_carian);
+      for (const tgl of uniqueTanggal) {
+        await db.deleteDataCarianByTanggal(tgl);
+      }
     }
 
     // Upsert semua record
     const inserted = await db.bulkUpsertDataCarian(records);
-    invalidateDcCache(tanggal_carian); // clear cache setelah import
+    uniqueTanggal.forEach(tgl => invalidateDcCache(tgl)); // clear cache setelah import
 
     res.json({
       success: true,
@@ -898,17 +1603,17 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
 app.get('/api/data-carian/template', requireAuth, (req, res) => {
   try {
     const templateData = [
-      ['Posisi', 'Zona', 'Batch', 'Total Output'],
-      ['Picker', 'T1', '1', 500],
-      ['Picker', 'T1', '2', 450],
-      ['Picker', 'T2', '3', 600],
-      ['Sorter', 'T1', '1', 120],
-      ['Loader', 'F1', 'BOG01', 80],
-      ['Loader', 'R1', 'CJR01', 60],
+      ['Posisi', 'Zona', 'Kode Toko (Batch)', 'Jumlah Toko', 'Total Output'],
+      ['Picker', 'T1', '1', 5, 500],
+      ['Picker', 'T1', '2', 6, 450],
+      ['Picker', 'T2', '3', 8, 600],
+      ['Sorter', 'T1', '1', 5, 120],
+      ['Loader', 'F1', 'BOG01', 3, 80],
+      ['Loader', 'R1', 'CJR01', 4, 60],
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(templateData);
-    ws['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 15 }, { wch: 15 }];
+    ws['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 20 }, { wch: 15 }, { wch: 15 }];
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Data Carian');
@@ -923,9 +1628,395 @@ app.get('/api/data-carian/template', requireAuth, (req, res) => {
   }
 });
 
+// GET /api/export-data-carian — Export data carian ke Excel (dengan kode toko/batch)
+app.get('/api/export-data-carian', requireAuth, async (req, res) => {
+  try {
+    const { tanggal } = req.query;
+    let records;
+    if (tanggal) {
+      records = await db.getDataCarian(tanggal);
+    } else {
+      records = await db.getDataCarian();
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Formulir Pencapaian Kerja SS08';
+    workbook.created = new Date();
+
+    const sheet = workbook.addWorksheet('Data Carian', {
+      views: [{ state: 'frozen', ySplit: 1 }]
+    });
+
+    sheet.columns = [
+      { header: 'No',            key: 'no',           width: 6  },
+      { header: 'Tanggal Carian',key: 'tanggal',      width: 16 },
+      { header: 'Posisi',        key: 'posisi',       width: 12 },
+      { header: 'Zona',          key: 'zona',         width: 10 },
+      { header: 'Kode Toko',     key: 'batch',        width: 18 },
+      { header: 'Jumlah Toko',   key: 'jumlah_toko',  width: 14 },
+      { header: 'Total Output',  key: 'output',       width: 16 },
+      { header: 'Satuan',        key: 'satuan',       width: 12 },
+    ];
+
+    // Style header
+    const headerRow = sheet.getRow(1);
+    headerRow.eachCell(cell => {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A4799' } };
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Calibri' };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = { bottom: { style: 'medium', color: { argb: 'FFAEC6E8' } } };
+    });
+    headerRow.height = 22;
+
+    const POSISI_COLOR = {
+      Picker: 'FFDBEDFF',
+      Sorter: 'FFFFFBDB',
+      Loader: 'FFFFE4D0',
+    };
+
+    records.forEach((r, i) => {
+      const row = sheet.addRow({
+        no:          i + 1,
+        tanggal:     r.tanggal_carian || '',
+        posisi:      r.posisi || '',
+        zona:        r.zona || '',
+        batch:       r.batch || '',
+        jumlah_toko: r.jumlah_toko || 0,
+        output:      r.total_output || 0,
+        satuan:      r.satuan || '',
+      });
+
+      const bg = POSISI_COLOR[r.posisi] || (i % 2 === 0 ? 'FFFAFAFA' : 'FFEFEFEF');
+      row.eachCell(cell => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+        cell.font = { name: 'Calibri', size: 10 };
+        cell.border = { bottom: { style: 'thin', color: { argb: 'FFD0D0D0' } } };
+      });
+      row.getCell('no').alignment = { horizontal: 'center' };
+      row.getCell('posisi').alignment = { horizontal: 'center' };
+      row.getCell('zona').alignment = { horizontal: 'center' };
+      row.getCell('jumlah_toko').alignment = { horizontal: 'center' };
+      row.getCell('output').alignment = { horizontal: 'right' };
+      row.getCell('output').font = { bold: true, name: 'Calibri', size: 10 };
+      row.getCell('satuan').alignment = { horizontal: 'center' };
+      row.height = 18;
+    });
+
+    sheet.autoFilter = {
+      from: { row: 1, column: 1 },
+      to:   { row: 1, column: sheet.columns.length }
+    };
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const dateStr = tanggal || new Date().toISOString().slice(0, 10);
+    const filename = `data-carian-${dateStr}.xlsx`;
+
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buffer);
+  } catch (err) {
+    console.error('Export data carian error:', err);
+    res.status(500).send('Gagal mengekspor data carian.');
+  }
+});
+
+// POST /api/data-carian/push-sheets — Push data carian harian ke Google Sheets (append ke bawah)
+app.post('/api/data-carian/push-sheets', requireAuth, async (req, res) => {
+  try {
+    if (!googleSheets.isConfigured()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Google Sheets belum dikonfigurasi. Tambahkan GOOGLE_SHEETS_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL, dan GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ke file .env'
+      });
+    }
+    const { tanggal } = req.body;
+    let records;
+    if (tanggal) {
+      records = await db.getDataCarianWithStatus(tanggal);
+    } else {
+      records = await db.getDataCarian();
+    }
+    const result = await googleSheets.appendDataCarianToSheet(records, tanggal);
+    res.json(result);
+  } catch (err) {
+    console.error('Push data carian to sheets error:', err);
+    res.status(500).json({ success: false, message: 'Gagal push ke Google Sheets: ' + err.message });
+  }
+});
+
+// ==================== USER MANAGEMENT ROUTES (Admin only) ====================
+
+// GET /api/users — List semua user operasional
+app.get('/api/users', requireAdmin, async (req, res) => {
+  try {
+    const users = await db.getAllOperationalUsers();
+    res.json(users);
+  } catch (err) {
+    console.error('Get users error:', err);
+    res.status(500).json({ error: 'Gagal memuat data user.' });
+  }
+});
+
+// POST /api/users — Buat user operasional baru
+app.post('/api/users', requireAdmin, async (req, res) => {
+  try {
+    const { username, nama_lengkap, nik, posisi } = req.body;
+    if (!username || !nama_lengkap || !nik || !posisi) {
+      return res.status(400).json({ error: 'Semua field (username, nama lengkap, NIK, posisi) wajib diisi.' });
+    }
+    if (!['Picker', 'Sorter', 'Loader'].includes(posisi)) {
+      return res.status(400).json({ error: 'Posisi harus Picker, Sorter, atau Loader.' });
+    }
+    const user = await db.createOperationalUser({ username: username.trim(), nama_lengkap: nama_lengkap.trim(), nik: nik.trim(), posisi });
+    res.json({ success: true, data: user });
+  } catch (err) {
+    console.error('Create user error:', err);
+    const msg = err.message.includes('sudah digunakan') ? err.message : 'Gagal membuat user.';
+    res.status(400).json({ error: msg });
+  }
+});
+
+// DELETE /api/users/:id — Hapus user operasional
+app.delete('/api/users/:id', requireAdmin, async (req, res) => {
+  try {
+    await db.deleteUser(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete user error:', err);
+    res.status(500).json({ error: 'Gagal menghapus user.' });
+  }
+});
+
+// PUT /api/users/:id — Edit user operasional
+app.put('/api/users/:id', requireAdmin, async (req, res) => {
+  try {
+    const { username, nama_lengkap, nik, posisi } = req.body;
+    if (!username || !nama_lengkap || !nik || !posisi) {
+      return res.status(400).json({ error: 'Semua field (username, nama lengkap, NIK, posisi) wajib diisi.' });
+    }
+    if (!['Picker', 'Sorter', 'Loader'].includes(posisi)) {
+      return res.status(400).json({ error: 'Posisi harus Picker, Sorter, atau Loader.' });
+    }
+    const user = await db.updateOperationalUser(req.params.id, { username, nama_lengkap, nik, posisi });
+    res.json({ success: true, data: user });
+  } catch (err) {
+    console.error('Update user error:', err);
+    const msg = err.message.includes('sudah digunakan') ? err.message : 'Gagal mengupdate user.';
+    res.status(400).json({ error: msg });
+  }
+});
+
+// ==================== LOADER ENTRIES ROUTES ====================
+
+// GET /api/loader-entries — Semua atau filter per tanggal (lengkap dengan info file/foto)
+app.get('/api/loader-entries', requireAuth, async (req, res) => {
+  try {
+    const { tanggal_carian } = req.query;
+    const entries = await db.getAllLoaderEntries(tanggal_carian || null);
+    
+    // Ambil list file untuk masing-masing loader entry secara paralel
+    const entriesWithFiles = await Promise.all(entries.map(async (e) => {
+      const files = await db.getFilesBySubmissionId(e.id);
+      return { ...e, files: files || [] };
+    }));
+    
+    res.json(entriesWithFiles);
+  } catch (err) {
+    console.error('Get loader entries error:', err);
+    res.status(500).json({ error: 'Gagal memuat data loader.' });
+  }
+});
+
+// GET /api/loader-entries/:id — Detail loader entry lengkap dengan file/foto
+app.get('/api/loader-entries/:id', requireAuth, async (req, res) => {
+  try {
+    const entry = await db.getLoaderEntryById(req.params.id);
+    if (!entry) return res.status(404).json({ error: 'Entry loader tidak ditemukan.' });
+    
+    const files = await db.getFilesBySubmissionId(entry.id);
+    res.json({ ...entry, files: files || [] });
+  } catch (err) {
+    console.error('Get loader entry detail error:', err);
+    res.status(500).json({ error: 'Gagal memuat detail loader.' });
+  }
+});
+
+// POST /api/loader-entries — Submit entry loader baru (multipart/form-data + optional file upload)
+app.post('/api/loader-entries', requireAuth, (req, res, next) => {
+  uploadLembar.array('lembar_register', 5)(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'Ukuran file maksimum 10MB per file.' });
+      if (err.code === 'LIMIT_FILE_COUNT') return res.status(400).json({ error: 'Maksimum 5 file yang dapat diupload.' });
+      return res.status(400).json({ error: err.message });
+    } else if (err) {
+      return res.status(400).json({ error: err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
+  try {
+    const { tanggal_carian, tanggal_kirim, nama, zona, no_polisi, catatan } = req.body;
+    if (!tanggal_carian || !tanggal_kirim || !nama || !no_polisi) {
+      return res.status(400).json({ error: 'Tanggal carian, tanggal kirim, nama, dan no. polisi wajib diisi.' });
+    }
+
+    // Parse JSON fields yang dikirim via FormData
+    let clusters = [];
+    let cluster_outputs = {};
+    let non_group = { gacoan: 0, dikichi: 0, benfarm: 0 };
+    let jumlah_kontainer = 0;
+    try { clusters = JSON.parse(req.body.clusters || '[]'); } catch(e) {}
+    try { cluster_outputs = JSON.parse(req.body.cluster_outputs || '{}'); } catch(e) {}
+    try { non_group = JSON.parse(req.body.non_group || '{}'); } catch(e) {}
+    jumlah_kontainer = parseInt(req.body.jumlah_kontainer) || 0;
+
+    if ((!clusters || clusters.length === 0) && (!non_group || (non_group.gacoan + non_group.dikichi + non_group.benfarm === 0))) {
+      return res.status(400).json({ error: 'Isi minimal satu cluster atau non-group.' });
+    }
+
+    // Upload files jika ada
+    const uploadedFiles = [];
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const fileId = uuidv4();
+        const uniqueFilename = fileId + path.extname(file.originalname);
+        const fileUrl = await db.saveUploadedFile(uniqueFilename, file.buffer, file.mimetype);
+        uploadedFiles.push({ id: fileId, filename: uniqueFilename, original_name: file.originalname, file_path: fileUrl });
+      }
+    }
+
+    const entry = await db.insertLoaderEntry({
+      tanggal_carian, tanggal_kirim, nama, zona, no_polisi,
+      clusters: clusters || [],
+      cluster_outputs: cluster_outputs || {},
+      non_group: non_group || { gacoan: 0, dikichi: 0, benfarm: 0 },
+      jumlah_kontainer,
+      catatan: catatan || ''
+    });
+
+    // Simpan files ke tabel files (linked ke loader entry)
+    // Catatan: jika FK constraint ada (files.submission_id → submissions), ini akan fail
+    // → gunakan try/catch agar entry tetap tersimpan, URL disimpan ke catatan sebagai fallback
+    let photoUrlsFallback = [];
+    for (const f of uploadedFiles) {
+      try {
+        await db.insertFile({
+          id: uuidv4(),
+          submission_id: entry.id,
+          filename: f.filename,
+          original_name: f.original_name,
+          file_path: f.file_path
+        });
+      } catch (fileErr) {
+        // FK constraint violation — simpan URL ke array fallback
+        console.warn('[LoaderFiles] insertFile failed (FK constraint?), URL akan disimpan ke catatan:', fileErr.message);
+        photoUrlsFallback.push(f.file_path);
+      }
+    }
+
+    // Jika ada foto yang gagal di-insert ke files table, update catatan dengan URL-nya
+    if (photoUrlsFallback.length > 0) {
+      const photoTag = `[Photos: ${photoUrlsFallback.join(', ')}]`;
+      try {
+        await db.updateLoaderEntryCatatan(entry.id, 
+          entry.catatan ? `${entry.catatan} ${photoTag}` : photoTag
+        );
+      } catch(e) {
+        console.warn('[LoaderFiles] updateLoaderEntryCatatan fallback failed:', e.message);
+      }
+    }
+
+    invalidateDcCache(tanggal_carian); // clear cache setelah submit baru
+    res.json({ success: true, data: entry });
+
+    // ===== AUTO-SYNC ke Google Sheets (fire-and-forget, tidak block response) =====
+    if (googleSheets.isConfigured()) {
+      setImmediate(async () => {
+        try {
+          const allEntries = await db.getAllLoaderEntries();
+          const filesMap = new Map();
+          await Promise.all(allEntries.map(async (e) => {
+            const files = await db.getFilesBySubmissionId(e.id);
+            if (files && files.length > 0) filesMap.set(e.id, files);
+          }));
+          await googleSheets.pushAllLoaderEntries(allEntries, filesMap);
+        } catch(e) {
+          console.error('[AutoSync Loader] Google Sheets sync error:', e.message);
+        }
+      });
+    }
+
+  } catch (err) {
+    console.error('Insert loader entry error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan entry loader.' });
+  }
+});
+
+// DELETE /api/loader-entries/:id — Hapus entry loader
+app.delete('/api/loader-entries/:id', requireAdmin, async (req, res) => {
+  try {
+    const entry = await db.getLoaderEntryById(req.params.id);
+    const date = entry ? entry.tanggal_carian : null;
+    await db.deleteLoaderEntry(req.params.id);
+    if (date) invalidateDcCache(date); // clear cache setelah hapus
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete loader entry error:', err);
+    res.status(500).json({ error: 'Gagal menghapus entry loader.' });
+  }
+});
+
+// GET /api/export-loader — Export loader entries ke Excel
+app.get('/api/export-loader', requireAdmin, async (req, res) => {
+  try {
+    const { tanggal_carian } = req.query;
+    const entries = await db.getAllLoaderEntries(tanggal_carian || null);
+
+    const data = entries.map((e, i) => {
+      let clusterList = [];
+      if (Array.isArray(e.clusters)) {
+        clusterList = e.clusters;
+      } else if (e.clusters && typeof e.clusters === 'object') {
+        clusterList = e.clusters.list || [];
+      }
+      return {
+        'No': i + 1,
+        'Tanggal Carian': e.tanggal_carian,
+        'Tanggal Kirim': e.tanggal_kirim,
+        'Nama': e.nama,
+        'Zona': e.zona,
+        'No. Polisi': e.no_polisi,
+        'Clusters': clusterList.join(', '),
+        'Gacoan': (e.non_group || {}).gacoan || 0,
+        'Dikichi': (e.non_group || {}).dikichi || 0,
+        'Benfarm': (e.non_group || {}).benfarm || 0,
+        'Jumlah Kontainer': e.jumlah_kontainer,
+        'Catatan': e.catatan,
+        'Waktu Submit': e.created_at
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws['!cols'] = [
+      {wch:5},{wch:15},{wch:15},{wch:30},{wch:8},{wch:14},{wch:50},{wch:10},{wch:10},{wch:10},{wch:16},{wch:25},{wch:22}
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Loader Entries');
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    const filename = `loader-entries-${new Date().toISOString().slice(0,10)}.xlsx`;
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buffer);
+  } catch (err) {
+    console.error('Export loader error:', err);
+    res.status(500).send('Gagal export data loader.');
+  }
+});
+
 // SPA fallback routes
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
+
 
 const PORT = process.env.PORT || 3000;
 
