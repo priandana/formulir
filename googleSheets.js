@@ -19,22 +19,23 @@ const SPREADSHEET_ID = process.env.GOOGLE_SHEETS_ID || '';
 const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '';
 const PRIVATE_KEY = (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || '').replace(/\\n/g, '\n');
 
-const SHEET_SUBMISSIONS = 'Submissions';
+const SHEET_SUBMISSIONS = 'Entry Picker Sorter';
 const SHEET_SUMMARY     = 'Summary';
-const SHEET_LOADER      = 'Loader';
+const SHEET_LOADER      = 'Entry Loader';
 
-// Header kolom untuk sheet Submissions
+// Header kolom untuk sheet Entry Picker Sorter
 const SUBMISSION_HEADERS = [
-  'No', 'Tanggal Carian', 'Tanggal Pengerjaan', 'Nama', 'Posisi',
-  'Tipe Lokasi', 'Zona', 'Batch/Cluster', 'Jumlah Output', 'Status',
-  'Catatan Tambahan', 'Link Foto', 'Waktu Submit', 'ID Submission'
+  'Tanggal Carian', 'Tanggal Pengerjaan', 'Nama', 'Posisi', 'Zona',
+  'Jumlah Output', 'Lembar Register', 'Batch/Cluster', 'Tipe Lokasi', 'Catatan Tambahan',
+  'Status', 'Waktu Submit', 'ID Submission'
 ];
 
-// Header kolom untuk sheet Loader
+// Header kolom untuk sheet Entry Loader
 const LOADER_HEADERS = [
-  'No', 'Tanggal Carian', 'Tanggal Kirim', 'Nama', 'Zona', 'No. Polisi',
-  'Clusters', 'Gacoan', 'Dikichi', 'Benfarm', 'Jumlah Kontainer',
-  'Catatan', 'Link Foto', 'Waktu Submit', 'ID Entry'
+  'Tanggal Carian', 'Tanggal Kirim', 'Nama', 'Posisi', 'Zona',
+  'Jumlah Kontainer', 'Lembar Register', 'Batch/Cluster', 'Tipe Lokasi', 'Catatan',
+  'No. Polisi', 'Gacoan', 'Dikichi', 'Benfarm',
+  'Waktu Submit', 'ID Entry'
 ];
 
 /**
@@ -175,18 +176,17 @@ function submissionToRow(s, idx, files = []) {
   const linkFoto = buildHyperlinkFormula(files);
 
   return [
-    idx,
     s.tanggal_carian || '',
     s.tanggal_pengerjaan || '',
     s.nama || '',
     s.posisi || '',
-    s.tipe_lokasi || '',
     s.zona || '',
-    batchStr,
     s.jumlah_output || 0,
-    s.status || 'approved',
-    s.catatan_tambahan || '',
     linkFoto,
+    batchStr,
+    s.tipe_lokasi || '',
+    s.catatan_tambahan || '',
+    s.status || 'approved',
     s.created_at ? new Date(s.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : '',
     s.id || ''
   ];
@@ -394,19 +394,20 @@ function loaderEntryToRow(e, idx, files = []) {
   const linkFoto = buildHyperlinkFormula(files);
 
   return [
-    idx,
     e.tanggal_carian || '',
     e.tanggal_kirim || '',
     e.nama || '',
+    'Loader',
     e.zona || '',
-    e.no_polisi || '',
+    e.jumlah_kontainer || 0,
+    linkFoto,
     clustersStr,
+    'Loading Dock',
+    e.catatan || '',
+    e.no_polisi || '',
     (e.non_group || {}).gacoan || 0,
     (e.non_group || {}).dikichi || 0,
     (e.non_group || {}).benfarm || 0,
-    e.jumlah_kontainer || 0,
-    e.catatan || '',
-    linkFoto,
     e.created_at ? new Date(e.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : '',
     e.id || ''
   ];
@@ -586,7 +587,7 @@ async function styleSheet(sheets, sheetTitle) {
 
     // 6. Custom alignment per kolom
     if (sheetTitle === SHEET_LOADER) {
-      const centerCols = [0, 1, 2, 4, 5, 7, 8, 9, 10, 12, 13, 14];
+      const centerCols = [0, 1, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15];
       for (const col of centerCols) {
         requests.push({
           repeatCell: {
@@ -599,7 +600,7 @@ async function styleSheet(sheets, sheetTitle) {
         });
       }
     } else {
-      const centerCols = [0, 1, 2, 4, 5, 6, 8, 9, 11, 12, 13];
+      const centerCols = [0, 1, 3, 4, 5, 6, 7, 8, 10, 11, 12];
       for (const col of centerCols) {
         requests.push({
           repeatCell: {

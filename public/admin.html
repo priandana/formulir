@@ -5,447 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Dashboard — SS08</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --primary: #6C3CE1;
-      --primary-light: #8B5CF6;
-      --primary-dark: #4C1D95;
-      --accent: #EC4899;
-      --bg: #F8F7FC;
-      --sidebar-bg: #FFFFFF;
-      --card-bg: #FFFFFF;
-      --card-border: rgba(108, 60, 225, 0.08);
-      --text: #1E1B4B;
-      --text-muted: #5C5A79;
-      --text-dim: #A3A1C2;
-      --success: #10B981;
-      --warning: #F59E0B;
-      --error: #EF4444;
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/admin.css?v=1.2">
+  <script>
+    if (localStorage.getItem('theme') === 'dark') {
+      document.body.classList.add('dark-mode');
     }
-    
-    /* Custom scrollbar */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: rgba(108, 60, 225, 0.2);
-      border-radius: 99px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: rgba(108, 60, 225, 0.4);
-    }
-
-    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; position: relative; }
-
-    /* Floating blobs in background */
-    .bg-blobs {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      overflow: hidden;
-      z-index: -1;
-      pointer-events: none;
-    }
-    .bg-blob {
-      position: absolute;
-      border-radius: 50%;
-      filter: blur(120px);
-      opacity: 0.05;
-      animation: floatBlob 25s infinite alternate ease-in-out;
-    }
-    .bg-blob-1 {
-      width: 500px; height: 500px;
-      background: var(--primary);
-      top: -100px; left: -100px;
-    }
-    .bg-blob-2 {
-      width: 400px; height: 400px;
-      background: var(--accent);
-      bottom: -100px; right: -100px;
-      animation-delay: -10s;
-    }
-
-    @keyframes floatBlob {
-      0% { transform: translate(0, 0) scale(1) rotate(0deg); }
-      50% { transform: translate(60px, 40px) scale(1.1) rotate(180deg); }
-      100% { transform: translate(-40px, 80px) scale(0.9) rotate(360deg); }
-    }
-
-    @keyframes fadeInUp {
-      from { opacity: 0; transform: translateY(18px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    @keyframes shimmer {
-      0% { transform: translateX(-100%); }
-      100% { transform: translateX(100%); }
-    }
-
-    /* Page / Section Animation */
-    .page-section {
-      animation: fadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-
-    /* Sidebar */
-    .sidebar { width: 260px; background: var(--sidebar-bg); border-right: 1px solid var(--card-border); display: flex; flex-direction: column; flex-shrink: 0; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; transition: transform 0.3s ease; box-shadow: 4px 0 20px rgba(108, 60, 225, 0.02); }
-    .sidebar-logo { padding: 24px 20px; border-bottom: 1px solid var(--card-border); }
-    .sidebar-logo .logo-badge { display: flex; align-items: center; gap: 12px; }
-    .logo-icon { width: 40px; height: 40px; background: linear-gradient(135deg, var(--primary), var(--primary-light)); border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 12px rgba(108,60,225,0.25); transition: transform 0.3s ease; }
-    .sidebar-logo:hover .logo-icon { transform: rotate(10deg) scale(1.05); }
-    .logo-text { font-size: 16px; font-weight: 800; color: var(--text); }
-    .logo-sub { font-size: 11px; color: var(--text-muted); font-weight: 500; margin-top: 2px; }
-    .sidebar-nav { flex: 1; padding: 16px 12px; overflow-y: auto; }
-    .nav-section-title { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); font-weight: 700; padding: 8px 8px 6px; margin-top: 12px; }
-    
-    .nav-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      border-radius: 10px;
-      color: var(--text-muted);
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-      text-decoration: none;
-      margin-bottom: 2px;
-      position: relative;
-    }
-    .nav-item:hover {
-      background: rgba(108, 60, 225, 0.04);
-      color: var(--primary);
-      transform: translateX(4px);
-    }
-    .nav-item:hover svg {
-      color: var(--primary);
-      transform: scale(1.1);
-    }
-    .nav-item.active {
-      background: rgba(108, 60, 225, 0.07);
-      color: var(--primary);
-      font-weight: 600;
-    }
-    .nav-item.active::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 25%;
-      bottom: 25%;
-      width: 4px;
-      background: var(--primary);
-      border-radius: 0 4px 4px 0;
-    }
-    .nav-item.active svg { color: var(--primary); }
-    .nav-item svg { color: var(--text-dim); flex-shrink: 0; transition: all 0.2s ease; }
-    
-    .sidebar-footer { padding: 16px 12px; border-top: 1px solid var(--card-border); }
-    .user-info { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; margin-bottom: 8px; background: rgba(108, 60, 225, 0.03); border: 1px solid rgba(108, 60, 225, 0.05); }
-    .user-avatar { width: 36px; height: 36px; background: linear-gradient(135deg, var(--primary), var(--accent)); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; color: #fff; flex-shrink: 0; box-shadow: 0 2px 8px rgba(108, 60, 225, 0.15); }
-    .user-name { font-size: 13px; font-weight: 600; color: var(--text); }
-    .user-role { font-size: 11px; color: var(--text-muted); }
-    .btn-logout { width: 100%; padding: 10px; background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.15); border-radius: 10px; color: #DC2626; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
-    .btn-logout:hover { background: rgba(239,68,68,0.12); color: #B91C1C; transform: translateY(-1px); }
-
-    /* Main Content */
-    .main-content { flex: 1; margin-left: 260px; display: flex; flex-direction: column; min-height: 100vh; position: relative; }
-    .topbar { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(16px); border-bottom: 1px solid var(--card-border); padding: 16px 28px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; box-shadow: 0 4px 30px rgba(108, 60, 225, 0.02); }
-    .topbar h2 { font-size: 18px; font-weight: 800; color: var(--text); }
-    .topbar-actions { display: flex; gap: 10px; align-items: center; }
-
-    /* Buttons */
-    .btn { padding: 9px 18px; border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid transparent; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); display: flex; align-items: center; gap: 6px; }
-    .btn:hover { transform: translateY(-1px); }
-    .btn:active { transform: translateY(1px); }
-    .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: #fff; box-shadow: 0 4px 14px rgba(108,60,225,0.2); }
-    .btn-primary:hover { opacity: 0.95; box-shadow: 0 6px 20px rgba(108,60,225,0.3); }
-    .btn-success { background: rgba(16,185,129,0.06); color: #047857; border: 1px solid rgba(16,185,129,0.2); }
-    .btn-success:hover { background: rgba(16,185,129,0.12); color: #065f46; }
-    .btn-warning { background: rgba(245,158,11,0.06); color: #B45309; border: 1px solid rgba(245,158,11,0.2); }
-    .btn-warning:hover { background: rgba(245,158,11,0.12); color: #92400E; }
-    .btn-outline { background: #FFFFFF; color: var(--text-muted); border: 1px solid var(--card-border); box-shadow: 0 2px 6px rgba(0,0,0,0.02); }
-    .btn-outline:hover { background: rgba(108, 60, 225, 0.04); color: var(--primary); border-color: rgba(108, 60, 225, 0.2); }
-    .btn-danger { background: rgba(239,68,68,0.06); color: #B91C1C; border: 1px solid rgba(239,68,68,0.2); }
-    .btn-danger:hover { background: rgba(239,68,68,0.12); color: #991B1B; }
-    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
-
-    /* Page Content */
-    .page-content { flex: 1; padding: 28px; overflow-y: auto; }
-
-    /* Stats Grid */
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; margin-bottom: 28px; }
-    .stat-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 20px;
-      padding: 22px 24px;
-      position: relative;
-      overflow: hidden;
-      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-      box-shadow: 0 10px 30px -10px rgba(108, 60, 225, 0.04);
-      opacity: 0;
-      animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-    .stat-card:hover {
-      transform: translateY(-6px) scale(1.01);
-      box-shadow: 0 20px 40px -15px rgba(108, 60, 225, 0.1);
-    }
-    .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
-    .stat-card.purple::before { background: linear-gradient(90deg, var(--primary), var(--primary-light)); }
-    .stat-card.green::before { background: linear-gradient(90deg, #059669, #10B981); }
-    .stat-card.pink::before { background: linear-gradient(90deg, #BE185D, #EC4899); }
-    .stat-card.amber::before { background: linear-gradient(90deg, #B45309, #F59E0B); }
-    .stat-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
-    .stat-value { font-size: 32px; font-weight: 800; color: var(--text); line-height: 1; margin-bottom: 4px; }
-    .stat-sub { font-size: 12px; color: var(--text-dim); }
-    .stat-icon { position: absolute; right: 20px; top: 20px; width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; }
-    .stat-card:hover .stat-icon { transform: scale(1.1) rotate(5deg); }
-    
-    .stat-card.purple .stat-icon { background: rgba(108,60,225,0.08); color: var(--primary); }
-    .stat-card.green .stat-icon { background: rgba(16,185,129,0.08); color: #059669; }
-    .stat-card.pink .stat-icon { background: rgba(236,72,153,0.08); color: #BE185D; }
-    .stat-card.amber .stat-icon { background: rgba(245,158,11,0.08); color: #B45309; }
-
-    /* Table Card */
-    .table-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px -10px rgba(108, 60, 225, 0.04); transition: all 0.3s ease; }
-    .table-card:hover { box-shadow: 0 15px 45px -12px rgba(108, 60, 225, 0.06); }
-    .table-header { padding: 20px 24px; border-bottom: 1px solid var(--card-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
-    .table-title { font-size: 16px; font-weight: 800; color: var(--text); }
-    .table-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-    
-    .search-bar { display: flex; align-items: center; gap: 8px; background: rgba(108, 60, 225, 0.02); border: 1px solid var(--card-border); border-radius: 10px; padding: 8px 14px; min-width: 220px; transition: all 0.25s; }
-    .search-bar:focus-within { border-color: var(--primary); background: #FFFFFF; box-shadow: 0 0 0 3px rgba(108, 60, 225, 0.1); }
-    .search-bar svg { color: var(--text-dim); flex-shrink: 0; }
-    .search-bar input { background: none; border: none; outline: none; color: var(--text); font-family: 'Inter', sans-serif; font-size: 13px; width: 100%; }
-    .search-bar input::placeholder { color: var(--text-dim); }
-
-    /* Table */
-    .table-wrap { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; }
-    thead th { padding: 14px 20px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); border-bottom: 1px solid var(--card-border); white-space: nowrap; background: rgba(108, 60, 225, 0.01); }
-    tbody tr { border-bottom: 1px solid rgba(108, 60, 225, 0.04); transition: all 0.25s ease; opacity: 0; animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-    tbody tr:hover { background: rgba(108, 60, 225, 0.02); transform: translateX(2px); }
-    tbody tr:last-child { border-bottom: none; }
-    td { padding: 14px 20px; font-size: 13px; color: var(--text-muted); vertical-align: middle; }
-    td.text-main { color: var(--text); font-weight: 600; }
-
-    .badge { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap; }
-    .badge-picker { background: rgba(59,130,246,0.06); color: #1D4ED8; border: 1px solid rgba(59,130,246,0.15); }
-    .badge-sorter { background: rgba(16,185,129,0.06); color: #047857; border: 1px solid rgba(16,185,129,0.15); }
-    .badge-loader { background: rgba(245,158,11,0.06); color: #B45309; border: 1px solid rgba(245,158,11,0.15); }
-
-    .action-btns { display: flex; gap: 6px; }
-    .btn-icon { width: 32px; height: 32px; border-radius: 8px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
-    .btn-icon:hover { transform: scale(1.1); }
-    .btn-icon:active { transform: scale(0.95); }
-    .btn-view { background: rgba(108,60,225,0.06); color: var(--primary); }
-    .btn-view:hover { background: rgba(108,60,225,0.15); }
-    .btn-edit { background: rgba(245,158,11,0.06); color: #B45309; }
-    .btn-edit:hover { background: rgba(245,158,11,0.15); }
-    .btn-del { background: rgba(239,68,68,0.06); color: #DC2626; }
-    .btn-del:hover { background: rgba(239,68,68,0.15); }
-
-    .empty-state { text-align: center; padding: 60px 20px; }
-    .empty-icon { font-size: 48px; margin-bottom: 12px; }
-    .empty-state h3 { font-size: 16px; color: var(--text-muted); margin-bottom: 6px; }
-    .empty-state p { font-size: 13px; color: var(--text-dim); }
-
-    /* Progress bar */
-    .progress-wrap { display: flex; align-items: center; gap: 8px; min-width: 140px; }
-    .progress-bar { flex: 1; height: 8px; background: rgba(108,60,225,0.04); border-radius: 99px; overflow: hidden; position: relative; }
-    .progress-fill { height: 100%; border-radius: 99px; transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1); position: relative; }
-    .progress-fill::after {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: linear-gradient(
-        90deg,
-        rgba(255,255,255,0) 0%,
-        rgba(255,255,255,0.25) 50%,
-        rgba(255,255,255,0) 100%
-      );
-      animation: shimmer 1.5s infinite;
-    }
-    .progress-fill.low { background: linear-gradient(90deg, #10B981, #34D399); }
-    .progress-fill.mid { background: linear-gradient(90deg, #F59E0B, #FCD34D); }
-    .progress-fill.high { background: linear-gradient(90deg, #EF4444, #FCA5A5); }
-    .progress-fill.full { background: linear-gradient(90deg, #EF4444, #DC2626); }
-    .progress-pct { font-size: 12px; font-weight: 700; min-width: 36px; text-align: right; }
-
-    /* Modal */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(15, 10, 30, 0.4); backdrop-filter: blur(12px); z-index: 1000; display: none !important; align-items: center; justify-content: center; padding: 20px; pointer-events: none; }
-    .modal-overlay.visible { display: flex !important; pointer-events: auto; }
-    
-    @keyframes modalIn {
-      from { transform: scale(0.93) translateY(20px); opacity: 0; }
-      to { transform: scale(1) translateY(0); opacity: 1; }
-    }
-    .modal {
-      background: #FFFFFF;
-      border: 1px solid rgba(108,60,225,0.12);
-      border-radius: 24px;
-      width: 100%;
-      max-width: 640px;
-      max-height: 90vh;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      box-shadow: 0 32px 80px -10px rgba(108,60,225,0.15);
-      animation: modalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-    .modal.modal-wide { max-width: 760px; }
-    .modal-header { padding: 20px 24px; border-bottom: 1px solid var(--card-border); display: flex; align-items: center; justify-content: space-between; }
-    .modal-header h3 { font-size: 16px; font-weight: 800; color: var(--text); }
-    .modal-close { width: 32px; height: 32px; border-radius: 8px; border: none; background: rgba(108,60,225,0.04); color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
-    .modal-close:hover { background: rgba(108,60,225,0.1); color: var(--primary); }
-    .modal-body { padding: 24px; overflow-y: auto; }
-    .modal-footer { padding: 16px 24px; border-top: 1px solid var(--card-border); display: flex; gap: 10px; justify-content: flex-end; }
-
-    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .detail-item.full { grid-column: 1/-1; }
-    .detail-key { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); margin-bottom: 4px; }
-    .detail-value { font-size: 14px; color: var(--text); font-weight: 500; }
-
-    .batch-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
-    .batch-tag { padding: 3px 10px; background: rgba(108,60,225,0.05); border: 1px solid rgba(108,60,225,0.12); border-radius: 6px; font-size: 12px; font-weight: 600; color: var(--primary); }
-
-    .file-preview-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
-    .file-preview-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(108,60,225,0.02); border-radius: 10px; border: 1px solid var(--card-border); text-decoration: none; color: var(--text); transition: all 0.2s; }
-    .file-preview-item:hover { background: rgba(108,60,225,0.05); border-color: rgba(108,60,225,0.15); transform: translateY(-1px); }
-    .file-preview-item .file-icon2 { width: 36px; height: 36px; background: rgba(108,60,225,0.06); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--primary); flex-shrink: 0; }
-    .file-preview-item .file-name2 { font-size: 13px; font-weight: 600; }
-    .file-preview-item .file-type { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-
-    /* Pagination */
-    .table-footer { padding: 16px 24px; border-top: 1px solid var(--card-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
-    .page-info { font-size: 13px; color: var(--text-muted); font-weight: 500; }
-    .pagination { display: flex; gap: 4px; }
-    .page-btn { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--card-border); background: #FFFFFF; color: var(--text-muted); font-family: 'Inter', sans-serif; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-    .page-btn:hover { background: rgba(108,60,225,0.05); color: var(--primary); border-color: rgba(108,60,225,0.15); }
-    .page-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; box-shadow: 0 3px 8px rgba(108,60,225,0.2); }
-    .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-
-    /* Toast */
-    .toast { position: fixed; bottom: 24px; right: 24px; padding: 14px 20px; border-radius: 14px; font-size: 14px; font-weight: 600; color: #fff; z-index: 9999; transform: translateY(100px); opacity: 0; transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); display: flex; align-items: center; gap: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 360px; }
-    .toast.show { transform: translateY(0); opacity: 1; }
-    .toast.success { background: linear-gradient(135deg, #059669, #10B981); }
-    .toast.error { background: linear-gradient(135deg, #DC2626, #EF4444); }
-    .toast.warning { background: linear-gradient(135deg, #B45309, #F59E0B); }
-
-    /* Loading spinner */
-    .loading-spinner { display: flex; align-items: center; justify-content: center; padding: 48px; }
-    .loading-spinner .spin { width: 40px; height: 40px; border: 3px solid rgba(108,60,225,0.1); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ===== DATA CARIAN SPECIFIC ===== */
-    .dc-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
-    .dc-date-picker { display: flex; align-items: center; gap: 8px; background: #FFFFFF; border: 1px solid var(--card-border); border-radius: 10px; padding: 8px 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.01); }
-    .dc-date-picker label { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
-    .dc-date-picker input[type="date"] { background: transparent; border: none; outline: none; color: var(--text); font-family: 'Inter', sans-serif; font-size: 13px; cursor: pointer; }
-    .dc-date-picker input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; }
-
-    /* Summary cards for data carian */
-    .dc-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 20px; }
-    .dc-sum-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 18px 20px; box-shadow: 0 4px 15px rgba(108, 60, 225, 0.02); transition: all 0.3s; }
-    .dc-sum-card:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(108, 60, 225, 0.05); }
-    .dc-sum-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-    .dc-sum-value { font-size: 26px; font-weight: 800; color: var(--text); }
-    .dc-sum-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
-
-    /* Upload zone */
-    .upload-zone { border: 2px dashed rgba(108,60,225,0.25); border-radius: 16px; padding: 36px; text-align: center; cursor: pointer; transition: all 0.25s; background: rgba(108,60,225,0.01); }
-    .upload-zone:hover, .upload-zone.dragover { border-color: var(--primary); background: rgba(108,60,225,0.04); transform: scale(1.01); }
-    .upload-zone .uz-icon { width: 52px; height: 52px; background: rgba(108,60,225,0.06); border-radius: 14px; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; color: var(--primary); transition: all 0.3s ease; }
-    .upload-zone:hover .uz-icon { transform: translateY(-4px); background: rgba(108,60,225,0.12); }
-    .upload-zone p { color: var(--text-muted); font-size: 14px; margin-bottom: 6px; }
-    .upload-zone .uz-link { color: var(--primary); font-weight: 600; }
-    .upload-zone small { font-size: 12px; color: var(--text-dim); }
-
-    /* Form fields in modal */
-    .form-group { margin-bottom: 16px; }
-    .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
-    .form-group label .req { color: var(--error); }
-    .form-control { width: 100%; padding: 10px 14px; background: #FFFFFF; border: 1px solid var(--card-border); border-radius: 10px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px; outline: none; transition: all 0.25s; appearance: none; box-shadow: 0 2px 6px rgba(0,0,0,0.01); }
-    .form-control:focus { border-color: var(--primary); background: #FFFFFF; box-shadow: 0 0 0 3px rgba(108, 60, 225, 0.1); }
-    .form-control::placeholder { color: var(--text-dim); }
-    select.form-control { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 20 20'%3E%3Cpath fill='%236C3CE1' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 38px; cursor: pointer; }
-    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-
-    /* Import result */
-    .import-result { margin-top: 16px; padding: 14px 18px; border-radius: 10px; font-size: 13px; }
-    .import-result.success { background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.2); color: #047857; }
-    .import-result.error { background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.2); color: #B91C1C; }
-    .import-result .ir-title { font-weight: 700; margin-bottom: 6px; }
-    .import-result ul { padding-left: 16px; margin-top: 6px; }
-    .import-result ul li { margin-bottom: 2px; }
-
-    /* File selected info */
-    .file-selected-info { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(108,60,225,0.05); border: 1px solid rgba(108,60,225,0.15); border-radius: 10px; margin-top: 12px; }
-    .file-selected-info .fs-name { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; }
-    .file-selected-info .fs-size { font-size: 12px; color: var(--text-muted); }
-    .file-selected-info .fs-remove { background: none; border: none; cursor: pointer; color: var(--error); display: flex; padding: 2px; }
-
-    /* Sisa indicator */
-    .sisa-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 700; }
-    .sisa-badge.ok { background: rgba(16,185,129,0.06); color: #047857; border: 1px solid rgba(16,185,129,0.2); }
-    .sisa-badge.warn { background: rgba(245,158,11,0.06); color: #B45309; border: 1px solid rgba(245,158,11,0.2); }
-    .sisa-badge.full { background: rgba(239,68,68,0.06); color: #B91C1C; border: 1px solid rgba(239,68,68,0.2); }
-
-    /* ===== GOOGLE SHEETS PANEL ===== */
-    .gs-panel { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px -10px rgba(108,60,225,0.04); margin-bottom: 24px; }
-    .gs-header { padding: 20px 24px; border-bottom: 1px solid var(--card-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; background: linear-gradient(135deg, rgba(15,157,88,0.03) 0%, rgba(66,133,244,0.03) 100%); }
-    .gs-logo { display: flex; align-items: center; gap: 14px; }
-    .gs-icon { width: 46px; height: 46px; border-radius: 12px; background: linear-gradient(135deg, #0F9D58, #34A853); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(15,157,88,0.25); flex-shrink: 0; transition: transform 0.3s ease; }
-    .gs-icon:hover { transform: rotate(8deg) scale(1.05); }
-    .gs-title { font-size: 16px; font-weight: 800; color: var(--text); }
-    .gs-subtitle { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-    .gs-status-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 99px; font-size: 12px; font-weight: 700; letter-spacing: 0.2px; transition: all 0.3s; }
-    .gs-status-chip.connected { background: rgba(15,157,88,0.08); color: #0F9D58; border: 1px solid rgba(15,157,88,0.2); }
-    .gs-status-chip.disconnected { background: rgba(239,68,68,0.08); color: #DC2626; border: 1px solid rgba(239,68,68,0.2); }
-    .gs-status-chip.checking { background: rgba(108,60,225,0.06); color: var(--primary); border: 1px solid rgba(108,60,225,0.15); }
-    .gs-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .gs-status-dot.on { background: #0F9D58; box-shadow: 0 0 0 3px rgba(15,157,88,0.2); animation: pulseDot 2s infinite; }
-    .gs-status-dot.off { background: #DC2626; }
-    @keyframes pulseDot { 0%,100% { box-shadow: 0 0 0 3px rgba(15,157,88,0.2); } 50% { box-shadow: 0 0 0 6px rgba(15,157,88,0.05); } }
-    .gs-body { padding: 24px; }
-    .gs-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 20px; }
-    .gs-info-item { padding: 14px 18px; background: rgba(108,60,225,0.02); border: 1px solid var(--card-border); border-radius: 12px; }
-    .gs-info-label { font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-    .gs-info-value { font-size: 14px; font-weight: 600; color: var(--text); word-break: break-all; }
-    .gs-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-    .btn-gsheet { background: linear-gradient(135deg, #0F9D58, #34A853); color: #fff; border: none; box-shadow: 0 4px 14px rgba(15,157,88,0.25); }
-    .btn-gsheet:hover { opacity: 0.9; box-shadow: 0 6px 20px rgba(15,157,88,0.35); }
-    .btn-gsheet:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-    .gs-last-sync { font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 5px; }
-    .gs-not-configured { text-align: center; padding: 32px 20px; }
-    .gs-not-configured .nc-icon { font-size: 48px; margin-bottom: 12px; }
-    .gs-not-configured h3 { font-size: 15px; color: var(--text-muted); margin-bottom: 8px; }
-    .gs-not-configured p { font-size: 13px; color: var(--text-dim); line-height: 1.6; margin-bottom: 16px; }
-    .gs-code { background: rgba(108,60,225,0.04); border: 1px solid rgba(108,60,225,0.1); border-radius: 8px; padding: 12px 16px; font-family: monospace; font-size: 12px; color: var(--text); line-height: 1.8; text-align: left; white-space: pre; overflow-x: auto; }
-
-    /* ===== EXPORT FILTER PANEL ===== */
-    .export-filter-panel { background: rgba(108,60,225,0.02); border: 1px solid rgba(108,60,225,0.08); border-radius: 14px; padding: 18px 20px; margin-bottom: 24px; }
-    .export-filter-title { font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
-    .export-filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 14px; }
-    .export-filter-label { font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
-    .export-filter-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-
-    @media (max-width: 768px) {
-      .sidebar { transform: translateX(-100%); }
-      .sidebar.open { transform: translateX(0); }
-      .main-content { margin-left: 0; }
-      .detail-grid { grid-template-columns: 1fr; }
-      .stats-grid { grid-template-columns: 1fr 1fr; }
-      .form-row { grid-template-columns: 1fr; }
-    }
-  </style>
+  </script>
 </head>
-<body>
+<body class="">
 
 <!-- Floating blobs in background -->
 <div class="bg-blobs">
@@ -481,6 +51,10 @@
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
       Data Carian Harian
     </a>
+    <a class="nav-item" id="nav-rekap-toko" onclick="showPage('rekap-toko')">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+      Rekap Harian
+    </a>
     <a class="nav-item" id="nav-users" onclick="showPage('users')">
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
       Manajemen User
@@ -506,6 +80,23 @@
     <a class="nav-item" href="/" target="_blank">
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
       Buka Formulir
+    </a>
+    <div class="nav-section-title" style="margin-top:8px">Pengaturan</div>
+    <a class="nav-item" onclick="showPage('login-settings')" id="nav-login-settings">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 3v18"/></svg>
+      Tampilan Login
+    </a>
+    <a class="nav-item" onclick="showPage('admin-accounts')" id="nav-admin-accounts">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+      Akun Administrator
+    </a>
+    <a class="nav-item" onclick="showPage('audit-logs')" id="nav-audit-logs">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Log Aktivitas
+    </a>
+    <a class="nav-item" onclick="showPage('feature-guide')" id="nav-feature-guide">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+      Panduan Fitur Baru
     </a>
   </nav>
   <div class="sidebar-footer">
@@ -540,6 +131,11 @@
       <button class="btn btn-outline" onclick="loadData()">
         <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
         Refresh
+      </button>
+      <button class="btn btn-outline btn-icon" id="btnThemeToggle" onclick="toggleDarkMode()" title="Ubah Tema">
+        <svg id="themeToggleIcon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707.707M12 7a5 5 0 100 10 5 5 0 000-10z"/>
+        </svg>
       </button>
     </div>
   </div>
@@ -727,7 +323,7 @@
                 <th>No</th>
                 <th>Posisi</th>
                 <th>Zona</th>
-                <th>Kode Toko</th>
+                <th>Kode Mobil</th>
                 <th>Jumlah Toko</th>
                 <th>Kapasitas</th>
                 <th>Sudah Terisi</th>
@@ -747,7 +343,61 @@
       </div>
     </div>
 
-    <!-- ===== MANAJEMEN USER PAGE ===== -->
+    <!-- ===== REKAP HARIAN PER TOKO PAGE ===== -->
+    <div id="page-rekap-toko" class="page-section" style="display:none;">
+
+      <!-- Toolbar -->
+      <div class="dc-toolbar">
+        <div class="dc-date-picker">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color:var(--text-muted)"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <label for="rekapTglFilter">Tanggal Carian:</label>
+          <input type="date" id="rekapTglFilter" oninput="loadRekapToko()">
+        </div>
+        <div class="search-bar" style="max-width:260px;">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" id="rekapSearchInput" placeholder="Cari nama toko atau grup..." oninput="filterRekapTable()">
+        </div>
+        <select id="rekapGroupFilter" class="form-control" style="width:140px;padding:8px 12px;font-size:13px;height:38px;" onchange="filterRekapTable()">
+          <option value="">Semua Grup</option>
+        </select>
+        <button class="btn btn-outline" onclick="loadRekapToko()">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          Refresh
+        </button>
+      </div>
+
+      <!-- Summary chips -->
+      <div id="rekapSummaryBar" style="display:none; gap:12px; flex-wrap:wrap; margin-bottom:16px; display:none;">
+        <div class="rekap-chip rekap-chip-total"><span id="rekapTotalToko">0</span> toko</div>
+        <div class="rekap-chip rekap-chip-freezer"><span id="rekapTotalFreezer">0</span> pcs Freezer</div>
+        <div class="rekap-chip rekap-chip-chiller"><span id="rekapTotalChiller">0</span> pcs Chiller</div>
+        <div class="rekap-chip rekap-chip-ambient"><span id="rekapTotalAmbient">0</span> pcs Ambient</div>
+        <div class="rekap-chip rekap-chip-kont"><span id="rekapTotalKont">0</span> kontainer</div>
+      </div>
+
+      <!-- Table container dark -->
+      <div class="rekap-toko-wrap">
+        <div class="rekap-toko-header-bar">
+          <div class="rekap-toko-title" id="rekapTabelTitle">Pilih tanggal untuk melihat rekap toko</div>
+          <div style="font-size:12px;color:#64748b;" id="rekapSubtitle"></div>
+        </div>
+        <div class="rekap-toko-scroll">
+          <table class="rekap-toko-table" id="rekapTokoTable">
+            <thead id="rekapTokoThead"></thead>
+            <tbody id="rekapTokoTbody">
+              <tr><td colspan="5" style="text-align:center;padding:60px 20px;color:#475569;">
+                <div style="font-size:32px;margin-bottom:12px;">📅</div>
+                <div style="font-size:15px;font-weight:600;">Pilih tanggal carian</div>
+                <div style="font-size:13px;margin-top:6px;">Import Excel di menu Data Carian Harian terlebih dahulu</div>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="padding:10px 16px;font-size:12px;color:#64748b;" id="rekapPageInfo">-</div>
+      </div>
+    </div>
+
+
     <div id="page-users" class="page-section" style="display:none;">
       <div class="table-card" style="margin-bottom:20px;">
         <div class="table-header">
@@ -778,6 +428,14 @@
                 <option value="Loader">Loader</option>
               </select>
             </div>
+            <div class="form-group">
+              <label for="newTipeKaryawan">Tipe Karyawan</label>
+              <select id="newTipeKaryawan" class="form-control">
+                <option value="">-- Pilih Tipe Karyawan --</option>
+                <option value="Productivity">Productivity</option>
+                <option value="PHL">PHL</option>
+              </select>
+            </div>
           </div>
           <div id="addUserError" style="display:none;padding:10px 14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#B91C1C;font-size:13px;margin-bottom:12px;"></div>
           <button class="btn btn-primary" id="btnAddUser" onclick="addUser()">
@@ -798,13 +456,275 @@
         <div class="table-wrap">
           <table>
             <thead>
-              <tr><th>No</th><th>Nama Lengkap</th><th>Username</th><th>NIK</th><th>Posisi</th><th>Dibuat</th><th>Aksi</th></tr>
+              <tr><th>No</th><th>Nama Lengkap</th><th>Username</th><th>NIK</th><th>Posisi</th><th>Tipe</th><th>Dibuat</th><th>Aksi</th></tr>
             </thead>
             <tbody id="usersTableBody">
-              <tr><td colspan="7"><div class="loading-spinner"><div class="spin"></div></div></td></tr>
+              <tr><td colspan="8"><div class="loading-spinner"><div class="spin"></div></div></td></tr>
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- ===== MANAJEMEN ADMIN PAGE ===== -->
+    <div id="page-admin-accounts" class="page-section" style="display:none;">
+
+      <!-- Ganti Password Sendiri -->
+      <div class="table-card" style="margin-bottom:20px; border: 1.5px solid rgba(108,60,225,0.25); background: linear-gradient(135deg, rgba(108,60,225,0.03) 0%, rgba(14,165,233,0.03) 100%);">
+        <div class="table-header" style="border-bottom: 1px solid rgba(108,60,225,0.12);">
+          <div class="table-title" style="display:flex;align-items:center;gap:8px;">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+            Ganti Password Akun Saya
+          </div>
+          <button class="btn btn-primary" onclick="openChangePasswordModal()" style="gap:6px;">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+            Ganti Password
+          </button>
+        </div>
+        <div style="padding: 16px 24px; font-size: 13px; color: var(--text-muted);">
+          Klik tombol di atas untuk mengubah password akun administrator yang sedang aktif (akun Anda sendiri).
+        </div>
+      </div>
+
+      <!-- Tambah Admin Baru -->
+      <div class="table-card" style="margin-bottom:20px;">
+        <div class="table-header">
+          <div class="table-title">Tambah Akun Administrator Baru</div>
+        </div>
+        <div class="modal-body" style="padding:20px 24px;">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="newAdminNama">Nama Lengkap <span class="req">*</span></label>
+              <input type="text" id="newAdminNama" class="form-control" placeholder="Nama lengkap administrator">
+            </div>
+            <div class="form-group">
+              <label for="newAdminUsername">Username <span class="req">*</span></label>
+              <input type="text" id="newAdminUsername" class="form-control" placeholder="Username untuk login admin">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="newAdminPassword">Password <span class="req">*</span></label>
+              <input type="password" id="newAdminPassword" class="form-control" placeholder="Minimal 6 karakter">
+            </div>
+            <div class="form-group">
+              <label for="newAdminPasswordConfirm">Konfirmasi Password <span class="req">*</span></label>
+              <input type="password" id="newAdminPasswordConfirm" class="form-control" placeholder="Ulangi password">
+            </div>
+          </div>
+          <div id="addAdminError" style="display:none;padding:10px 14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#B91C1C;font-size:13px;margin-bottom:12px;"></div>
+          <button class="btn btn-primary" id="btnAddAdmin" onclick="addAdminAccount()">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            Buat Akun Admin Baru
+          </button>
+        </div>
+      </div>
+
+      <!-- Daftar Admin -->
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">Daftar Akun Administrator</div>
+          <button class="btn btn-outline" onclick="loadAdminAccounts()">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Refresh
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>No</th><th>Nama Lengkap</th><th>Username</th><th>Dibuat</th><th>Aksi</th></tr>
+            </thead>
+            <tbody id="adminAccountsTableBody">
+              <tr><td colspan="5"><div class="loading-spinner"><div class="spin"></div></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== AUDIT LOGS PAGE ===== -->
+    <div id="page-audit-logs" class="page-section" style="display:none;">
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">Log Aktivitas Sistem (Audit Trail)</div>
+          <div class="table-actions">
+            <div class="search-bar">
+              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              <input type="text" id="logSearchInput" placeholder="Cari log..." oninput="filterLogs()">
+            </div>
+            <button class="btn btn-outline" onclick="loadAuditLogs(1)">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              Refresh
+            </button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 180px;">Waktu</th>
+                <th style="width: 120px;">Admin User</th>
+                <th style="width: 180px;">Aksi</th>
+                <th>Detail Deskripsi</th>
+              </tr>
+            </thead>
+            <tbody id="auditLogsTableBody">
+              <tr><td colspan="4"><div class="loading-spinner"><div class="spin"></div></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-footer">
+          <div class="page-info" id="logPageInfo">-</div>
+          <div class="pagination" id="logPagination"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== FEATURE GUIDE PAGE ===== -->
+    <div id="page-feature-guide" class="page-section" style="display:none;">
+      <div class="guide-container">
+        
+        <div class="guide-header-card">
+          <div class="guide-header-icon">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4.5 16.5c-1.5 1.26-2.5 3.19-2.5 5.5s1.24 2.5 5.5 2.5c2.31 0 4.24-1 5.5-2.5" />
+              <path d="M12 12l9-9" />
+              <path d="M12 12c-2.9 2.9-6.3 3.8-7.5 2.6-1.2-1.2-.3-4.6 2.6-7.5 2.9-2.9 6.3-3.8 7.5-2.6 1.2 1.2.3 4.6-2.6 7.5z" />
+              <path d="M15 9l-3 3" />
+              <path d="M9 15C5 13 3 13 3 13s2-2 4-4" />
+              <path d="M15 9c2-4 2-6 2-6s-2 2-4 4" />
+            </svg>
+          </div>
+          <div class="guide-header-content">
+            <h3 class="guide-title">Dashboard Fitur Baru & Panduan Penggunaan</h3>
+            <p class="guide-desc">Berikut adalah daftar fitur baru yang telah ditambahkan ke sistem SS08 Formulir Pencapaian Kerja, beserta panduan penggunaan dan manfaat utamanya.</p>
+          </div>
+        </div>
+
+        <div class="guide-grid">
+          
+          <!-- Card 1: Dark Mode -->
+          <div class="guide-card">
+            <div class="guide-card-header">
+              <div class="guide-card-icon mode-dark">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+                </svg>
+              </div>
+              <h4 class="guide-card-title">Tema Mode Gelap (Dark Mode)</h4>
+            </div>
+            <div class="guide-card-body">
+              <div class="guide-section">
+                <span class="guide-label">Cara Penggunaan:</span>
+                <p>Klik tombol ikon matahari/bulan yang terletak di pojok kanan atas Topbar Admin (atau di bagian bawah Sidebar karyawan/login). Sistem akan langsung beralih mode dan menyimpan pilihan Anda secara otomatis di browser.</p>
+              </div>
+              <div class="guide-section">
+                <span class="guide-label benefits">Manfaat Utama:</span>
+                <p>Mengurangi ketegangan mata saat Admin memantau data di malam hari atau di area gudang yang redup, sekaligus menghemat konsumsi daya baterai perangkat seluler.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: Lightbox Image Preview -->
+          <div class="guide-card">
+            <div class="guide-card-header">
+              <div class="guide-card-icon lightbox-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <circle cx="9" cy="9" r="2" />
+                  <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                </svg>
+              </div>
+              <h4 class="guide-card-title">Galeri Bukti Foto (Lightbox Preview)</h4>
+            </div>
+            <div class="guide-card-body">
+              <div class="guide-section">
+                <span class="guide-label">Cara Penggunaan:</span>
+                <p>Pada tabel submissions atau loader, klik nama file gambar bukti register atau badge lampiran foto. Foto tersebut akan langsung ditampilkan membesar di tengah layar dengan background overlay gelap. Klik tombol silang (&times;) atau area luar foto untuk menutup.</p>
+              </div>
+              <div class="guide-section">
+                <span class="guide-label benefits">Manfaat Utama:</span>
+                <p>Mempercepat peninjauan berkas bukti register foto secara instan tanpa perlu membuka tab baru browser secara berulang-ulang yang mengotori memori perangkat.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: Real-time Notifications -->
+          <div class="guide-card">
+            <div class="guide-card-header">
+              <div class="guide-card-icon realtime-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                  <path d="M18.63 13A17.89 17.89 0 0 1 18 8c0-3.07-1.64-5.64-4.5-6.32V1.5a1.5 1.5 0 0 0-3 0v.18C7.64 2.36 6 4.92 6 8a17.89 17.89 0 0 1-.63 5C4.85 15 3 15.65 3 17h18c0-1.35-1.85-2-2.37-4Z" />
+                  <path d="M21 8a7 7 0 0 0-7-7" stroke-dasharray="2,2" opacity="0.6" />
+                  <path d="M3 8a7 7 0 0 1 7-7" stroke-dasharray="2,2" opacity="0.6" />
+                </svg>
+              </div>
+              <h4 class="guide-card-title">Notifikasi Real-time (SSE)</h4>
+            </div>
+            <div class="guide-card-body">
+              <div class="guide-section">
+                <span class="guide-label">Cara Penggunaan:</span>
+                <p>Cukup buka halaman dashboard admin. Bila ada karyawan yang mengirimkan submission berstatus <code>pending</code> (melebihi batas kapasitas carian), notifikasi Toast berwarna kuning akan muncul instan di layar disertai bunyi nada bel ringkas. Angka pada menu "Data Submissions" juga bertambah otomatis.</p>
+              </div>
+              <div class="guide-section">
+                <span class="guide-label benefits">Manfaat Utama:</span>
+                <p>Menghilangkan kebutuhan admin untuk me-refresh halaman terus-menerus guna memeriksa inputan over-capacity baru, memungkinkan tindakan verifikasi cepat.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 4: Log Aktivitas Sistem -->
+          <div class="guide-card">
+            <div class="guide-card-header">
+              <div class="guide-card-icon logs-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <line x1="10" y1="9" x2="8" y2="9" />
+                </svg>
+              </div>
+              <h4 class="guide-card-title">Log Aktivitas (Audit Trail)</h4>
+            </div>
+            <div class="guide-card-body">
+              <div class="guide-section">
+                <span class="guide-label">Cara Penggunaan:</span>
+                <p>Klik menu <strong>"Log Aktivitas"</strong> di sidebar kiri admin. Anda dapat meninjau seluruh log tindakan admin. Gunakan kolom pencarian di kanan atas untuk memfilter log berdasarkan nama admin atau jenis tindakan, dan tombol navigasi halaman di bagian bawah tabel.</p>
+              </div>
+              <div class="guide-section">
+                <span class="guide-label benefits">Manfaat Utama:</span>
+                <p>Meningkatkan keamanan data dan akuntabilitas sistem. Mempermudah manajemen dalam melacak kronologi perubahan data (siapa yang menyetujui, mengimpor, atau menghapus data dan kapan).</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 5: Mobile UX Optimization -->
+          <div class="guide-card">
+            <div class="guide-card-header">
+              <div class="guide-card-icon mobile-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+                  <line x1="12" y1="18" x2="12.01" y2="18" stroke-width="3" />
+                </svg>
+              </div>
+              <h4 class="guide-card-title">Optimasi Tampilan Mobile</h4>
+            </div>
+            <div class="guide-card-body">
+              <div class="guide-section">
+                <span class="guide-label">Cara Penggunaan:</span>
+                <p>Karyawan di lapangan dapat mengakses formulir dengan browser bawaan smartphone mereka. Ukuran tombol input batch, pilihan area, dan layout lampiran foto telah disesuaikan agar mudah dioperasikan menggunakan jempol tangan.</p>
+              </div>
+              <div class="guide-section">
+                <span class="guide-label benefits">Manfaat Utama:</span>
+                <p>Meningkatkan kenyamanan kerja staf gudang serta meminimalisir persentase kesalahan ketik atau salah klik saat menginput data pencapaian harian.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
       </div>
     </div>
 
@@ -835,10 +755,10 @@
         <div class="table-wrap">
           <table>
             <thead>
-              <tr><th>No</th><th>Tgl Carian</th><th>Tgl Kirim</th><th>Nama</th><th>Jabatan</th><th>No. Polisi</th><th>Zona</th><th>Cluster</th><th>Non-Group</th><th>Total Kont.</th><th>Submit</th><th>Lembar Register</th><th>Aksi</th></tr>
+              <tr><th>No</th><th>Tgl Carian</th><th>Tgl Kirim</th><th>Nama</th><th>Jabatan</th><th>No. Polisi</th><th>Zona</th><th>Cluster</th><th>Non-Group</th><th>Total Kont.</th><th>Submit</th><th>Aksi</th></tr>
             </thead>
             <tbody id="loaderTableBody">
-              <tr><td colspan="13"><div class="empty-state"><div class="empty-icon">🚚</div><h3>Belum ada data loader</h3><p>Entry dari tim Loader akan muncul di sini</p></div></td></tr>
+              <tr><td colspan="12"><div class="empty-state"><div class="empty-icon">🚚</div><h3>Belum ada data loader</h3><p>Entry dari tim Loader akan muncul di sini</p></div></td></tr>
             </tbody>
           </table>
         </div>
@@ -1060,6 +980,81 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
           </div>
         </div>
       </script>
+    <!-- ===== EDIT TAMPILAN LOGIN PAGE ===== -->
+    <div id="page-login-settings" class="page-section" style="display:none;">
+      <div style="margin-bottom:24px;">
+        <h2 style="font-size:20px; font-weight:800; color:var(--text); margin-bottom:6px;">Pengaturan Tampilan Login</h2>
+        <p style="font-size:13px; color:var(--text-muted);">Ubah teks headline, deskripsi, quote, dan info lainnya pada halaman login.</p>
+      </div>
+
+      <div class="gs-panel">
+        <div class="gs-header">
+          <div class="gs-logo">
+            <div class="gs-icon" style="background:linear-gradient(135deg,#6C3CE1,#8B5CF6);">
+              <svg width="22" height="22" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+            </div>
+            <div>
+              <div class="gs-title">Sesuaikan Konten Halaman Login</div>
+              <div class="gs-subtitle">Perubahan akan langsung diterapkan setelah disimpan</div>
+            </div>
+          </div>
+        </div>
+        <div class="gs-body">
+          <form id="formLoginSettings" onsubmit="saveLoginSettings(event)" style="display:flex; flex-direction:column; gap:16px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+              <div class="form-group">
+                <label for="lsHeroHeadlineLine1" style="font-weight:600; font-size:13px; color:var(--text); margin-bottom:6px; display:block;">Headline Baris 1 (Putih)</label>
+                <input type="text" id="lsHeroHeadlineLine1" class="form-control" placeholder="Contoh: Kerja Keras," required>
+              </div>
+              <div class="form-group">
+                <label for="lsHeroHeadlineLine2" style="font-weight:600; font-size:13px; color:var(--text); margin-bottom:6px; display:block;">Headline Baris 2 (Highlight Kuning)</label>
+                <input type="text" id="lsHeroHeadlineLine2" class="form-control" placeholder="Contoh: Hasilkan Prestasi!" required>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="lsHeroDescription" style="font-weight:600; font-size:13px; color:var(--text); margin-bottom:6px; display:block;">Deskripsi Hero (Kiri)</label>
+              <textarea id="lsHeroDescription" class="form-control" rows="2" style="resize:vertical;" placeholder="Deskripsi singkat platform" required></textarea>
+            </div>
+
+            <div style="display:grid; grid-template-columns:2fr 1fr; gap:16px;">
+              <div class="form-group">
+                <label for="lsHeroQuote" style="font-weight:600; font-size:13px; color:var(--text); margin-bottom:6px; display:block;">Quote Motivasi</label>
+                <input type="text" id="lsHeroQuote" class="form-control" placeholder="Quote motivasi" required>
+              </div>
+              <div class="form-group">
+                <label for="lsHeroQuoteAuthor" style="font-weight:600; font-size:13px; color:var(--text); margin-bottom:6px; display:block;">Penulis Quote</label>
+                <input type="text" id="lsHeroQuoteAuthor" class="form-control" placeholder="Contoh: — Jim Rohn" required>
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+              <div class="form-group">
+                <label for="lsFormTitle" style="font-weight:600; font-size:13px; color:var(--text); margin-bottom:6px; display:block;">Judul Form Login (Kanan)</label>
+                <input type="text" id="lsFormTitle" class="form-control" placeholder="Selamat Datang! 👋" required>
+              </div>
+              <div class="form-group">
+                <label for="lsFormSubtitle" style="font-weight:600; font-size:13px; color:var(--text); margin-bottom:6px; display:block;">Sub-judul Form Login</label>
+                <input type="text" id="lsFormSubtitle" class="form-control" placeholder="Sub-judul instruksi login" required>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="lsFooterText" style="font-weight:600; font-size:13px; color:var(--text); margin-bottom:6px; display:block;">Teks Footer Hak Cipta</label>
+              <input type="text" id="lsFooterText" class="form-control" placeholder="© 2026 SS08 Pencapaian Kerja. All rights reserved." required>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:8px;">
+              <button type="button" class="btn btn-outline" onclick="loadLoginSettings()">
+                Batal / Reset
+              </button>
+              <button type="submit" class="btn btn-primary" id="btnSaveLoginSettings">
+                Simpan Perubahan
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -1189,7 +1184,7 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label for="acBatch">Kode Toko (Batch) <span class="req">*</span></label>
+          <label for="acBatch">Kode Mobil (Batch) <span class="req">*</span></label>
           <input type="text" id="acBatch" class="form-control" placeholder="Contoh: 1, BOG01, CJR05">
         </div>
         <div class="form-group">
@@ -1245,12 +1240,57 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
             <option value="Loader">Loader</option>
           </select>
         </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label for="editTipeKaryawan">Tipe Karyawan</label>
+          <select id="editTipeKaryawan" class="form-control">
+            <option value="">-- Pilih Tipe Karyawan --</option>
+            <option value="Productivity">Productivity</option>
+            <option value="PHL">PHL</option>
+          </select>
+        </div>
       </div>
       <div id="editUserError" style="display:none;padding:10px 14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#B91C1C;font-size:13px;margin-top:12px;"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('editUserModal')">Batal</button>
       <button class="btn btn-primary" id="btnSaveUser" onclick="saveUser()">Simpan Perubahan</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== GANTI PASSWORD MODAL ===== -->
+<div class="modal-overlay" id="changePasswordModal">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <h3 style="display:flex;align-items:center;gap:8px;">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+        Ganti Password
+      </h3>
+      <button class="modal-close" onclick="closeModal('changePasswordModal')">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label for="cpCurrentPassword">Password Lama <span class="req">*</span></label>
+        <input type="password" id="cpCurrentPassword" class="form-control" placeholder="Masukkan password saat ini">
+      </div>
+      <div class="form-group">
+        <label for="cpNewPassword">Password Baru <span class="req">*</span></label>
+        <input type="password" id="cpNewPassword" class="form-control" placeholder="Minimal 6 karakter">
+      </div>
+      <div class="form-group">
+        <label for="cpConfirmPassword">Konfirmasi Password Baru <span class="req">*</span></label>
+        <input type="password" id="cpConfirmPassword" class="form-control" placeholder="Ulangi password baru">
+      </div>
+      <div id="changePasswordError" style="display:none;padding:10px 14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#B91C1C;font-size:13px;margin-top:4px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('changePasswordModal')">Batal</button>
+      <button class="btn btn-primary" id="btnChangePassword" onclick="changeMyPassword()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+        Simpan Password Baru
+      </button>
     </div>
   </div>
 </div>
@@ -1273,1359 +1313,13 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<script>
-  function showOnscreenError(source, err) {
-    console.error(`[ONSCREEN ERROR] ${source}:`, err);
-    const container = document.getElementById('onscreen-error-container') || (() => {
-      const div = document.createElement('div');
-      div.id = 'onscreen-error-container';
-      div.style.position = 'fixed';
-      div.style.bottom = '20px';
-      div.style.left = '20px';
-      div.style.right = '20px';
-      div.style.background = '#FEE2E2';
-      div.style.border = '2px solid #EF4444';
-      div.style.color = '#B91C1C';
-      div.style.padding = '14px';
-      div.style.borderRadius = '8px';
-      div.style.zIndex = '99999';
-      div.style.fontSize = '12px';
-      div.style.fontFamily = 'monospace';
-      div.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)';
-      div.style.maxHeight = '200px';
-      div.style.overflowY = 'auto';
-      div.innerHTML = `<strong>Error in ${source}:</strong> <span id="onscreen-error-msg"></span><button onclick="this.parentElement.remove()" style="margin-left: 10px; background: #EF4444; color: white; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; float: right;">Tutup</button>`;
-      document.body.appendChild(div);
-      return div;
-    })();
-    document.getElementById('onscreen-error-msg').textContent = `${err.name}: ${err.message}\n${err.stack || ''}`;
-  }
-
-  window.onerror = function(message, source, lineno, colno, error) {
-    showOnscreenError(`Global Window (${lineno}:${colno})`, error || new Error(message));
-    return false;
-  };
-
-  // ============= STATE =============
-  let allSubmissions = [];
-  let filteredSubmissions = [];
-  let currentPage = 1;
-  const PAGE_SIZE = 15;
-  let currentView = 'dashboard';
-
-  let allDataCarian = [];
-  let filteredDataCarian = [];
-  let importSelectedFile = null;
-
-  // ============= INIT =============
-  (async () => {
-    const auth = await fetch('/api/check-auth').then(r => r.json());
-    if (!auth.authenticated) { window.location.href = '/login'; return; }
-    if (auth.role === 'operasional') { window.location.href = '/'; return; }
-    document.getElementById('userName').textContent = auth.nama_lengkap || auth.username;
-    document.getElementById('userAvatar').textContent = (auth.nama_lengkap || auth.username).charAt(0).toUpperCase();
-    // Set today's date as default for filters
-    const today = new Date().toISOString().slice(0, 10);
-    document.getElementById('dcDateFilter').value = today;
-    document.getElementById('importTanggal').value = today;
-    document.getElementById('acTanggal').value = today;
-    document.getElementById('loaderDateFilter').value = today;
-    await loadData();
-  })();
-
-  // ============= ANIMATION HELPERS =============
-  function animateValue(id, end, duration = 800) {
-    const obj = document.getElementById(id);
-    if (!obj) return;
-    const currentText = obj.textContent.replace(/[^\d]/g, '');
-    const startVal = parseInt(currentText) || 0;
-    const endVal = parseInt(end) || 0;
-    if (startVal === endVal) {
-      obj.textContent = endVal.toLocaleString('id-ID');
-      return;
-    }
-    const range = endVal - startVal;
-    const startTime = performance.now();
-    
-    function update(currentTime) {
-      const elapsed = currentTime - startTime;
-      if (elapsed >= duration) {
-        obj.textContent = endVal.toLocaleString('id-ID');
-        return;
-      }
-      const progress = elapsed / duration;
-      const easeProgress = progress * (2 - progress); // quadratic ease-out
-      const currentVal = Math.round(startVal + range * easeProgress);
-      obj.textContent = currentVal.toLocaleString('id-ID');
-      requestAnimationFrame(update);
-    }
-    requestAnimationFrame(update);
-  }
-
-  async function loadData() {
-    try {
-      const [submissions, stats, pendingCountRes] = await Promise.all([
-        fetch('/api/submissions').then(r => r.json()),
-        fetch('/api/stats').then(r => r.json()),
-        fetch('/api/submissions/pending-count').then(r => r.json()).catch(() => ({ count: 0 }))
-      ]);
-      allSubmissions = Array.isArray(submissions) ? submissions : [];
-      filteredSubmissions = [...allSubmissions];
-
-      const total = stats && stats.total ? stats.total : 0;
-      const today = stats && stats.today ? stats.today : 0;
-      const byPosisi = stats && Array.isArray(stats.byPosisi) ? stats.byPosisi : [];
-
-      animateValue('stat-total', total);
-      animateValue('stat-today', today);
-      const pickerCount = (byPosisi.find(p => p.posisi === 'Picker') || {count: 0}).count || 0;
-      const otherCount = total - pickerCount;
-      animateValue('stat-picker', pickerCount);
-      animateValue('stat-other', otherCount);
-
-      // Update pending badge & banner
-      const pendingCount = pendingCountRes && pendingCountRes.count ? pendingCountRes.count : 0;
-      const pendingBadge = document.getElementById('nav-submissions-pending');
-      if (pendingBadge) {
-        if (pendingCount > 0) {
-          pendingBadge.textContent = pendingCount;
-          pendingBadge.style.display = 'inline-flex';
-        } else {
-          pendingBadge.style.display = 'none';
-        }
-      }
-
-      const banner = document.getElementById('pendingAlertBanner');
-      const bannerTitle = document.getElementById('pendingAlertTitle');
-      if (banner && bannerTitle) {
-        if (pendingCount > 0) {
-          bannerTitle.textContent = `Ada ${pendingCount} submission menunggu validasi`;
-          banner.style.display = 'flex';
-        } else {
-          banner.style.display = 'none';
-        }
-      }
-
-      renderRecentTable();
-      renderAllTable();
-    } catch(err) {
-      console.error('loadData error:', err);
-      showToast('Gagal memuat data.', 'error');
-    }
-  }
-
-  // ============= FORMAT HELPERS =============
-  function formatDate(dt) {
-    if (!dt) return '-';
-    return new Date(dt).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' });
-  }
-  function formatDateTime(dt) {
-    if (!dt) return '-';
-    return new Date(dt).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
-  }
-  function posisiBadge(pos) {
-    const cls = pos === 'Picker' ? 'badge-picker' : pos === 'Sorter' ? 'badge-sorter' : 'badge-loader';
-    return `<span class="badge ${cls}">${pos}</span>`;
-  }
-
-  // ============= RECENT TABLE (DASHBOARD) =============
-  function renderRecentTable() {
-    const recent = allSubmissions.slice(0, 10);
-    const tbody = document.getElementById('recentTableBody');
-    if (!recent.length) {
-      tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📋</div><h3>Belum ada data</h3><p>Data akan muncul setelah ada submission masuk</p></div></td></tr>`;
-      return;
-    }
-    tbody.innerHTML = recent.map((s, idx) => `
-      <tr style="animation-delay: ${idx * 0.04}s">
-        <td class="text-main">${s.nama}</td>
-        <td>${posisiBadge(s.posisi)}</td>
-        <td>${s.tipe_lokasi}</td>
-        <td>${s.zona}</td>
-        <td class="text-main">${s.jumlah_output.toLocaleString('id-ID')}</td>
-        <td>${formatDateTime(s.created_at)}</td>
-        <td>
-          <div class="action-btns">
-            <button class="btn-icon btn-view" onclick="viewDetail('${s.id}')" title="Lihat detail">
-              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
-            <button class="btn-icon btn-del" onclick="deleteSubmission('${s.id}')" title="Hapus">
-              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-            </button>
-          </div>
-        </td>
-      </tr>
-    `).join('');
-  }
-
-  // ============= ALL SUBMISSIONS TABLE =============
-  function renderAllTable() {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    const end = start + PAGE_SIZE;
-    const page = filteredSubmissions.slice(start, end);
-    const tbody = document.getElementById('allTableBody');
-    if (!filteredSubmissions.length) {
-      tbody.innerHTML = `<tr><td colspan="12"><div class="empty-state"><div class="empty-icon">🔍</div><h3>Tidak ada data ditemukan</h3><p>Coba ubah kata kunci pencarian</p></div></td></tr>`;
-      updatePagination(0); return;
-    }
-    tbody.innerHTML = page.map((s, i) => {
-      const batches = JSON.parse(s.batch_cluster || '[]');
-      const batchPreview = batches.slice(0, 3).join(', ') + (batches.length > 3 ? ` +${batches.length - 3}` : '');
-      const status = s.status || 'approved';
-      
-      let statusBadge = '';
-      if (status === 'pending') {
-        statusBadge = `<span class="badge" style="background:rgba(245,158,11,0.06); color:#D97706; border:1px solid rgba(245,158,11,0.15)">🟡 Pending</span>`;
-      } else if (status === 'approved') {
-        statusBadge = `<span class="badge" style="background:rgba(16,185,129,0.06); color:#059669; border:1px solid rgba(16,185,129,0.15)">🟢 Approved</span>`;
-      } else {
-        statusBadge = `<span class="badge" style="background:rgba(239,68,68,0.06); color:#DC2626; border:1px solid rgba(239,68,68,0.15)">🔴 Rejected</span>`;
-      }
-
-      let actionButtons = `
-        <button class="btn-icon btn-view" onclick="viewDetail('${s.id}')" title="Lihat detail">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-        </button>
-      `;
-
-      if (status === 'pending') {
-        actionButtons += `
-          <button class="btn-icon" style="background:rgba(16,185,129,0.08); color:#059669;" onclick="updateStatus('${s.id}', 'approved')" title="Approve">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
-          </button>
-          <button class="btn-icon" style="background:rgba(239,68,68,0.08); color:#DC2626;" onclick="updateStatus('${s.id}', 'rejected')" title="Reject">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-        `;
-      }
-
-      actionButtons += `
-        <button class="btn-icon btn-del" onclick="deleteSubmission('${s.id}')" title="Hapus">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-        </button>
-      `;
-
-      return `
-        <tr style="animation-delay: ${i * 0.03}s">
-          <td>${start + i + 1}</td>
-          <td>${s.tanggal_carian}</td>
-          <td>${s.tanggal_pengerjaan}</td>
-          <td class="text-main">${s.nama}</td>
-          <td>${posisiBadge(s.posisi)}</td>
-          <td>${s.tipe_lokasi}</td>
-          <td>${s.zona}</td>
-          <td title="${batches.join(', ')}">${batchPreview || '-'}</td>
-          <td class="text-main">${s.jumlah_output.toLocaleString('id-ID')}</td>
-          <td>${statusBadge}</td>
-          <td>${formatDateTime(s.created_at)}</td>
-          <td>
-            <div class="action-btns">
-              ${actionButtons}
-            </div>
-          </td>
-        </tr>`;
-    }).join('');
-    updatePagination(filteredSubmissions.length);
-  }
-
-  function updatePagination(total) {
-    const totalPages = Math.ceil(total / PAGE_SIZE);
-    const start = total === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
-    const end = Math.min(currentPage * PAGE_SIZE, total);
-    document.getElementById('pageInfo').textContent = `Menampilkan ${start}–${end} dari ${total} data`;
-    const pag = document.getElementById('pagination');
-    pag.innerHTML = '';
-    const prev = document.createElement('button');
-    prev.className = 'page-btn'; prev.innerHTML = '‹'; prev.disabled = currentPage <= 1;
-    prev.onclick = () => { currentPage--; renderAllTable(); };
-    pag.appendChild(prev);
-    getPageRange(currentPage, totalPages).forEach(p => {
-      if (p === '...') {
-        const el = document.createElement('span');
-        el.style.cssText = 'display:flex;align-items:center;padding:0 4px;color:var(--text-dim);';
-        el.textContent = '…'; pag.appendChild(el);
-      } else {
-        const btn = document.createElement('button');
-        btn.className = 'page-btn' + (p === currentPage ? ' active' : '');
-        btn.textContent = p; btn.onclick = () => { currentPage = p; renderAllTable(); };
-        pag.appendChild(btn);
-      }
-    });
-    const next = document.createElement('button');
-    next.className = 'page-btn'; next.innerHTML = '›'; next.disabled = currentPage >= totalPages;
-    next.onclick = () => { currentPage++; renderAllTable(); };
-    pag.appendChild(next);
-  }
-
-  function getPageRange(cur, total) {
-    if (total <= 7) return Array.from({length: total}, (_, i) => i + 1);
-    if (cur <= 4) return [1,2,3,4,5,'...',total];
-    if (cur >= total - 3) return [1,'...',total-4,total-3,total-2,total-1,total];
-    return [1,'...',cur-1,cur,cur+1,'...',total];
-  }
-
-  function filterTable() {
-    const q = document.getElementById('searchInput').value.toLowerCase();
-    const statusVal = document.getElementById('statusFilterInput').value;
-    filteredSubmissions = allSubmissions.filter(s => {
-      const matchSearch = s.nama.toLowerCase().includes(q) || s.posisi.toLowerCase().includes(q) ||
-                          s.zona.toLowerCase().includes(q) || s.tipe_lokasi.toLowerCase().includes(q);
-      const matchStatus = statusVal === 'all' || (s.status || 'approved') === statusVal;
-      return matchSearch && matchStatus;
-    });
-    currentPage = 1; renderAllTable();
-  }
-
-  function filterToPending() {
-    const statusSelect = document.getElementById('statusFilterInput');
-    if (statusSelect) {
-      statusSelect.value = 'pending';
-      filterTable();
-    }
-  }
-
-  async function updateStatus(id, newStatus) {
-    const actionText = newStatus === 'approved' ? 'menyetujui' : 'menolak';
-    const isApproved = newStatus === 'approved';
-    const okText = isApproved ? 'Setujui' : 'Tolak';
-    const okClass = isApproved ? 'btn-primary' : 'btn-danger';
-    const icon = isApproved ? '🟢' : '🔴';
-    
-    const confirmed = await showConfirmModal({
-      title: `${isApproved ? 'Setujui' : 'Tolak'} Submission`,
-      message: `Apakah Anda yakin ingin ${actionText} submission ini?`,
-      icon: icon,
-      okText: okText,
-      okClass: okClass
-    });
-    if (!confirmed) return;
-    try {
-      const r = await fetch(`/api/submissions/${id}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-      });
-      const res = await r.json();
-      if (res.success) {
-        showToast(`Submission berhasil di-${newStatus}.`, 'success');
-        await loadData();
-      } else {
-        showToast(res.error || 'Gagal mengubah status.', 'error');
-      }
-    } catch (err) {
-      showToast('Gagal menghubungi server.', 'error');
-    }
-  }
-
-  // ============= VIEW DETAIL =============
-  async function viewDetail(id) {
-    const titleEl = document.getElementById('detailModalTitle');
-    if (titleEl) titleEl.textContent = 'Detail Submission (Picker & Sorter)';
-    document.getElementById('modalBody').innerHTML = '<div class="loading-spinner"><div class="spin"></div></div>';
-    document.getElementById('detailModal').classList.add('visible');
-    try {
-      const data = await fetch(`/api/submissions/${id}`).then(r => r.json());
-      const batches = JSON.parse(data.batch_cluster || '[]');
-      document.getElementById('modalBody').innerHTML = `
-        <div class="detail-grid">
-          <div class="detail-item"><div class="detail-key">Tanggal Carian</div><div class="detail-value">${data.tanggal_carian}</div></div>
-          <div class="detail-item"><div class="detail-key">Tanggal Pengerjaan</div><div class="detail-value">${data.tanggal_pengerjaan}</div></div>
-          <div class="detail-item full"><div class="detail-key">Nama</div><div class="detail-value">${data.nama}</div></div>
-          <div class="detail-item"><div class="detail-key">Posisi</div><div class="detail-value">${data.posisi}</div></div>
-          <div class="detail-item"><div class="detail-key">Tipe Lokasi</div><div class="detail-value">${data.tipe_lokasi}</div></div>
-          <div class="detail-item"><div class="detail-key">Zona</div><div class="detail-value">${data.zona}</div></div>
-          <div class="detail-item"><div class="detail-key">Jumlah Output</div><div class="detail-value">${data.jumlah_output.toLocaleString('id-ID')}</div></div>
-          <div class="detail-item full">
-            <div class="detail-key">Batch / Cluster (${batches.length})</div>
-            <div class="batch-tags">${batches.map(b => `<span class="batch-tag">${b}</span>`).join('') || '-'}</div>
-          </div>
-          ${data.catatan_tambahan ? `<div class="detail-item full"><div class="detail-key">Catatan Tambahan</div><div class="detail-value">${data.catatan_tambahan}</div></div>` : ''}
-          <div class="detail-item full">
-            <div class="detail-key">Lembar Register (${data.files.length} file)</div>
-            <div class="file-preview-list">
-              ${data.files.length ? data.files.map(f => `
-                <a class="file-preview-item" href="${f.file_path}" target="_blank">
-                  <div class="file-icon2"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-                  <div><div class="file-name2">${f.original_name}</div><div class="file-type">Klik untuk buka</div></div>
-                  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-left:auto;color:var(--text-dim)"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
-                </a>`).join('') : '<div style="color:var(--text-muted);font-size:13px;">Tidak ada file</div>'}
-            </div>
-          </div>
-          <div class="detail-item full"><div class="detail-key">Waktu Submit</div><div class="detail-value">${formatDateTime(data.created_at)}</div></div>
-        </div>`;
-    } catch (err) {
-      document.getElementById('modalBody').innerHTML = '<p style="color:var(--error)">Gagal memuat detail.</p>';
-    }
-  }
-
-  async function deleteSubmission(id) {
-    const confirmed = await showConfirmModal({
-      title: 'Hapus Submission',
-      message: 'Apakah Anda yakin ingin menghapus submission ini? Tindakan ini tidak dapat dibatalkan.',
-      icon: '🗑️',
-      okText: 'Hapus',
-      okClass: 'btn-danger'
-    });
-    if (!confirmed) return;
-    try {
-      await fetch(`/api/submissions/${id}`, { method: 'DELETE' });
-      allSubmissions = allSubmissions.filter(s => s.id !== id);
-      filteredSubmissions = filteredSubmissions.filter(s => s.id !== id);
-      renderRecentTable(); renderAllTable();
-      showToast('Data berhasil dihapus.', 'success');
-    } catch (err) { showToast('Gagal menghapus data.', 'error'); }
-  }
-
-  // ============= DATA CARIAN =============
-  async function loadDataCarian() {
-    const tanggal = document.getElementById('dcDateFilter').value;
-    if (!tanggal) {
-      document.getElementById('dcTableBody').innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📅</div><h3>Pilih tanggal carian</h3><p>Pilih tanggal untuk melihat data kapasitas batch</p></div></td></tr>`;
-      document.getElementById('dcSummary').style.display = 'none';
-      document.getElementById('btnDeleteAllDC').style.display = 'none';
-      document.getElementById('dcPageInfo').textContent = '-';
-      return;
-    }
-
-    document.getElementById('dcTableBody').innerHTML = `<tr><td colspan="9"><div class="loading-spinner"><div class="spin"></div></div></td></tr>`;
-
-    try {
-      const records = await fetch(`/api/data-carian?tanggal=${tanggal}`).then(r => r.json());
-      allDataCarian = records;
-      filteredDataCarian = [...allDataCarian];
-
-      const dateLabel = new Date(tanggal + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
-      document.getElementById('dcTableTitle').textContent = `Data Kapasitas Batch — ${dateLabel}`;
-
-      if (records.length > 0) {
-        document.getElementById('btnDeleteAllDC').style.display = 'flex';
-        document.getElementById('dcSummary').style.display = 'grid';
-        updateDCSummary(records);
-      } else {
-        document.getElementById('btnDeleteAllDC').style.display = 'none';
-        document.getElementById('dcSummary').style.display = 'none';
-      }
-
-      renderDCTable();
-    } catch(err) {
-      showToast('Gagal memuat data carian.', 'error');
-    }
-  }
-
-  function updateDCSummary(records) {
-    const total = records.length;
-    const done = records.filter(r => r.persen === 100).length;
-    const empty = records.filter(r => r.sudah_diisi === 0).length;
-    const partial = total - done - empty;
-    animateValue('dcSumTotal', total);
-    animateValue('dcSumDone', done);
-    animateValue('dcSumEmpty', empty);
-    animateValue('dcSumPartial', partial);
-  }
-
-  function renderDCTable() {
-    const tbody = document.getElementById('dcTableBody');
-    if (!filteredDataCarian.length) {
-      tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">📭</div><h3>Belum ada data carian</h3><p>Import dari Excel atau tambah manual untuk memulai</p></div></td></tr>`;
-      document.getElementById('dcPageInfo').textContent = '0 data';
-      return;
-    }
-
-    tbody.innerHTML = filteredDataCarian.map((r, i) => {
-      const pct = r.persen || 0;
-      const progClass = pct >= 100 ? 'full' : pct >= 75 ? 'high' : pct >= 40 ? 'mid' : 'low';
-      const sisaClass = r.sisa <= 0 ? 'full' : r.sisa < (r.total_output * 0.25) ? 'warn' : 'ok';
-      return `
-        <tr style="animation-delay: ${i * 0.03}s">
-          <td>${i + 1}</td>
-          <td>${posisiBadge(r.posisi)}</td>
-          <td><span style="font-weight:600;color:var(--text)">${r.zona}</span></td>
-          <td><span class="batch-tag">${r.batch}</span></td>
-          <td><span style="font-size:13px;font-weight:600;color:var(--accent)">${(r.jumlah_toko || 0).toLocaleString('id-ID')} <span style="font-size:11px;color:var(--text-muted)">toko</span></span></td>
-          <td class="text-main">${r.total_output.toLocaleString('id-ID')} <span style="font-size:11px;color:var(--text-muted)">${r.satuan}</span></td>
-          <td>${(r.sudah_diisi || 0).toLocaleString('id-ID')} <span style="font-size:11px;color:var(--text-muted)">${r.satuan}</span></td>
-          <td><span class="sisa-badge ${sisaClass}">${(r.sisa || 0).toLocaleString('id-ID')} ${r.satuan}</span></td>
-          <td>
-            <div class="progress-wrap">
-              <div class="progress-bar"><div class="progress-fill ${progClass}" style="width:${pct}%"></div></div>
-              <span class="progress-pct" style="color:${pct>=100?'#FCA5A5':pct>=75?'#FCD34D':'#6EE7B7'}">${pct}%</span>
-            </div>
-          </td>
-          <td>
-            <div class="action-btns">
-              <button class="btn-icon btn-edit" onclick="openEditCarianModal('${r.id}','${r.tanggal_carian}','${r.posisi}','${r.zona}','${r.batch}',${r.total_output},${r.jumlah_toko || 0})" title="Edit">
-                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              </button>
-              <button class="btn-icon btn-del" onclick="deleteDataCarian('${r.id}')" title="Hapus">
-                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-              </button>
-            </div>
-          </td>
-        </tr>`;
-    }).join('');
-    document.getElementById('dcPageInfo').textContent = `${filteredDataCarian.length} data kapasitas batch`;
-  }
-
-  function filterDCTable() {
-    const q = document.getElementById('dcSearchInput').value.toLowerCase();
-    filteredDataCarian = allDataCarian.filter(r =>
-      r.zona.toLowerCase().includes(q) ||
-      String(r.batch).toLowerCase().includes(q) ||
-      r.posisi.toLowerCase().includes(q) ||
-      String(r.jumlah_toko || 0).includes(q)
-    );
-    renderDCTable();
-  }
-
-  // ============= IMPORT EXCEL =============
-  function openImportModal() {
-    importSelectedFile = null;
-    document.getElementById('importFileInfo').style.display = 'none';
-    document.getElementById('importResult').style.display = 'none';
-    document.getElementById('importFileInput').value = '';
-    document.getElementById('btnImport').disabled = true;
-    // Pre-fill date from filter
-    const dcDate = document.getElementById('dcDateFilter').value;
-    if (dcDate) document.getElementById('importTanggal').value = dcDate;
-    document.getElementById('importModal').classList.add('visible');
-  }
-
-  function handleImportFile(file) {
-    if (!file) return;
-    importSelectedFile = file;
-    const infoEl = document.getElementById('importFileInfo');
-    const sizeKB = (file.size / 1024).toFixed(1);
-    infoEl.style.display = 'flex';
-    infoEl.className = 'file-selected-info';
-    infoEl.innerHTML = `
-      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color:var(--primary-light);flex-shrink:0"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-      <span class="fs-name">${file.name}</span>
-      <span class="fs-size">${sizeKB} KB</span>
-      <button class="fs-remove" onclick="clearImportFile()">
-        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
-      </button>`;
-    document.getElementById('importResult').style.display = 'none';
-    document.getElementById('btnImport').disabled = false;
-
-    // Setup drag/drop
-    const dz = document.getElementById('importDropZone');
-    dz.style.borderColor = 'var(--primary)';
-    dz.style.background = 'rgba(108,60,225,0.08)';
-  }
-
-  function clearImportFile() {
-    importSelectedFile = null;
-    document.getElementById('importFileInfo').style.display = 'none';
-    document.getElementById('importFileInput').value = '';
-    document.getElementById('btnImport').disabled = true;
-    const dz = document.getElementById('importDropZone');
-    dz.style.borderColor = '';
-    dz.style.background = '';
-  }
-
-  // Setup drag/drop for import zone
-  document.addEventListener('DOMContentLoaded', () => {
-    const dz = document.getElementById('importDropZone');
-    if (dz) {
-      dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
-      dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
-      dz.addEventListener('drop', e => {
-        e.preventDefault(); dz.classList.remove('dragover');
-        const file = e.dataTransfer.files[0];
-        if (file) handleImportFile(file);
-      });
-    }
-  });
-
-  async function doImport() {
-    if (!importSelectedFile) { showToast('Pilih file terlebih dahulu.', 'error'); return; }
-    const tanggal = document.getElementById('importTanggal').value;
-    if (!tanggal) { showToast('Tanggal carian wajib diisi.', 'error'); return; }
-    const mode = document.querySelector('input[name="importMode"]:checked').value;
-
-    const btn = document.getElementById('btnImport');
-    btn.disabled = true;
-    btn.innerHTML = `<div style="width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;"></div> Mengimport...`;
-
-    const formData = new FormData();
-    formData.append('file', importSelectedFile);
-    formData.append('tanggal_carian', tanggal);
-    formData.append('mode', mode);
-
-    try {
-      const res = await fetch('/api/data-carian/import-excel', { method: 'POST', body: formData });
-      const data = await res.json();
-      const resultEl = document.getElementById('importResult');
-      resultEl.style.display = 'block';
-
-      if (data.success) {
-        resultEl.className = 'import-result success';
-        resultEl.innerHTML = `
-          <div class="ir-title">✅ ${data.message}</div>
-          ${data.skipped_detail && data.skipped_detail.length > 0 ? `
-            <div style="margin-top:8px;font-size:12px;">Baris dilewati:</div>
-            <ul>${data.skipped_detail.map(s => `<li>${s}</li>`).join('')}</ul>
-          ` : ''}`;
-        showToast(data.message, 'success');
-        // Update filter date and reload
-        document.getElementById('dcDateFilter').value = tanggal;
-        await loadDataCarian();
-      } else {
-        resultEl.className = 'import-result error';
-        resultEl.innerHTML = `<div class="ir-title">❌ ${data.error}</div>${data.hint ? `<div style="margin-top:4px;font-size:12px;">${data.hint}</div>` : ''}${data.skipped ? `<ul>${data.skipped.map(s=>`<li>${s}</li>`).join('')}</ul>` : ''}`;
-        showToast('Import gagal.', 'error');
-      }
-    } catch(err) {
-      showToast('Gagal menghubungi server.', 'error');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg> Import Sekarang`;
-    }
-  }
-
-  function downloadTemplate() {
-    window.location.href = '/api/data-carian/template';
-  }
-
-  // ============= ADD / EDIT DATA CARIAN MANUAL =============
-  function openAddCarianModal() {
-    document.getElementById('addCarianTitle').textContent = 'Tambah Data Carian';
-    document.getElementById('editCarianId').value = '';
-    document.getElementById('acPosisi').value = '';
-    document.getElementById('acZona').value = '';
-    document.getElementById('acBatch').value = '';
-    document.getElementById('acJumlahToko').value = '0';
-    document.getElementById('acOutput').value = '';
-    document.getElementById('addCarianError').style.display = 'none';
-    const dcDate = document.getElementById('dcDateFilter').value;
-    if (dcDate) document.getElementById('acTanggal').value = dcDate;
-    document.getElementById('addCarianModal').classList.add('visible');
-  }
-
-  function openEditCarianModal(id, tanggal, posisi, zona, batch, total_output, jumlah_toko = 0) {
-    document.getElementById('addCarianTitle').textContent = 'Edit Data Carian';
-    document.getElementById('editCarianId').value = id;
-    document.getElementById('acTanggal').value = tanggal;
-    document.getElementById('acPosisi').value = posisi;
-    document.getElementById('acZona').value = zona;
-    document.getElementById('acBatch').value = batch;
-    document.getElementById('acOutput').value = total_output;
-    document.getElementById('acJumlahToko').value = jumlah_toko;
-    document.getElementById('addCarianError').style.display = 'none';
-    document.getElementById('addCarianModal').classList.add('visible');
-  }
-
-  async function saveCarian() {
-    const id = document.getElementById('editCarianId').value;
-    const tanggal_carian = document.getElementById('acTanggal').value;
-    const posisi = document.getElementById('acPosisi').value;
-    const zona = document.getElementById('acZona').value;
-    const batch = document.getElementById('acBatch').value.trim();
-    const total_output = document.getElementById('acOutput').value;
-    const jumlah_toko = parseInt(document.getElementById('acJumlahToko').value) || 0;
-    const errEl = document.getElementById('addCarianError');
-
-    if (!tanggal_carian || !posisi || !zona || !batch || !total_output) {
-      errEl.textContent = 'Semua field wajib diisi.';
-      errEl.style.display = 'block'; return;
-    }
-    if (parseInt(total_output) <= 0) {
-      errEl.textContent = 'Total output harus lebih dari 0.';
-      errEl.style.display = 'block'; return;
-    }
-    errEl.style.display = 'none';
-
-    const btn = document.getElementById('btnSaveCarian');
-    btn.disabled = true; btn.textContent = 'Menyimpan...';
-
-    try {
-      let res;
-      if (id) {
-        res = await fetch(`/api/data-carian/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tanggal_carian, posisi, zona, batch, jumlah_toko, total_output: parseInt(total_output) })
-        }).then(r => r.json());
-      } else {
-        res = await fetch('/api/data-carian', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tanggal_carian, posisi, zona, batch, jumlah_toko, total_output: parseInt(total_output) })
-        }).then(r => r.json());
-      }
-
-      if (res.success) {
-        showToast(id ? 'Data berhasil diupdate.' : 'Data berhasil ditambahkan.', 'success');
-        closeModal('addCarianModal');
-        document.getElementById('dcDateFilter').value = tanggal_carian;
-        await loadDataCarian();
-      } else {
-        errEl.textContent = res.error || 'Gagal menyimpan data.';
-        errEl.style.display = 'block';
-      }
-    } catch(err) {
-      errEl.textContent = 'Gagal menghubungi server.';
-      errEl.style.display = 'block';
-    } finally {
-      btn.disabled = false; btn.textContent = 'Simpan';
-    }
-  }
-
-  async function deleteDataCarian(id) {
-    const confirmed = await showConfirmModal({
-      title: 'Hapus Data Kapasitas',
-      message: 'Apakah Anda yakin ingin menghapus data kapasitas batch ini?',
-      icon: '🗑️',
-      okText: 'Hapus',
-      okClass: 'btn-danger'
-    });
-    if (!confirmed) return;
-    try {
-      const res = await fetch(`/api/data-carian/${id}`, { method: 'DELETE' }).then(r => r.json());
-      if (res.success) {
-        showToast('Data berhasil dihapus.', 'success');
-        await loadDataCarian();
-      } else {
-        showToast('Gagal menghapus.', 'error');
-      }
-    } catch(err) { showToast('Gagal menghapus.', 'error'); }
-  }
-
-  async function deleteAllDataCarian() {
-    const tanggal = document.getElementById('dcDateFilter').value;
-    if (!tanggal) return;
-    const dateLabel = new Date(tanggal + 'T00:00:00').toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' });
-    const confirmed = await showConfirmModal({
-      title: 'Hapus Semua Data Kapasitas',
-      message: `Apakah Anda yakin ingin menghapus SEMUA data kapasitas batch untuk tanggal ${dateLabel}? Tindakan ini tidak dapat dibatalkan.`,
-      icon: '🚨',
-      okText: 'Hapus Semua',
-      okClass: 'btn-danger'
-    });
-    if (!confirmed) return;
-    try {
-      const res = await fetch(`/api/data-carian/tanggal/${tanggal}`, { method: 'DELETE' }).then(r => r.json());
-      if (res.success) {
-        showToast('Semua data carian berhasil dihapus.', 'success');
-        await loadDataCarian();
-      } else {
-        showToast('Gagal menghapus.', 'error');
-      }
-    } catch(err) { showToast('Gagal menghapus.', 'error'); }
-  }
-
-  // ============= PAGE NAVIGATION =============
-  function showPage(page) {
-    currentView = page;
-    ['dashboard','submissions','data-carian','users','loader','export','gsheets'].forEach(p => {
-      const el = document.getElementById('page-' + p);
-      if (el) el.style.display = p === page ? 'block' : 'none';
-    });
-
-    const titles = {
-      dashboard: 'Dashboard',
-      submissions: 'Data Submissions (Picker & Sorter)',
-      'data-carian': 'Data Carian Harian',
-      users: 'Manajemen User Operasional',
-      loader: 'Hasil Entry Loader',
-      export: 'Export Data',
-      gsheets: 'Google Sheets Integration'
-    };
-    document.getElementById('pageTitle').textContent = titles[page] || page;
-
-    ['dashboard','submissions','data-carian','users','loader','export','gsheets'].forEach(p => {
-      const nav = document.getElementById('nav-' + p);
-      if (nav) nav.classList.toggle('active', p === page);
-    });
-
-    if (page === 'data-carian') loadDataCarian();
-    if (page === 'users') loadUsers();
-    if (page === 'loader') loadLoaderEntries();
-    if (page === 'gsheets') loadGSheetsStatus();
-  }
-
-  // ============= MODAL HELPERS =============
-  function closeModal(id) {
-    document.getElementById(id).classList.remove('visible');
-  }
-
-  // Close modal on overlay click
-  ['detailModal', 'importModal', 'addCarianModal', 'editUserModal', 'confirmModal'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.addEventListener('click', e => {
-        if (e.target === el) closeModal(id);
-      });
-    }
-  });
-
-  // Reusable Promise-based confirmation modal helper
-  function showConfirmModal({ title, message, icon = '⚠️', okText = 'Ya', okClass = 'btn-danger' }) {
-    return new Promise((resolve) => {
-      const modal = document.getElementById('confirmModal');
-      document.getElementById('confirmIcon').textContent = icon;
-      document.getElementById('confirmTitle').textContent = title;
-      document.getElementById('confirmMessage').textContent = message;
-      
-      const btnOk = document.getElementById('confirmBtnOk');
-      const btnCancel = document.getElementById('confirmBtnCancel');
-      
-      // Reset classes
-      btnOk.className = 'btn ' + okClass;
-      btnOk.textContent = okText;
-      
-      const onOk = () => {
-        closeModal('confirmModal');
-        cleanup();
-        resolve(true);
-      };
-      
-      const onCancel = () => {
-        closeModal('confirmModal');
-        cleanup();
-        resolve(false);
-      };
-      
-      const cleanup = () => {
-        btnOk.removeEventListener('click', onOk);
-        btnCancel.removeEventListener('click', onCancel);
-        modal.removeEventListener('click', onOverlayClick);
-      };
-      
-      const onOverlayClick = (e) => {
-        if (e.target === modal) onCancel();
-      };
-      
-      btnOk.addEventListener('click', onOk);
-      btnCancel.addEventListener('click', onCancel);
-      modal.addEventListener('click', onOverlayClick);
-      
-      modal.classList.add('visible');
-    });
-  }
-
-  // ============= USER MANAGEMENT =============
-  let allUsers = [];
-
-  async function loadUsers() {
-    const tbody = document.getElementById('usersTableBody');
-    tbody.innerHTML = `<tr><td colspan="7"><div class="loading-spinner"><div class="spin"></div></div></td></tr>`;
-    try {
-      allUsers = await fetch('/api/users').then(r => r.json());
-      renderUsersTable();
-    } catch(err) {
-      tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">⚠️</div><h3>Gagal memuat data</h3></div></td></tr>`;
-    }
-  }
-
-  function renderUsersTable() {
-    const tbody = document.getElementById('usersTableBody');
-    if (!allUsers.length) {
-      tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">👥</div><h3>Belum ada user operasional</h3><p>Gunakan form di atas untuk membuat user baru</p></div></td></tr>`;
-      return;
-    }
-    tbody.innerHTML = allUsers.map((u, i) => {
-      const posBadge = u.posisi === 'Picker' ? 'badge-picker' : u.posisi === 'Sorter' ? 'badge-sorter' : 'badge-loader';
-      // Safe escaping for quote chars in names/usernames
-      const safeNama = u.nama_lengkap.replace(/'/g, "\\'");
-      const safeUser = u.username.replace(/'/g, "\\'");
-      const safeNik = u.nik.replace(/'/g, "\\'");
-      return `
-        <tr style="animation-delay:${i*0.04}s">
-          <td>${i+1}</td>
-          <td class="text-main">${u.nama_lengkap}</td>
-          <td><code style="background:rgba(108,60,225,0.06);padding:2px 8px;border-radius:5px;font-size:12px;">${u.username}</code></td>
-          <td><span style="font-family:monospace;background:rgba(0,0,0,0.04);padding:2px 8px;border-radius:5px;font-size:13px;">${u.nik}</span></td>
-          <td><span class="badge ${posBadge}">${u.posisi}</span></td>
-          <td>${formatDate(u.created_at)}</td>
-          <td>
-            <div class="action-btns">
-              <button class="btn-icon btn-edit" onclick="openEditUserModal('${u.id}', '${safeNama}', '${safeUser}', '${safeNik}', '${u.posisi}')" title="Edit user">
-                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              </button>
-              <button class="btn-icon btn-del" onclick="deleteUser('${u.id}', '${safeNama}')" title="Hapus user">
-                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
-              </button>
-            </div>
-          </td>
-        </tr>`;
-    }).join('');
-  }
-
-  async function addUser() {
-    const nama_lengkap = document.getElementById('newNamaLengkap').value.trim();
-    const username = document.getElementById('newUsername').value.trim();
-    const nik = document.getElementById('newNik').value.trim();
-    const posisi = document.getElementById('newPosisi').value;
-    const errEl = document.getElementById('addUserError');
-    errEl.style.display = 'none';
-
-    if (!nama_lengkap || !username || !nik || !posisi) {
-      errEl.textContent = 'Semua field wajib diisi.';
-      errEl.style.display = 'block'; return;
-    }
-
-    const btn = document.getElementById('btnAddUser');
-    btn.disabled = true; btn.textContent = 'Menyimpan...';
-
-    try {
-      const res = await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nama_lengkap, username, nik, posisi })
-      }).then(r => r.json());
-
-      if (res.success) {
-        showToast(`User "${nama_lengkap}" berhasil dibuat!`, 'success');
-        document.getElementById('newNamaLengkap').value = '';
-        document.getElementById('newUsername').value = '';
-        document.getElementById('newNik').value = '';
-        document.getElementById('newPosisi').value = '';
-        await loadUsers();
-      } else {
-        errEl.textContent = res.error || 'Gagal membuat user.';
-        errEl.style.display = 'block';
-      }
-    } catch(err) {
-      errEl.textContent = 'Gagal menghubungi server.';
-      errEl.style.display = 'block';
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Buat User Baru`;
-    }
-  }
-
-  async function deleteUser(id, nama) {
-    const confirmed = await showConfirmModal({
-      title: 'Hapus User',
-      message: `Apakah Anda yakin ingin menghapus user "${nama}"? User ini tidak bisa login lagi setelah dihapus.`,
-      icon: '👤',
-      okText: 'Hapus User',
-      okClass: 'btn-danger'
-    });
-    if (!confirmed) return;
-    try {
-      const res = await fetch(`/api/users/${id}`, { method: 'DELETE' }).then(r => r.json());
-      if (res.success) {
-        showToast('User berhasil dihapus.', 'success');
-        await loadUsers();
-      } else { showToast('Gagal menghapus user.', 'error'); }
-    } catch(err) { showToast('Gagal menghapus user.', 'error'); }
-  }
-
-  function openEditUserModal(id, nama, username, nik, posisi) {
-    document.getElementById('editUserId').value = id;
-    document.getElementById('editNamaLengkap').value = nama;
-    document.getElementById('editUsername').value = username;
-    document.getElementById('editNik').value = nik;
-    document.getElementById('editPosisi').value = posisi;
-    document.getElementById('editUserError').style.display = 'none';
-    document.getElementById('editUserModal').classList.add('visible');
-  }
-
-  async function saveUser() {
-    const id = document.getElementById('editUserId').value;
-    const nama_lengkap = document.getElementById('editNamaLengkap').value.trim();
-    const username = document.getElementById('editUsername').value.trim();
-    const nik = document.getElementById('editNik').value.trim();
-    const posisi = document.getElementById('editPosisi').value;
-    const errEl = document.getElementById('editUserError');
-    errEl.style.display = 'none';
-
-    if (!nama_lengkap || !username || !nik || !posisi) {
-      errEl.textContent = 'Semua field wajib diisi.';
-      errEl.style.display = 'block'; return;
-    }
-
-    const btn = document.getElementById('btnSaveUser');
-    btn.disabled = true; btn.textContent = 'Menyimpan...';
-
-    try {
-      const res = await fetch(`/api/users/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nama_lengkap, username, nik, posisi })
-      }).then(r => r.json());
-
-      if (res.success) {
-        showToast('User berhasil diupdate.', 'success');
-        closeModal('editUserModal');
-        await loadUsers();
-      } else {
-        errEl.textContent = res.error || 'Gagal menyimpan perubahan.';
-        errEl.style.display = 'block';
-      }
-    } catch(err) {
-      errEl.textContent = 'Gagal menghubungi server.';
-      errEl.style.display = 'block';
-    } finally {
-      btn.disabled = false; btn.textContent = 'Simpan Perubahan';
-    }
-  }
-
-  // ============= LOADER ENTRIES =============
-  let allLoaderEntries = [];
-  let filteredLoaderEntries = [];
-
-  async function loadLoaderEntries() {
-    const tbody = document.getElementById('loaderTableBody');
-    tbody.innerHTML = `<tr><td colspan="13"><div class="loading-spinner"><div class="spin"></div></div></td></tr>`;
-    try {
-      const tanggal = document.getElementById('loaderDateFilter').value;
-      const url = tanggal ? `/api/loader-entries?tanggal_carian=${tanggal}` : '/api/loader-entries';
-      allLoaderEntries = await fetch(url).then(r => r.json());
-      filteredLoaderEntries = [...allLoaderEntries];
-
-      if (tanggal) {
-        const dateLabel = new Date(tanggal + 'T00:00:00').toLocaleDateString('id-ID', {weekday:'long',day:'2-digit',month:'long',year:'numeric'});
-        document.getElementById('loaderTableTitle').textContent = `Entry Loader — ${dateLabel}`;
-      } else {
-        document.getElementById('loaderTableTitle').textContent = 'Semua Entry Loader';
-      }
-
-      renderLoaderTable();
-    } catch(err) {
-      tbody.innerHTML = `<tr><td colspan="13"><div class="empty-state"><div class="empty-icon">⚠️</div><h3>Gagal memuat data</h3></div></td></tr>`;
-    }
-  }
-
-  function renderLoaderTable() {
-    const tbody = document.getElementById('loaderTableBody');
-    if (!filteredLoaderEntries.length) {
-      tbody.innerHTML = `<tr><td colspan="13"><div class="empty-state"><div class="empty-icon">🚚</div><h3>Belum ada entry loader</h3><p>Data akan muncul setelah Loader mengisi form</p></div></td></tr>`;
-      document.getElementById('loaderPageInfo').textContent = '0 data';
-      return;
-    }
-    tbody.innerHTML = filteredLoaderEntries.map((e, i) => {
-      const clusters = Array.isArray(e.clusters) ? e.clusters : (e.clusters && typeof e.clusters === 'object' ? (e.clusters.list || []) : []);
-      const clusterPreview = clusters.slice(0,3).join(', ') + (clusters.length > 3 ? ` +${clusters.length-3}` : '');
-      const ng = e.non_group || {};
-      const ngParts = [];
-      if (ng.gacoan > 0) ngParts.push(`Gacoan:${ng.gacoan}`);
-      if (ng.dikichi > 0) ngParts.push(`Dikichi:${ng.dikichi}`);
-      if (ng.benfarm > 0) ngParts.push(`Benfarm:${ng.benfarm}`);
-      
-      const files = e.files || [];
-      const fileBadgeHtml = files.length > 0 
-        ? files.map((f, fi) => `
-            <a href="${f.file_path}" target="_blank" class="badge" style="display:inline-flex; align-items:center; gap:3px; background:rgba(14,165,233,0.06); color:var(--accent-blue-dark); border:1px solid rgba(14,165,233,0.15); margin:2px 1px; text-decoration:none; font-size:11px;" title="${f.original_name}">
-              📄 Foto ${fi + 1}
-            </a>
-          `).join('')
-        : '<span style="color:var(--text-dim); font-size:12px;">-</span>';
-
-      // Determine jabatan from entry — Loader entries default to 'Loader'
-      const jabatan = e.posisi || 'Loader';
-      const jabatanBadge = jabatan === 'Picker' ? 'badge-picker' : jabatan === 'Sorter' ? 'badge-sorter' : 'badge-loader';
-
-      return `
-        <tr style="animation-delay:${i*0.03}s">
-          <td>${i+1}</td>
-          <td>${e.tanggal_carian || '-'}</td>
-          <td>${e.tanggal_kirim || '-'}</td>
-          <td class="text-main">${e.nama}</td>
-          <td><span class="badge ${jabatanBadge}">${jabatan}</span></td>
-          <td><code style="background:rgba(245,158,11,0.08);color:#B45309;padding:2px 8px;border-radius:5px;font-size:12px;font-family:monospace;">${e.no_polisi || '-'}</code></td>
-          <td>${e.zona || '-'}</td>
-          <td title="${clusters.join(', ')}">${clusterPreview || '-'}</td>
-          <td style="font-size:12px;">${ngParts.join('<br>') || '-'}</td>
-          <td class="text-main">${(e.jumlah_kontainer || 0).toLocaleString('id-ID')} <span style="font-size:11px;color:var(--text-muted)">kont.</span></td>
-          <td>${formatDateTime(e.created_at)}</td>
-          <td>${fileBadgeHtml}</td>
-          <td>
-            <div class="action-btns">
-              <button class="btn-icon btn-view" onclick="viewLoaderDetail('${e.id}')" title="Lihat detail">
-                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              </button>
-              <button class="btn-icon btn-del" onclick="deleteLoaderEntry('${e.id}')" title="Hapus">
-                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
-              </button>
-            </div>
-          </td>
-        </tr>`;
-    }).join('');
-    document.getElementById('loaderPageInfo').textContent = `${filteredLoaderEntries.length} entry loader`;
-  }
-
-  function filterLoaderTable() {
-    const q = document.getElementById('loaderSearchInput').value.toLowerCase();
-    filteredLoaderEntries = allLoaderEntries.filter(e =>
-      (e.nama || '').toLowerCase().includes(q) ||
-      (e.no_polisi || '').toLowerCase().includes(q) ||
-      (e.zona || '').toLowerCase().includes(q)
-    );
-    renderLoaderTable();
-  }
-
-  async function deleteLoaderEntry(id) {
-    const confirmed = await showConfirmModal({
-      title: 'Hapus Entry Loader',
-      message: 'Apakah Anda yakin ingin menghapus entry loader ini?',
-      icon: '🗑️',
-      okText: 'Hapus',
-      okClass: 'btn-danger'
-    });
-    if (!confirmed) return;
-    try {
-      const res = await fetch(`/api/loader-entries/${id}`, { method: 'DELETE' }).then(r => r.json());
-      if (res.success) { showToast('Entry berhasil dihapus.', 'success'); await loadLoaderEntries(); }
-      else showToast('Gagal menghapus.', 'error');
-    } catch(err) { showToast('Gagal menghapus.', 'error'); }
-  }
-
-  async function viewLoaderDetail(id) {
-    const titleEl = document.getElementById('detailModalTitle');
-    if (titleEl) titleEl.textContent = 'Detail Entry Loader';
-    document.getElementById('modalBody').innerHTML = '<div class="loading-spinner"><div class="spin"></div></div>';
-    document.getElementById('detailModal').classList.add('visible');
-    try {
-      const data = await fetch(`/api/loader-entries/${id}`).then(r => r.json());
-      let clusterList = [];
-      if (Array.isArray(data.clusters)) {
-        clusterList = data.clusters;
-      } else if (data.clusters && typeof data.clusters === 'object') {
-        clusterList = data.clusters.list || [];
-      }
-      const ng = data.non_group || {};
-      const ngParts = [];
-      if (ng.gacoan > 0) ngParts.push(`Gacoan: ${ng.gacoan} kontainer`);
-      if (ng.dikichi > 0) ngParts.push(`Dikichi: ${ng.dikichi} kontainer`);
-      if (ng.benfarm > 0) ngParts.push(`Benfarm: ${ng.benfarm} kontainer`);
-
-      document.getElementById('modalBody').innerHTML = `
-        <div class="detail-grid">
-          <div class="detail-item"><div class="detail-key">Tanggal Carian</div><div class="detail-value">${data.tanggal_carian}</div></div>
-          <div class="detail-item"><div class="detail-key">Tanggal Kirim</div><div class="detail-value">${data.tanggal_kirim}</div></div>
-          <div class="detail-item full"><div class="detail-key">Nama</div><div class="detail-value">${data.nama}</div></div>
-          <div class="detail-item"><div class="detail-key">No. Polisi</div><div class="detail-value">${data.no_polisi || '-'}</div></div>
-          <div class="detail-item"><div class="detail-key">Zona</div><div class="detail-value">${data.zona || '-'}</div></div>
-          <div class="detail-item"><div class="detail-key">Total Kontainer</div><div class="detail-value">${data.jumlah_kontainer.toLocaleString('id-ID')} kontainer</div></div>
-          <div class="detail-item full">
-            <div class="detail-key">Cluster / Group Mobil</div>
-            <div class="batch-tags">${clusterList.map(b => `<span class="batch-tag">${b}</span>`).join('') || '-'}</div>
-          </div>
-          <div class="detail-item full">
-            <div class="detail-key">Non-Group</div>
-            <div class="detail-value">${ngParts.join(', ') || '-'}</div>
-          </div>
-          ${data.catatan ? `<div class="detail-item full"><div class="detail-key">Catatan</div><div class="detail-value">${data.catatan}</div></div>` : ''}
-          <div class="detail-item full">
-            <div class="detail-key">Lembar Register (${data.files.length} file)</div>
-            <div class="file-preview-list">
-              ${data.files.length ? data.files.map(f => `
-                <a class="file-preview-item" href="${f.file_path}" target="_blank">
-                  <div class="file-icon2"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-                  <div><div class="file-name2">${f.original_name}</div><div class="file-type">Klik untuk buka</div></div>
-                  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-left:auto;color:var(--text-dim)"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
-                </a>`).join('') : '<div style="color:var(--text-muted);font-size:13px;">Tidak ada file</div>'}
-            </div>
-          </div>
-          <div class="detail-item full"><div class="detail-key">Waktu Submit</div><div class="detail-value">${formatDateTime(data.created_at)}</div></div>
-        </div>`;
-    } catch (err) {
-      document.getElementById('modalBody').innerHTML = '<p style="color:var(--error)">Gagal memuat detail.</p>';
-    }
-  }
-
-  function exportLoaderExcel() {
-    const tanggal = document.getElementById('loaderDateFilter').value;
-    window.location.href = tanggal ? `/api/export-loader?tanggal_carian=${tanggal}` : '/api/export-loader';
-  }
-
-  // ============= EXPORT & PUSH DATA CARIAN =============
-  function exportDataCarian() {
-    const tanggal = document.getElementById('dcDateFilter').value;
-    window.location.href = tanggal ? `/api/export-data-carian?tanggal=${tanggal}` : '/api/export-data-carian';
-  }
-
-  async function pushDataCarianToSheets() {
-    const btn = document.getElementById('btnPushDCSheets');
-    if (!btn) return;
-    const tanggal = document.getElementById('dcDateFilter').value;
-    const origHTML = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = `<svg width="14" height="14" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24" class="spin" style="display:inline-block;"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Mengirim...`;
-    try {
-      const res = await fetch('/api/data-carian/push-sheets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tanggal: tanggal || undefined })
-      }).then(r => r.json());
-      if (res.success) {
-        showToast(`✅ ${res.message}`, 'success');
-      } else {
-        showToast('❌ ' + res.message, 'error');
-      }
-    } catch(e) {
-      showToast('Gagal koneksi ke server.', 'error');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = origHTML;
-    }
-  }
-
-
-  // ============= EXPORT =============
-  function exportExcel() {
-    if (typeof currentView !== 'undefined' && currentView === 'data-carian') {
-      exportDataCarian();
-    } else if (typeof currentView !== 'undefined' && currentView === 'loader') {
-      exportLoaderExcel();
-    } else {
-      const params = getExportFilterParams();
-      window.location.href = '/api/export' + (params ? '?' + params : '');
-    }
-  }
-  function exportCSV() {
-    const params = getExportFilterParams();
-    window.location.href = '/api/export-csv' + (params ? '?' + params : '');
-  }
-  function getExportFilterParams() {
-    const mulai  = document.getElementById('efTanggalMulai')  ? document.getElementById('efTanggalMulai').value  : '';
-    const akhir  = document.getElementById('efTanggalAkhir')  ? document.getElementById('efTanggalAkhir').value  : '';
-    const posisi = document.getElementById('efPosisi')         ? document.getElementById('efPosisi').value         : '';
-    const status = document.getElementById('efStatus')         ? document.getElementById('efStatus').value         : '';
-    const parts = [];
-    if (mulai)  parts.push('tanggal_mulai=' + mulai);
-    if (akhir)  parts.push('tanggal_akhir=' + akhir);
-    if (posisi && posisi !== 'semua') parts.push('posisi=' + encodeURIComponent(posisi));
-    if (status && status !== 'semua') parts.push('status=' + encodeURIComponent(status));
-    return parts.join('&');
-  }
-
-  // ============= GOOGLE SHEETS =============
-  let gsLastSyncTime = null;
-
-  async function loadGSheetsStatus() {
-    const statusEl = document.getElementById('gsStatusChip');
-    const bodyEl   = document.getElementById('gsBody');
-    if (!statusEl) return;
-    statusEl.className = 'gs-status-chip checking';
-    statusEl.innerHTML = `<div class="gs-status-dot"></div> Memeriksa...`;
-    if (bodyEl) bodyEl.innerHTML = '<div class="loading-spinner"><div class="spin"></div></div>';
-    try {
-      // Timeout 15s untuk Vercel cold start
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000);
-      const res = await fetch('/api/google-sheets/status', { signal: controller.signal }).then(r => r.json());
-      clearTimeout(timeout);
-
-      if (res.configured && res.connected) {
-        statusEl.className = 'gs-status-chip connected';
-        statusEl.innerHTML = `<div class="gs-status-dot on"></div> Terhubung`;
-        // ✅ Inject template DULU, baru isi nilainya
-        const tpl = document.getElementById('gsTplConnected');
-        if (bodyEl && tpl) bodyEl.innerHTML = tpl.innerHTML;
-        const t = document.getElementById('gsSpreadsheetTitle');
-        const r = document.getElementById('gsRowCount');
-        const u = document.getElementById('gsUrl');
-        const m = document.getElementById('gsMessage');
-        if (t) t.textContent = res.spreadsheetTitle || '-';
-        if (r) r.textContent = (res.rowCount || 0).toLocaleString('id-ID') + ' baris data';
-        if (u) { u.href = res.spreadsheetUrl || '#'; u.textContent = res.spreadsheetUrl || '-'; }
-        if (m) m.textContent = res.message || '';
-      } else if (res.configured && !res.connected) {
-        statusEl.className = 'gs-status-chip disconnected';
-        statusEl.innerHTML = `<div class="gs-status-dot off"></div> Gagal Koneksi`;
-        showGSNotConfigured(res.message);
-      } else {
-        statusEl.className = 'gs-status-chip disconnected';
-        statusEl.innerHTML = `<div class="gs-status-dot off"></div> Belum Dikonfigurasi`;
-        showGSNotConfigured(null);
-      }
-    } catch(e) {
-      statusEl.className = 'gs-status-chip disconnected';
-      const isTimeout = e.name === 'AbortError';
-      statusEl.innerHTML = `<div class="gs-status-dot off"></div> ${isTimeout ? 'Timeout' : 'Error'}`;
-      if (bodyEl) bodyEl.innerHTML = `
-        <div class="gs-not-configured">
-          <div class="nc-icon">${isTimeout ? '⏱️' : '⚠️'}</div>
-          <h3>${isTimeout ? 'Request timeout (>15 detik)' : 'Gagal terhubung ke server'}</h3>
-          <p style="font-size:12px; color:var(--text-dim);">${e.message || 'Unknown error'}</p>
-          <button class="btn btn-outline" onclick="loadGSheetsStatus()" style="margin-top:12px;">
-            Coba Lagi
-          </button>
-        </div>`;
-    }
-  }
-
-  function showGSNotConfigured(errorMsg) {
-    const bodyEl = document.getElementById('gsBody');
-    bodyEl.innerHTML = `
-      <div class="gs-not-configured">
-        <div class="nc-icon">📋</div>
-        <h3>${errorMsg || 'Google Sheets belum dikonfigurasi'}</h3>
-        <p>Tambahkan variabel berikut ke file <strong>.env</strong> untuk mengaktifkan integrasi Google Sheets:</p>
-        <div class="gs-code">GOOGLE_SHEETS_ID=your-spreadsheet-id
-GOOGLE_SERVICE_ACCOUNT_EMAIL=your-account@project.iam.gserviceaccount.com
-GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----</div>
-        <p style="margin-top:14px; font-size:12px; color:var(--text-dim);">Hubungi administrator untuk panduan lengkap setup Google Service Account.</p>
-      </div>`;
-  }
-
-  async function pushToGSheets() {
-    const btn = document.getElementById('gsPushBtn');
-    if (!btn) return;
-    btn.disabled = true;
-    btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin" style="display:inline-block;"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Menyinkronkan...`;
-    try {
-      const mulai  = document.getElementById('gsTanggalMulai')  ? document.getElementById('gsTanggalMulai').value  : '';
-      const akhir  = document.getElementById('gsTanggalAkhir')  ? document.getElementById('gsTanggalAkhir').value  : '';
-      const posisi = document.getElementById('gsPosisiFilter')   ? document.getElementById('gsPosisiFilter').value   : 'semua';
-      const res = await fetch('/api/google-sheets/push', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tanggal_mulai: mulai || undefined, tanggal_akhir: akhir || undefined, posisi: posisi !== 'semua' ? posisi : undefined })
-      }).then(r => r.json());
-      if (res.success) {
-        gsLastSyncTime = new Date();
-        showToast(`✅ ${res.message}`, 'success');
-        document.getElementById('gsLastSyncLabel').textContent = 'Sync berhasil: ' + gsLastSyncTime.toLocaleTimeString('id-ID');
-        await loadGSheetsStatus();
-      } else {
-        showToast('❌ ' + res.message, 'error');
-      }
-    } catch(e) {
-      showToast('Gagal koneksi ke server.', 'error');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg> Push ke Google Sheets`;
-    }
-  }
-
-  // ============= LOGOUT =============
-  async function logout() {
-    const confirmed = await showConfirmModal({
-      title: 'Konfirmasi Keluar',
-      message: 'Apakah Anda yakin ingin keluar dari Admin Dashboard?',
-      icon: '🚪',
-      okText: 'Keluar',
-      okClass: 'btn-danger'
-    });
-    if (!confirmed) return;
-    await fetch('/api/logout', { method: 'POST' });
-    window.location.href = '/login';
-  }
-
-  // ============= TOAST =============
-  let toastTimer;
-  function showToast(msg, type = 'success') {
-    const toast = document.getElementById('toast');
-    const icons = {
-      success: '<svg width="18" height="18" fill="white" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>',
-      error: '<svg width="18" height="18" fill="white" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>',
-      warning: '<svg width="18" height="18" fill="white" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>'
-    };
-    toast.innerHTML = (icons[type] || '') + msg;
-    toast.className = `toast ${type} show`;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toast.classList.remove('show'), 4000);
-  }
-
-  // Mobile
-  if (window.innerWidth <= 768) {
-    document.getElementById('mobileMenuBtn').style.display = 'flex';
-  }
-</script>
+<!-- Lightbox Image Preview -->
+<div id="lightbox" class="lightbox" onclick="closeLightbox()">
+  <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
+  <img class="lightbox-content" id="lightboxImg" src="" alt="Bukti Foto" onclick="event.stopPropagation()">
+  <div class="lightbox-caption" id="lightboxCaption">Bukti Foto</div>
+</div>
+
+<script src="/js/admin.js?v=1.2" defer></script>
 </body>
 </html>

@@ -31,7 +31,9 @@ const defaultDb = {
   submissions: [],
   files: [],
   data_carian: [],
-  loader_entries: []
+  loader_entries: [],
+  toko_batch_data: [],
+  audit_logs: []
 };
 
 // Load database from file (local fallback)
@@ -42,6 +44,8 @@ function load() {
       // Ensure collections exist for older databases
       if (!db.data_carian) db.data_carian = [];
       if (!db.loader_entries) db.loader_entries = [];
+      if (!db.toko_batch_data) db.toko_batch_data = [];
+      if (!db.audit_logs) db.audit_logs = [];
       return db;
     } catch (e) {
       console.error('DB read error, using default:', e.message);
@@ -102,6 +106,24 @@ module.exports = {
     } else {
       const db = load();
       return db.users.find(u => u.username === username) || null;
+    }
+  },
+
+  async getUserById(id) {
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+      if (error) {
+        console.error('Supabase getUserById error:', error);
+        throw error;
+      }
+      return data;
+    } else {
+      const db = load();
+      return db.users.find(u => u.id === id) || null;
     }
   },
 
@@ -859,7 +881,7 @@ module.exports = {
    * Login: username + nik (no bcrypt, plaintext NIK)
    */
   async createOperationalUser(data) {
-    const { username, nama_lengkap, nik, posisi } = data;
+    const { username, nama_lengkap, nik, posisi, tipe_karyawan } = data;
     if (isSupabaseEnabled) {
       const record = {
         id: uuidv4(),
@@ -868,7 +890,8 @@ module.exports = {
         password: bcrypt.hashSync('__operasional__', 10), // dummy, not used
         role: 'operasional',
         nik,
-        posisi
+        posisi,
+        tipe_karyawan: tipe_karyawan || null
       };
       const { error } = await supabase.from('users').insert([record]);
       if (error) { console.error('Supabase createOperationalUser error:', error); throw error; }
@@ -886,6 +909,7 @@ module.exports = {
         role: 'operasional',
         nik,
         posisi,
+        tipe_karyawan: tipe_karyawan || null,
         created_at: new Date().toISOString()
       };
       db.users.push(record);
@@ -900,7 +924,7 @@ module.exports = {
   async getAllOperationalUsers() {
     if (isSupabaseEnabled) {
       const { data, error } = await supabase
-        .from('users').select('id,username,nama_lengkap,nik,posisi,role,created_at')
+        .from('users').select('id,username,nama_lengkap,nik,posisi,role,tipe_karyawan,created_at')
         .eq('role', 'operasional')
         .order('created_at', { ascending: false });
       if (error) { console.error('Supabase getAllOperationalUsers error:', error); throw error; }
@@ -929,16 +953,17 @@ module.exports = {
   },
 
   /**
-   * Update an operational user's data (Nama Lengkap, Username, NIK, Posisi)
+   * Update an operational user's data (Nama Lengkap, Username, NIK, Posisi, Tipe Karyawan)
    */
   async updateOperationalUser(id, data) {
-    const { username, nama_lengkap, nik, posisi } = data;
+    const { username, nama_lengkap, nik, posisi, tipe_karyawan } = data;
     if (isSupabaseEnabled) {
       const updates = {
         username: username.trim(),
         nama_lengkap: nama_lengkap.trim(),
         nik: nik.trim(),
-        posisi
+        posisi,
+        tipe_karyawan: tipe_karyawan || null
       };
       const { data: updated, error } = await supabase
         .from('users')
@@ -964,10 +989,121 @@ module.exports = {
         nama_lengkap: nama_lengkap.trim(),
         nik: nik.trim(),
         posisi,
+        tipe_karyawan: tipe_karyawan || null,
         updated_at: new Date().toISOString()
       };
       save(db);
       return db.users[idx];
+    }
+  },
+
+  /**
+   * Get all admin users (tanpa password)
+   */
+  async getAllAdminUsers() {
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, username, nama_lengkap, created_at')
+        .eq('role', 'admin')
+        .order('created_at', { ascending: true });
+      if (error) { console.error('Supabase getAllAdminUsers error:', error); throw error; }
+      return data || [];
+    } else {
+      const db = load();
+      return db.users
+        .filter(u => u.role === 'admin')
+        .map(({ password, ...u }) => u)
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    }
+  },
+
+  /**
+   * Buat akun admin baru dengan password bcrypt
+   */
+  async createAdminUser({ username, nama_lengkap, password }) {
+    const hashedPassword = bcrypt.hashSync(password, 10);
+    const id = uuidv4();
+    const created_at = new Date().toISOString();
+    if (isSupabaseEnabled) {
+      const { data: existing } = await supabase.from('users').select('id').eq('username', username).maybeSingle();
+      if (existing) throw new Error('Username sudah digunakan oleh akun lain.');
+      const record = { id, username, nama_lengkap, password: hashedPassword, role: 'admin', nik: null, posisi: null, created_at };
+      const { error } = await supabase.from('users').insert([record]);
+      if (error) { console.error('Supabase createAdminUser error:', error); throw error; }
+      return { id, username, nama_lengkap, created_at };
+    } else {
+      const db = load();
+      if (db.users.find(u => u.username === username)) throw new Error('Username sudah digunakan oleh akun lain.');
+      const record = { id, username, nama_lengkap, password: hashedPassword, role: 'admin', nik: null, posisi: null, created_at };
+      db.users.push(record);
+      save(db);
+      return { id, username, nama_lengkap, created_at };
+    }
+  },
+
+  /**
+   * Hapus akun admin berdasarkan ID
+   */
+  async deleteAdminUser(id) {
+    if (isSupabaseEnabled) {
+      const { error } = await supabase.from('users').delete().eq('id', id).eq('role', 'admin');
+      if (error) { console.error('Supabase deleteAdminUser error:', error); throw error; }
+    } else {
+      const db = load();
+      const idx = db.users.findIndex(u => u.id === id && u.role === 'admin');
+      if (idx === -1) throw new Error('Akun admin tidak ditemukan.');
+      db.users.splice(idx, 1);
+      save(db);
+    }
+  },
+
+  /**
+   * Update password admin — verifikasi password lama dulu
+   */
+  async updateAdminPassword(id, currentPassword, newPassword) {
+    if (isSupabaseEnabled) {
+      const { data: user, error: fetchErr } = await supabase.from('users').select('*').eq('id', id).eq('role', 'admin').maybeSingle();
+      if (fetchErr || !user) throw new Error('Akun admin tidak ditemukan.');
+      if (!bcrypt.compareSync(currentPassword, user.password)) throw new Error('Password lama tidak cocok.');
+      const hashed = bcrypt.hashSync(newPassword, 10);
+      const { error } = await supabase.from('users').update({ password: hashed }).eq('id', id);
+      if (error) { console.error('Supabase updateAdminPassword error:', error); throw error; }
+    } else {
+      const db = load();
+      const user = db.users.find(u => u.id === id && u.role === 'admin');
+      if (!user) throw new Error('Akun admin tidak ditemukan.');
+      if (!bcrypt.compareSync(currentPassword, user.password)) throw new Error('Password lama tidak cocok.');
+      user.password = bcrypt.hashSync(newPassword, 10);
+      save(db);
+    }
+  },
+
+  /**
+   * Ganti password (NIK) user operasional — verifikasi password lama dulu
+   */
+  async changeUserNik(id, currentNik, newNik) {
+    if (isSupabaseEnabled) {
+      const { data: user, error: fetchErr } = await supabase
+        .from('users').select('*').eq('id', id).eq('role', 'operasional').maybeSingle();
+      if (fetchErr || !user) throw new Error('Akun tidak ditemukan.');
+      if (user.nik !== currentNik.trim()) throw new Error('Password lama tidak cocok.');
+      // Cek apakah password baru sudah dipakai
+      const { data: dup } = await supabase.from('users').select('id').eq('nik', newNik.trim()).neq('id', id).maybeSingle();
+      if (dup) throw new Error('Password baru sudah digunakan oleh akun lain.');
+      const { error } = await supabase.from('users').update({ nik: newNik.trim() }).eq('id', id);
+      if (error) { console.error('Supabase changeUserNik error:', error); throw error; }
+    } else {
+      const db = load();
+      const user = db.users.find(u => u.id === id && u.role === 'operasional');
+      if (!user) throw new Error('Akun tidak ditemukan.');
+      if (user.nik !== currentNik.trim()) throw new Error('Password lama tidak cocok.');
+      // Cek duplikat password baru
+      const dup = db.users.find(u => u.nik === newNik.trim() && u.id !== id);
+      if (dup) throw new Error('Password baru sudah digunakan oleh akun lain.');
+      user.nik = newNik.trim();
+      user.updated_at = new Date().toISOString();
+      save(db);
     }
   },
 
@@ -1095,6 +1231,295 @@ module.exports = {
       db.loader_entries[idx].updated_at = new Date().toISOString();
       save(db);
       return db.loader_entries[idx];
+    }
+  },
+
+  // =============================================
+  // SITE SETTINGS — pengaturan halaman login dll.
+  // =============================================
+
+  DEFAULT_LOGIN_SETTINGS: {
+    hero_headline_line1: 'Kerja Keras,',
+    hero_headline_line2: 'Hasilkan Prestasi!',
+    hero_description: 'Platform pencatatan pencapaian kerja yang mudah, cepat, dan akurat untuk tim SS08.',
+    hero_quote: 'Disiplin adalah jembatan antara tujuan dan pencapaian.',
+    hero_quote_author: '— Jim Rohn',
+    form_title: 'Selamat Datang! 👋',
+    form_subtitle: 'Masuk untuk melanjutkan ke sistem pencapaian kerja SS08',
+    footer_text: '© 2026 SS08 Pencapaian Kerja. All rights reserved.'
+  },
+
+  async getLoginSettings() {
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'login_page')
+        .maybeSingle();
+      if (error) {
+        console.warn('Supabase getLoginSettings error (returning defaults):', error.message);
+        return this.DEFAULT_LOGIN_SETTINGS;
+      }
+      return data ? { ...this.DEFAULT_LOGIN_SETTINGS, ...data.value } : this.DEFAULT_LOGIN_SETTINGS;
+    } else {
+      const db = load();
+      return db.login_settings ? { ...this.DEFAULT_LOGIN_SETTINGS, ...db.login_settings } : this.DEFAULT_LOGIN_SETTINGS;
+    }
+  },
+
+  async saveLoginSettings(settings) {
+    const merged = { ...this.DEFAULT_LOGIN_SETTINGS, ...settings };
+    if (isSupabaseEnabled) {
+      const { error } = await supabase
+        .from('site_settings')
+        .upsert({ key: 'login_page', value: merged }, { onConflict: 'key' });
+      if (error) {
+        console.error('Supabase saveLoginSettings error:', error);
+        throw error;
+      }
+      return merged;
+    } else {
+      const db = load();
+      db.login_settings = merged;
+      save(db);
+      return merged;
+    }
+  },
+
+  // =============================================
+  // TOKO BATCH DATA — Per-store batch data from Excel upload
+  // =============================================
+
+  /**
+   * Bulk insert per-toko batch records (from Lembar Fix Excel import)
+   */
+  async bulkInsertTokoData(records) {
+    if (!records || records.length === 0) return [];
+    if (isSupabaseEnabled) {
+      const rows = records.map(r => ({
+        id: uuidv4(),
+        tanggal_carian: r.tanggal_carian,
+        group_mob: r.group_mob || '',
+        kcc: r.kcc || '',
+        ins: r.ins || '',
+        nama_toko: r.nama_toko,
+        zona: r.zona,
+        tipe_lokasi: r.tipe_lokasi || '',
+        batch: r.batch || '',
+        qty_target: parseInt(r.qty_target) || 0,
+        kont_target: parseInt(r.kont_target) || 0,
+      }));
+      const { error } = await supabase.from('toko_batch_data').insert(rows);
+      if (error) { console.error('Supabase bulkInsertTokoData error:', error); throw error; }
+      return rows;
+    } else {
+      const db = load();
+      const rows = records.map(r => ({
+        id: uuidv4(),
+        tanggal_carian: r.tanggal_carian,
+        group_mob: r.group_mob || '',
+        kcc: r.kcc || '',
+        ins: r.ins || '',
+        nama_toko: r.nama_toko,
+        zona: r.zona,
+        tipe_lokasi: r.tipe_lokasi || '',
+        batch: r.batch || '',
+        qty_target: parseInt(r.qty_target) || 0,
+        kont_target: parseInt(r.kont_target) || 0,
+        created_at: new Date().toISOString()
+      }));
+      if (!db.toko_batch_data) db.toko_batch_data = [];
+      db.toko_batch_data.push(...rows);
+      save(db);
+      return rows;
+    }
+  },
+
+  /**
+   * Get all toko batch records for a given date
+   */
+  async getTokoData(tanggal_carian) {
+    if (isSupabaseEnabled) {
+      let allRows = [];
+      let from = 0;
+      const step = 1000;
+      let hasMore = true;
+
+      while (hasMore) {
+        const to = from + step - 1;
+        const { data, error } = await supabase
+          .from('toko_batch_data')
+          .select('*')
+          .eq('tanggal_carian', tanggal_carian)
+          .order('nama_toko', { ascending: true })
+          .range(from, to);
+
+        if (error) {
+          console.error('Supabase getTokoData error:', error);
+          throw error;
+        }
+
+        if (!data || data.length === 0) {
+          hasMore = false;
+        } else {
+          allRows.push(...data);
+          if (data.length < step) {
+            hasMore = false;
+          } else {
+            from += step;
+          }
+        }
+      }
+      return allRows;
+    } else {
+      const db = load();
+      return (db.toko_batch_data || [])
+        .filter(r => r.tanggal_carian === tanggal_carian)
+        .sort((a, b) => a.nama_toko.localeCompare(b.nama_toko));
+    }
+  },
+
+  /**
+   * Delete all toko batch data for a given date
+   */
+  async deleteTokoDataByTanggal(tanggal_carian) {
+    if (isSupabaseEnabled) {
+      const { error } = await supabase
+        .from('toko_batch_data')
+        .delete()
+        .eq('tanggal_carian', tanggal_carian);
+      if (error) { console.error('Supabase deleteTokoDataByTanggal error:', error); throw error; }
+    } else {
+      const db = load();
+      db.toko_batch_data = (db.toko_batch_data || []).filter(r => r.tanggal_carian !== tanggal_carian);
+      save(db);
+    }
+  },
+
+  /**
+   * Get toko data merged with actual submission quantities (per zona aggregated)
+   * Returns per-toko records with actual_qty and actual_kont from submissions
+   */
+  async getTokoDataWithActual(tanggal_carian) {
+    const [tokoRows, allSubmissions] = await Promise.all([
+      this.getTokoData(tanggal_carian),
+      (async () => {
+        if (isSupabaseEnabled) {
+          const { data, error } = await supabase
+            .from('submissions')
+            .select('jumlah_output, batch_cluster, posisi, zona')
+            .eq('tanggal_carian', tanggal_carian)
+            .eq('status', 'approved');
+          if (error) { console.error('Supabase getTokoDataWithActual error:', error); throw error; }
+          return data || [];
+        } else {
+          const db = load();
+          return (db.submissions || []).filter(s => s.tanggal_carian === tanggal_carian && s.status !== 'rejected');
+        }
+      })()
+    ]);
+
+    // Build actual qty map: "zona|batch" → { qty: total pcs from Picker, kont: total kont from Sorter }
+    const actualMap = {};
+    for (const s of allSubmissions) {
+      const clusters = Array.isArray(s.batch_cluster)
+        ? s.batch_cluster
+        : (() => { try { return JSON.parse(s.batch_cluster || '[]'); } catch(e) { return []; } })();
+      for (const batch of clusters) {
+        const key = `${s.zona}|${batch}`;
+        if (!actualMap[key]) actualMap[key] = { qty: 0, kont: 0 };
+        if (s.posisi === 'Picker') actualMap[key].qty += (parseInt(s.jumlah_output) || 0);
+        if (s.posisi === 'Sorter') actualMap[key].kont += (parseInt(s.jumlah_output) || 0);
+      }
+    }
+
+    // Enrich toko rows with actual values
+    return tokoRows.map(row => {
+      const key = `${row.zona}|${row.batch}`;
+      const actual = actualMap[key] || { qty: 0, kont: 0 };
+      return {
+        ...row,
+        actual_qty: actual.qty,
+        actual_kont: actual.kont
+      };
+    });
+  },
+
+  /**
+   * Get list of dates that have toko batch data
+   */
+  async getTokoDataTanggalList() {
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase
+        .from('toko_batch_data')
+        .select('tanggal_carian');
+      if (error) { console.error('Supabase getTokoDataTanggalList error:', error); throw error; }
+      const dates = [...new Set((data || []).map(r => r.tanggal_carian))].sort().reverse();
+      return dates;
+    } else {
+      const db = load();
+      const dates = [...new Set((db.toko_batch_data || []).map(r => r.tanggal_carian))].sort().reverse();
+      return dates;
+    }
+  },
+
+  /**
+   * Insert new activity log to audit trail
+   */
+  async insertAuditLog(username, action, details = '') {
+    const record = {
+      username: username || 'system',
+      action,
+      details: typeof details === 'object' ? JSON.stringify(details) : String(details),
+      created_at: new Date().toISOString()
+    };
+    if (isSupabaseEnabled) {
+      const { error } = await supabase.from('audit_logs').insert([record]);
+      if (error) { console.error('Supabase insertAuditLog error:', error); }
+    } else {
+      const db = load();
+      db.audit_logs.push({
+        id: uuidv4(),
+        ...record
+      });
+      save(db);
+    }
+  },
+
+  /**
+   * Get paginated and searchable audit logs
+   */
+  async getAuditLogs(page = 1, limit = 50, search = '') {
+    if (isSupabaseEnabled) {
+      let query = supabase
+        .from('audit_logs')
+        .select('*', { count: 'exact' });
+      if (search) {
+        query = query.or(`username.ilike.%${search}%,action.ilike.%${search}%,details.ilike.%${search}%`);
+      }
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      const { data, count, error } = await query
+        .order('created_at', { ascending: false })
+        .range(from, to);
+      if (error) { console.error('Supabase getAuditLogs error:', error); throw error; }
+      return { logs: data || [], total: count || 0 };
+    } else {
+      const db = load();
+      let logs = [...(db.audit_logs || [])];
+      if (search) {
+        const s = search.toLowerCase();
+        logs = logs.filter(l =>
+          (l.username || '').toLowerCase().includes(s) ||
+          (l.action || '').toLowerCase().includes(s) ||
+          (l.details || '').toLowerCase().includes(s)
+        );
+      }
+      logs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      const total = logs.length;
+      const from = (page - 1) * limit;
+      const paginatedLogs = logs.slice(from, from + limit);
+      return { logs: paginatedLogs, total };
     }
   }
 };

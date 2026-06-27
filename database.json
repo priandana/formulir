@@ -12,5 +12,43 @@
   "submissions": [],
   "files": [],
   "data_carian": [],
-  "loader_entries": []
+  "loader_entries": [],
+  "toko_batch_data": [],
+  "audit_logs": [
+    {
+      "id": "cb5fa497-3b91-4dd0-bd2f-c1323a99c8e8",
+      "username": "admin",
+      "action": "LOGIN",
+      "details": "Admin berhasil login ke dashboard",
+      "created_at": "2026-06-25T17:58:19.268Z"
+    },
+    {
+      "id": "aeadc9d1-22a3-41e2-b7a5-d93af0ed7489",
+      "username": "admin",
+      "action": "CREATE_USER",
+      "details": "Membuat user operasional baru: testuser_299276 (Picker, Belum Ditentukan)",
+      "created_at": "2026-06-25T17:58:19.283Z"
+    },
+    {
+      "id": "036bb04b-8fda-443e-83d5-d27497b830cc",
+      "username": "admin",
+      "action": "UPDATE_USER",
+      "details": "Mengubah data user operasional: testuser_299276 (Picker, PHL)",
+      "created_at": "2026-06-25T17:58:19.291Z"
+    },
+    {
+      "id": "26a31a02-f634-488b-a542-7739805dd698",
+      "username": "admin",
+      "action": "UPDATE_USER",
+      "details": "Mengubah data user operasional: testuser_299276 (Picker, Belum Ditentukan)",
+      "created_at": "2026-06-25T17:58:19.299Z"
+    },
+    {
+      "id": "22b194cb-1f68-417d-9b24-763a8f83c78c",
+      "username": "admin",
+      "action": "DELETE_USER",
+      "details": "Menghapus user operasional: testuser_299276 (Picker)",
+      "created_at": "2026-06-25T17:58:19.306Z"
+    }
+  ]
 }
