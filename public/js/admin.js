@@ -134,8 +134,10 @@ function showOnscreenError(source, err) {
       }
 
       renderRecentTable();
+      populateFilterDropdowns();
       renderAllTable();
     } catch(err) {
+
       console.error('loadData error:', err);
       showToast('Gagal memuat data.', 'error');
     }
@@ -292,15 +294,128 @@ function showOnscreenError(source, err) {
   }
 
   function filterTable() {
-    const q = document.getElementById('searchInput').value.toLowerCase();
-    const statusVal = document.getElementById('statusFilterInput').value;
+    const q        = (document.getElementById('searchInput')?.value || '').toLowerCase();
+    const statusVal = document.getElementById('statusFilterInput')?.value || 'all';
+    const posisiVal = document.getElementById('filterPosisi')?.value || 'all';
+    const lokasiVal = document.getElementById('filterTipeLokasi')?.value || 'all';
+    const zonaVal   = document.getElementById('filterZona')?.value || 'all';
+    const dateFrom  = document.getElementById('filterDateFrom')?.value || '';
+    const dateTo    = document.getElementById('filterDateTo')?.value || '';
+
     filteredSubmissions = allSubmissions.filter(s => {
-      const matchSearch = s.nama.toLowerCase().includes(q) || s.posisi.toLowerCase().includes(q) ||
-                          s.zona.toLowerCase().includes(q) || s.tipe_lokasi.toLowerCase().includes(q);
+      // Search
+      const matchSearch = !q ||
+        s.nama.toLowerCase().includes(q) ||
+        s.posisi.toLowerCase().includes(q) ||
+        s.zona.toLowerCase().includes(q) ||
+        s.tipe_lokasi.toLowerCase().includes(q);
+      // Status
       const matchStatus = statusVal === 'all' || (s.status || 'approved') === statusVal;
-      return matchSearch && matchStatus;
+      // Posisi
+      const matchPosisi = posisiVal === 'all' || s.posisi === posisiVal;
+      // Tipe Lokasi
+      const matchLokasi = lokasiVal === 'all' || s.tipe_lokasi === lokasiVal;
+      // Zona
+      const matchZona = zonaVal === 'all' || s.zona === zonaVal;
+      // Tanggal Carian range
+      const tgl = s.tanggal_carian ? s.tanggal_carian.slice(0, 10) : '';
+      const matchFrom = !dateFrom || tgl >= dateFrom;
+      const matchTo   = !dateTo   || tgl <= dateTo;
+
+      return matchSearch && matchStatus && matchPosisi && matchLokasi && matchZona && matchFrom && matchTo;
     });
-    currentPage = 1; renderAllTable();
+
+    // Update active chips + highlight inputs
+    updateFilterChips({ q, statusVal, posisiVal, lokasiVal, zonaVal, dateFrom, dateTo });
+    // Update result info
+    const info = document.getElementById('filterResultInfo');
+    if (info) {
+      info.textContent = filteredSubmissions.length === allSubmissions.length
+        ? `${allSubmissions.length.toLocaleString('id-ID')} data`
+        : `${filteredSubmissions.length.toLocaleString('id-ID')} dari ${allSubmissions.length.toLocaleString('id-ID')} data`;
+    }
+    currentPage = 1;
+    renderAllTable();
+  }
+
+  function populateFilterDropdowns() {
+    const tipeLokasi = [...new Set(allSubmissions.map(s => s.tipe_lokasi).filter(Boolean))].sort();
+    const zonas      = [...new Set(allSubmissions.map(s => s.zona).filter(Boolean))].sort();
+
+    const lokasiSel = document.getElementById('filterTipeLokasi');
+    const zonaSel   = document.getElementById('filterZona');
+    if (lokasiSel) {
+      const prev = lokasiSel.value;
+      lokasiSel.innerHTML = '<option value="all">Semua Lokasi</option>' +
+        tipeLokasi.map(t => `<option value="${t}">${t}</option>`).join('');
+      if (prev) lokasiSel.value = prev;
+    }
+    if (zonaSel) {
+      const prev = zonaSel.value;
+      zonaSel.innerHTML = '<option value="all">Semua Zona</option>' +
+        zonas.map(z => `<option value="${z}">Zona ${z}</option>`).join('');
+      if (prev) zonaSel.value = prev;
+    }
+  }
+
+  function updateFilterChips({ q, statusVal, posisiVal, lokasiVal, zonaVal, dateFrom, dateTo }) {
+    const chips = [];
+    if (q) chips.push({ label: `"${q}"`, clear: () => { document.getElementById('searchInput').value = ''; filterTable(); } });
+    if (posisiVal !== 'all') chips.push({ label: `Posisi: ${posisiVal}`, clear: () => { document.getElementById('filterPosisi').value = 'all'; filterTable(); } });
+    if (lokasiVal !== 'all') chips.push({ label: `Lokasi: ${lokasiVal}`, clear: () => { document.getElementById('filterTipeLokasi').value = 'all'; filterTable(); } });
+    if (zonaVal !== 'all') chips.push({ label: `Zona: ${zonaVal}`, clear: () => { document.getElementById('filterZona').value = 'all'; filterTable(); } });
+    if (statusVal !== 'all') chips.push({ label: `Status: ${statusVal}`, clear: () => { document.getElementById('statusFilterInput').value = 'all'; filterTable(); } });
+    if (dateFrom) chips.push({ label: `Dari: ${dateFrom}`, clear: () => { document.getElementById('filterDateFrom').value = ''; filterTable(); } });
+    if (dateTo)   chips.push({ label: `Sampai: ${dateTo}`, clear: () => { document.getElementById('filterDateTo').value = ''; filterTable(); } });
+
+    const container = document.getElementById('filterActiveChips');
+    if (container) {
+      container.innerHTML = chips.map((c, i) => `
+        <span class="filter-chip">
+          ${c.label}
+          <button class="chip-x" onclick="clearFilterChip(${i})" title="Hapus filter">
+            <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </span>`).join('');
+      // Store chip clear callbacks
+      window._filterChipClears = chips.map(c => c.clear);
+    }
+
+    // Show/hide reset button
+    const resetBtn = document.getElementById('btnResetFilter');
+    if (resetBtn) resetBtn.style.display = chips.length ? 'inline-flex' : 'none';
+
+    // Highlight active inputs
+    const highlightSearchParent = !!q;
+    const searchEl = document.getElementById('searchInput');
+    if (searchEl && searchEl.closest('.filter-search')) {
+      searchEl.closest('.filter-search').classList.toggle('active', highlightSearchParent);
+    }
+    const highlight = (id, active) => {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('active', active);
+    };
+    highlight('filterPosisi', posisiVal !== 'all');
+    highlight('filterTipeLokasi', lokasiVal !== 'all');
+    highlight('filterZona', zonaVal !== 'all');
+    highlight('statusFilterInput', statusVal !== 'all');
+    highlight('filterDateFrom', !!dateFrom);
+    highlight('filterDateTo', !!dateTo);
+  }
+
+  function clearFilterChip(i) {
+    if (window._filterChipClears && window._filterChipClears[i]) {
+      window._filterChipClears[i]();
+    }
+  }
+
+  function resetAllFilters() {
+    const ids = ['searchInput', 'filterDateFrom', 'filterDateTo'];
+    ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    ['filterPosisi', 'filterTipeLokasi', 'filterZona', 'statusFilterInput'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = 'all';
+    });
+    filterTable();
   }
 
   function filterToPending() {

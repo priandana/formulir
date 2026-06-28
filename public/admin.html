@@ -207,25 +207,84 @@
       </div>
 
       <div class="table-card">
-        <div class="table-header">
-          <div class="table-title">Semua Data Submissions</div>
-          <div class="table-actions">
-            <div class="search-bar">
-              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-              <input type="text" id="searchInput" placeholder="Cari nama, posisi..." oninput="filterTable()">
+        <!-- Filter Panel -->
+        <div class="filter-panel" id="submissionsFilterPanel">
+          <div class="filter-panel-top">
+            <div class="filter-panel-title">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              Filter Data
             </div>
-            <select id="statusFilterInput" class="form-control" style="width: 150px; padding: 8px 12px; font-size: 13px; height: 38px;" onchange="filterTable()">
-              <option value="all">Semua Status</option>
-              <option value="approved">🟢 Approved</option>
-              <option value="pending">🟡 Pending</option>
-              <option value="rejected">🔴 Rejected</option>
-            </select>
-            <button class="btn btn-success" onclick="exportExcel()">
-              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3"/><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1"/></svg>
-              Excel
-            </button>
-            <button class="btn btn-outline" onclick="exportCSV()">CSV</button>
+            <div class="filter-active-chips" id="filterActiveChips"></div>
+            <div style="display:flex; gap:8px; margin-left:auto;">
+              <button class="btn-filter-reset" id="btnResetFilter" onclick="resetAllFilters()" style="display:none;">
+                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                Reset Filter
+              </button>
+              <button class="btn btn-success" style="height:36px; padding: 0 14px; font-size:13px;" onclick="exportExcel()">
+                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3"/><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1"/></svg>
+                Excel
+              </button>
+              <button class="btn btn-outline" style="height:36px; padding: 0 14px; font-size:13px;" onclick="exportCSV()">CSV</button>
+            </div>
           </div>
+          <div class="filter-panel-body">
+            <!-- Search -->
+            <div class="filter-group">
+              <label class="filter-label">Cari</label>
+              <div class="search-bar filter-search">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input type="text" id="searchInput" placeholder="Nama, posisi, zona..." oninput="filterTable()">
+              </div>
+            </div>
+            <!-- Tanggal Dari -->
+            <div class="filter-group">
+              <label class="filter-label">Tgl Carian Dari</label>
+              <input type="date" id="filterDateFrom" class="filter-input" onchange="filterTable()">
+            </div>
+            <!-- Tanggal Sampai -->
+            <div class="filter-group">
+              <label class="filter-label">Tgl Carian Sampai</label>
+              <input type="date" id="filterDateTo" class="filter-input" onchange="filterTable()">
+            </div>
+            <!-- Posisi -->
+            <div class="filter-group">
+              <label class="filter-label">Posisi</label>
+              <select id="filterPosisi" class="filter-select" onchange="filterTable()">
+                <option value="all">Semua Posisi</option>
+                <option value="Picker">🔵 Picker</option>
+                <option value="Sorter">🟢 Sorter</option>
+                <option value="Loader">🟡 Loader</option>
+              </select>
+            </div>
+            <!-- Tipe Lokasi -->
+            <div class="filter-group">
+              <label class="filter-label">Tipe Lokasi</label>
+              <select id="filterTipeLokasi" class="filter-select" onchange="filterTable()">
+                <option value="all">Semua Lokasi</option>
+              </select>
+            </div>
+            <!-- Zona -->
+            <div class="filter-group">
+              <label class="filter-label">Zona</label>
+              <select id="filterZona" class="filter-select" onchange="filterTable()">
+                <option value="all">Semua Zona</option>
+              </select>
+            </div>
+            <!-- Status -->
+            <div class="filter-group">
+              <label class="filter-label">Status</label>
+              <select id="statusFilterInput" class="filter-select" onchange="filterTable()">
+                <option value="all">Semua Status</option>
+                <option value="approved">🟢 Approved</option>
+                <option value="pending">🟡 Pending</option>
+                <option value="rejected">🔴 Rejected</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="table-header" style="border-top: 1px solid var(--card-border); padding: 14px 24px;">
+          <div class="table-title" style="font-size:14px;">Semua Data Submissions</div>
+          <div id="filterResultInfo" style="font-size:12px; color:var(--text-muted);"></div>
         </div>
         <div class="table-wrap">
           <table>
