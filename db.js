@@ -847,6 +847,17 @@ module.exports = {
       }
     }
 
+    // Bangun lookup map: GM (batch) → zona, dari data carian (posisi=Loader)
+    // Ini diperlukan agar key submittedMap selalu cocok dengan data carian,
+    // karena le.zona bisa berupa string gabungan (misal "AMBIENT, CHILLER")
+    // ketika loader memuat GM dari beberapa zona sekaligus.
+    const loaderGmZonaMap = {};
+    for (const rec of records) {
+      if (rec.posisi === 'Loader') {
+        loaderGmZonaMap[String(rec.batch).trim()] = String(rec.zona).trim();
+      }
+    }
+
     // Tambahkan rekap dari loader_entries ke submittedMap
     for (const le of allLoaderEntries) {
       let outputs = {};
@@ -855,7 +866,10 @@ module.exports = {
       }
       
       for (const [groupMobil, qty] of Object.entries(outputs)) {
-        const key = `Loader|${le.zona}|${groupMobil}`;
+        // Gunakan zona dari data carian (akurat per GM), bukan le.zona
+        // yang bisa berupa string gabungan multi-zona
+        const actualZona = loaderGmZonaMap[String(groupMobil).trim()] || le.zona;
+        const key = `Loader|${actualZona}|${groupMobil}`;
         submittedMap[key] = (submittedMap[key] || 0) + (parseInt(qty) || 0);
       }
     }
@@ -924,7 +938,7 @@ module.exports = {
   async getAllOperationalUsers() {
     if (isSupabaseEnabled) {
       const { data, error } = await supabase
-        .from('users').select('id,username,nama_lengkap,nik,posisi,role,tipe_karyawan,created_at')
+        .from('users').select('id,username,nama_lengkap,nik,posisi,role,tipe_karyawan,created_at,is_active')
         .eq('role', 'operasional')
         .order('created_at', { ascending: false });
       if (error) { console.error('Supabase getAllOperationalUsers error:', error); throw error; }
@@ -935,6 +949,34 @@ module.exports = {
         .filter(u => u.role === 'operasional')
         .map(({ password, ...u }) => u) // strip password
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+  },
+
+  /**
+   * Toggle is_active status for an operational user (aktif <-> non-aktif)
+   */
+  async toggleUserStatus(id) {
+    if (isSupabaseEnabled) {
+      // First fetch current status
+      const { data: current, error: fetchErr } = await supabase
+        .from('users').select('is_active').eq('id', id).eq('role', 'operasional').maybeSingle();
+      if (fetchErr) { console.error('Supabase toggleUserStatus fetch error:', fetchErr); throw fetchErr; }
+      if (!current) throw new Error('User tidak ditemukan.');
+      const newStatus = current.is_active === false ? true : false;
+      const { data: updated, error } = await supabase
+        .from('users').update({ is_active: newStatus }).eq('id', id).eq('role', 'operasional')
+        .select('id,username,nama_lengkap,is_active').single();
+      if (error) { console.error('Supabase toggleUserStatus update error:', error); throw error; }
+      return updated;
+    } else {
+      const db = load();
+      const idx = db.users.findIndex(u => u.id === id && u.role === 'operasional');
+      if (idx === -1) throw new Error('User tidak ditemukan.');
+      const current = db.users[idx].is_active;
+      // Default is_active to true if undefined (legacy data)
+      db.users[idx].is_active = current === false ? true : false;
+      save(db);
+      return { id, username: db.users[idx].username, nama_lengkap: db.users[idx].nama_lengkap, is_active: db.users[idx].is_active };
     }
   },
 
@@ -1112,6 +1154,7 @@ module.exports = {
    */
   async getUserByUsernameAndNik(username, nik) {
     if (isSupabaseEnabled) {
+      // Return user even if inactive so login can show specific message
       const { data, error } = await supabase
         .from('users').select('*')
         .eq('username', username)
@@ -1521,6 +1564,283 @@ module.exports = {
       const paginatedLogs = logs.slice(from, from + limit);
       return { logs: paginatedLogs, total };
     }
+  },
+
+  // =============================================
+  // ABSENSI — Attendance management
+  // =============================================
+
+  DEFAULT_ABSENSI_SETTINGS: {
+    absensi_required: false,
+    absensi_visible_to_user: false
+  },
+
+  /**
+   * Get attendance settings
+   */
+  async getAbsensiSettings() {
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'absensi_settings')
+        .maybeSingle();
+      if (error) {
+        console.warn('Supabase getAbsensiSettings error (returning defaults):', error.message);
+        return this.DEFAULT_ABSENSI_SETTINGS;
+      }
+      return data ? { ...this.DEFAULT_ABSENSI_SETTINGS, ...data.value } : this.DEFAULT_ABSENSI_SETTINGS;
+    } else {
+      const db = load();
+      return db.absensi_settings ? { ...this.DEFAULT_ABSENSI_SETTINGS, ...db.absensi_settings } : this.DEFAULT_ABSENSI_SETTINGS;
+    }
+  },
+
+  /**
+   * Save attendance settings
+   */
+  async saveAbsensiSettings(settings) {
+    const merged = { ...this.DEFAULT_ABSENSI_SETTINGS, ...settings };
+    if (isSupabaseEnabled) {
+      const { error } = await supabase
+        .from('site_settings')
+        .upsert({ key: 'absensi_settings', value: merged }, { onConflict: 'key' });
+      if (error) { console.error('Supabase saveAbsensiSettings error:', error); throw error; }
+      return merged;
+    } else {
+      const db = load();
+      db.absensi_settings = merged;
+      save(db);
+      return merged;
+    }
+  },
+
+  /**
+   * Get all attendance records for a given date, joined with user info
+   */
+  async getAbsensiByTanggal(tanggal) {
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase
+        .from('absensi')
+        .select('id, tanggal, created_by, created_at, users(id, username, nama_lengkap, posisi, nik)')
+        .eq('tanggal', tanggal)
+        .order('created_at', { ascending: true });
+      if (error) { console.error('Supabase getAbsensiByTanggal error:', error); throw error; }
+      // Flatten user join
+      return (data || []).map(r => ({
+        id: r.id,
+        tanggal: r.tanggal,
+        created_by: r.created_by,
+        created_at: r.created_at,
+        user_id: r.users?.id,
+        username: r.users?.username,
+        nama_lengkap: r.users?.nama_lengkap,
+        posisi: r.users?.posisi,
+        nik: r.users?.nik
+      }));
+    } else {
+      const db = load();
+      const absensi = (db.absensi || []).filter(a => a.tanggal === tanggal);
+      return absensi.map(a => {
+        const user = db.users.find(u => u.id === a.user_id) || {};
+        return {
+          id: a.id,
+          tanggal: a.tanggal,
+          created_by: a.created_by,
+          created_at: a.created_at,
+          user_id: a.user_id,
+          username: user.username,
+          nama_lengkap: user.nama_lengkap,
+          posisi: user.posisi,
+          nik: user.nik
+        };
+      });
+    }
+  },
+
+  /**
+   * Check if a specific user is present (diabsen) for a given date
+   */
+  async isUserAbsen(tanggal, user_id) {
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase
+        .from('absensi')
+        .select('id')
+        .eq('tanggal', tanggal)
+        .eq('user_id', user_id)
+        .maybeSingle();
+      if (error) { console.error('Supabase isUserAbsen error:', error); throw error; }
+      return !!data;
+    } else {
+      const db = load();
+      return (db.absensi || []).some(a => a.tanggal === tanggal && a.user_id === user_id);
+    }
+  },
+
+  /**
+   * Add a user to attendance for a given date
+   */
+  async addAbsensi(tanggal, user_id, created_by) {
+    if (isSupabaseEnabled) {
+      const record = { id: uuidv4(), tanggal, user_id, created_by };
+      const { error } = await supabase.from('absensi').upsert([record], { onConflict: 'tanggal,user_id' });
+      if (error) { console.error('Supabase addAbsensi error:', error); throw error; }
+      return record;
+    } else {
+      const db = load();
+      if (!db.absensi) db.absensi = [];
+      // Check if already exists
+      const exists = db.absensi.find(a => a.tanggal === tanggal && a.user_id === user_id);
+      if (exists) return exists;
+      const record = { id: uuidv4(), tanggal, user_id, created_by, created_at: new Date().toISOString() };
+      db.absensi.push(record);
+      save(db);
+      return record;
+    }
+  },
+
+  /**
+   * Remove a user from attendance by absensi record ID
+   */
+  async removeAbsensi(id) {
+    if (isSupabaseEnabled) {
+      const { error } = await supabase.from('absensi').delete().eq('id', id);
+      if (error) { console.error('Supabase removeAbsensi error:', error); throw error; }
+    } else {
+      const db = load();
+      db.absensi = (db.absensi || []).filter(a => a.id !== id);
+      save(db);
+    }
+  },
+
+  /**
+   * Get list of dates that have attendance records
+   */
+  async getAbsensiTanggalList() {
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase.from('absensi').select('tanggal');
+      if (error) { console.error('Supabase getAbsensiTanggalList error:', error); throw error; }
+      const dates = [...new Set((data || []).map(r => r.tanggal))].sort().reverse();
+      return dates;
+    } else {
+      const db = load();
+      const dates = [...new Set((db.absensi || []).map(r => r.tanggal))].sort().reverse();
+      return dates;
+    }
+  },
+
+  // ==================== ANNOUNCEMENTS ====================
+
+  async getActiveAnnouncements() {
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase
+        .from('announcements')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+      if (error) { console.error('getActiveAnnouncements error:', error); return []; }
+      return data || [];
+    } else {
+      const db = load();
+      return (db.announcements || []).filter(a => a.is_active !== false);
+    }
+  },
+
+  async getAllAnnouncements() {
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase
+        .from('announcements')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) { console.error('getAllAnnouncements error:', error); return []; }
+      return data || [];
+    } else {
+      const db = load();
+      return (db.announcements || []);
+    }
+  },
+
+  async createAnnouncement({ title, content, type, emoji, created_by }) {
+    const record = {
+      id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(),
+      title: title || '',
+      content: content || '',
+      type: type || 'info',
+      emoji: emoji || '📢',
+      is_active: true,
+      created_by: created_by || 'admin',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase.from('announcements').insert([record]).select().single();
+      if (error) { console.error('createAnnouncement error:', error); throw error; }
+      return data;
+    } else {
+      const db = load();
+      if (!db.announcements) db.announcements = [];
+      db.announcements.unshift(record);
+      save(db);
+      return record;
+    }
+  },
+
+  async updateAnnouncement(id, { title, content, type, emoji, is_active }) {
+    const updates = {
+      ...(title     !== undefined && { title }),
+      ...(content   !== undefined && { content }),
+      ...(type      !== undefined && { type }),
+      ...(emoji     !== undefined && { emoji }),
+      ...(is_active !== undefined && { is_active }),
+      updated_at: new Date().toISOString()
+    };
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase.from('announcements').update(updates).eq('id', id).select().single();
+      if (error) { console.error('updateAnnouncement error:', error); throw error; }
+      return data;
+    } else {
+      const db = load();
+      const idx = (db.announcements || []).findIndex(a => a.id === id);
+      if (idx === -1) throw new Error('Announcement not found');
+      db.announcements[idx] = { ...db.announcements[idx], ...updates };
+      save(db);
+      return db.announcements[idx];
+    }
+  },
+
+  async deleteAnnouncement(id) {
+    if (isSupabaseEnabled) {
+      const { error } = await supabase.from('announcements').delete().eq('id', id);
+      if (error) { console.error('deleteAnnouncement error:', error); throw error; }
+    } else {
+      const db = load();
+      db.announcements = (db.announcements || []).filter(a => a.id !== id);
+      save(db);
+    }
+  },
+
+  async toggleAnnouncement(id) {
+    if (isSupabaseEnabled) {
+      const { data: cur, error: e1 } = await supabase.from('announcements').select('is_active').eq('id', id).single();
+      if (e1) throw e1;
+      const { data, error } = await supabase.from('announcements')
+        .update({ is_active: !cur.is_active, updated_at: new Date().toISOString() })
+        .eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    } else {
+      const db = load();
+      const ann = (db.announcements || []).find(a => a.id === id);
+      if (!ann) throw new Error('Announcement not found');
+      ann.is_active = !ann.is_active;
+      ann.updated_at = new Date().toISOString();
+      save(db);
+      return ann;
+    }
   }
 };
+
+
+
+
 

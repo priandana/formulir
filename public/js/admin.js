@@ -30,6 +30,18 @@ function showOnscreenError(source, err) {
     return false;
   };
 
+  function autoLink(text) {
+    if (!text) return '';
+    const regex = /(https?:\/\/[^\s]+|wa\.me\/[^\s\n\r\t]+)/gi;
+    return text.replace(regex, (url) => {
+      let href = url;
+      if (!/^https?:\/\//i.test(url)) {
+        href = 'https://' + url;
+      }
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+    });
+  }
+
   // ============= STATE =============
   let allSubmissions = [];
   let filteredSubmissions = [];
@@ -519,11 +531,26 @@ function showOnscreenError(source, err) {
     }
 
     document.getElementById('dcTableBody').innerHTML = `<tr><td colspan="9"><div class="loading-spinner"><div class="spin"></div></div></td></tr>`;
+    // Reset summary ke 0 sebelum data baru tiba (hindari nilai stale dari load sebelumnya)
+    document.getElementById('dcSumTotal').textContent = '0';
+    document.getElementById('dcSumDone').textContent = '0';
+    document.getElementById('dcSumEmpty').textContent = '0';
+    document.getElementById('dcSumPartial').textContent = '0';
 
     try {
       const records = await fetch(`/api/data-carian?tanggal=${tanggal}`).then(r => r.json());
       allDataCarian = records;
       filteredDataCarian = [...allDataCarian];
+
+      // DEBUG: cek nilai persen dari API
+      const persenValues = records.map(r => r.persen);
+      const persenTypes = [...new Set(persenValues.map(p => typeof p))];
+      const persen100Count = records.filter(r => r.persen === 100).length;
+      const persen100NumCount = records.filter(r => Number(r.persen) >= 100).length;
+      console.log('[loadDataCarian] total records:', records.length);
+      console.log('[loadDataCarian] persen types:', persenTypes);
+      console.log('[loadDataCarian] persen===100 count:', persen100Count, '| Number(persen)>=100 count:', persen100NumCount);
+      console.log('[loadDataCarian] sample data (5):', records.slice(0,5).map(r => ({ posisi:r.posisi, zona:r.zona, batch:r.batch, persen:r.persen, sudah_diisi:r.sudah_diisi, total_output:r.total_output })));
 
       const dateLabel = new Date(tanggal + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
       document.getElementById('dcTableTitle').textContent = `Data Kapasitas Batch — ${dateLabel}`;
@@ -531,13 +558,13 @@ function showOnscreenError(source, err) {
       if (records.length > 0) {
         document.getElementById('btnDeleteAllDC').style.display = 'flex';
         document.getElementById('dcSummary').style.display = 'grid';
-        updateDCSummary(records);
       } else {
         document.getElementById('btnDeleteAllDC').style.display = 'none';
         document.getElementById('dcSummary').style.display = 'none';
       }
 
-      renderDCTable();
+      // filterDCTable akan update summary secara otomatis
+      filterDCTable();
     } catch(err) {
       showToast('Gagal memuat data carian.', 'error');
     }
@@ -545,9 +572,11 @@ function showOnscreenError(source, err) {
 
   function updateDCSummary(records) {
     const total = records.length;
-    const done = records.filter(r => r.persen === 100).length;
-    const empty = records.filter(r => r.sudah_diisi === 0).length;
+    const done = records.filter(r => Number(r.persen) >= 100).length;
+    const empty = records.filter(r => (r.sudah_diisi === 0 || r.sudah_diisi === null || r.sudah_diisi === undefined) && Number(r.persen) < 100).length;
     const partial = total - done - empty;
+    console.log('[DC Summary] total:', total, 'done:', done, 'empty:', empty, 'partial:', partial);
+    console.log('[DC Summary] sample persen values:', records.slice(0,5).map(r => ({ batch: r.batch, persen: r.persen, type: typeof r.persen, sudah_diisi: r.sudah_diisi })));
     animateValue('dcSumTotal', total);
     animateValue('dcSumDone', done);
     animateValue('dcSumEmpty', empty);
@@ -598,13 +627,54 @@ function showOnscreenError(source, err) {
   }
 
   function filterDCTable() {
-    const q = document.getElementById('dcSearchInput').value.toLowerCase();
-    filteredDataCarian = allDataCarian.filter(r =>
-      r.zona.toLowerCase().includes(q) ||
-      String(r.batch).toLowerCase().includes(q) ||
-      r.posisi.toLowerCase().includes(q) ||
-      String(r.jumlah_toko || 0).includes(q)
-    );
+    const q = (document.getElementById('dcSearchInput')?.value || '').toLowerCase().trim();
+    const posisiVal = document.getElementById('dcPosisiFilter')?.value || '';
+    const zonaVal = document.getElementById('dcZonaFilter')?.value || '';
+    const statusVal = document.getElementById('dcStatusFilter')?.value || '';
+
+    if (statusVal === 'selesai') {
+      const selesaiCount = allDataCarian.filter(r => Number(r.persen) >= 100).length;
+      console.log('[filterDCTable] filter=selesai, allDataCarian.length:', allDataCarian.length, ', selesai count:', selesaiCount);
+      console.log('[filterDCTable] sample persen:', allDataCarian.slice(0,10).map(r => r.persen));
+    }
+
+    filteredDataCarian = allDataCarian.filter(r => {
+      // 1. Text Search
+      const matchesSearch = !q || (
+        r.zona.toLowerCase().includes(q) ||
+        String(r.batch).toLowerCase().includes(q) ||
+        r.posisi.toLowerCase().includes(q) ||
+        String(r.jumlah_toko || 0).includes(q)
+      );
+
+      // 2. Posisi Filter
+      const matchesPosisi = !posisiVal || r.posisi === posisiVal;
+
+      // 3. Zona Filter
+      const matchesZona = !zonaVal || r.zona.toUpperCase() === zonaVal.toUpperCase();
+
+      // 4. Status Progress Filter
+      let matchesStatus = true;
+      if (statusVal) {
+        const pct = Number(r.persen) || 0;
+        if (statusVal === 'belum') {
+          matchesStatus = pct === 0;
+        } else if (statusVal === 'sebagian') {
+          matchesStatus = pct > 0 && pct < 100;
+        } else if (statusVal === 'selesai') {
+          matchesStatus = pct >= 100;
+        }
+      }
+
+      return matchesSearch && matchesPosisi && matchesZona && matchesStatus;
+    });
+
+    // Summary card selalu mencerminkan SEMUA data tanggal tersebut (bukan hanya filtered)
+    // agar kartu statistik konsisten dan tidak membingungkan
+    if (allDataCarian.length > 0) {
+      updateDCSummary(allDataCarian);
+    }
+
     renderDCTable();
   }
 
@@ -848,7 +918,9 @@ function showOnscreenError(source, err) {
   // ============= PAGE NAVIGATION =============
   function showPage(page) {
     currentView = page;
-    ['dashboard','submissions','data-carian','rekap-toko','users','loader','export','gsheets','login-settings','admin-accounts','audit-logs','feature-guide'].forEach(p => {
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) sidebar.classList.remove('open');
+    ['dashboard','submissions','data-carian','rekap-toko','users','loader','absensi','export','gsheets','login-settings','admin-accounts','audit-logs','feature-guide','announcements'].forEach(p => {
       const el = document.getElementById('page-' + p);
       if (el) el.style.display = p === page ? 'block' : 'none';
     });
@@ -865,11 +937,13 @@ function showOnscreenError(source, err) {
       'login-settings': 'Pengaturan Tampilan Login',
       'admin-accounts': 'Manajemen Akun Administrator',
       'audit-logs': 'Log Aktivitas Sistem (Audit Trail)',
-      'feature-guide': 'Panduan Fitur Baru'
+      'feature-guide': 'Panduan Fitur Baru',
+      'absensi': 'Manajemen Absensi',
+      'announcements': 'Manajemen Pengumuman'
     };
     document.getElementById('pageTitle').textContent = titles[page] || page;
 
-    ['dashboard','submissions','data-carian','rekap-toko','users','loader','export','gsheets','login-settings','admin-accounts','audit-logs','feature-guide'].forEach(p => {
+    ['dashboard','submissions','data-carian','rekap-toko','users','loader','absensi','export','gsheets','login-settings','admin-accounts','audit-logs','feature-guide','announcements'].forEach(p => {
       const nav = document.getElementById('nav-' + p);
       if (nav) nav.classList.toggle('active', p === page);
     });
@@ -878,10 +952,12 @@ function showOnscreenError(source, err) {
     if (page === 'rekap-toko') loadRekapToko();
     if (page === 'users') loadUsers();
     if (page === 'loader') loadLoaderEntries();
+    if (page === 'absensi') { if (typeof window.initAbsensiPage === 'function') window.initAbsensiPage(); }
     if (page === 'gsheets') loadGSheetsStatus();
     if (page === 'login-settings') loadLoginSettings();
     if (page === 'admin-accounts') loadAdminAccounts();
     if (page === 'audit-logs') loadAuditLogs(1);
+    if (page === 'announcements') loadAnnouncements();
   }
 
   // ============= MODAL HELPERS =============
@@ -890,7 +966,7 @@ function showOnscreenError(source, err) {
   }
 
   // Close modal on overlay click
-  ['detailModal', 'importModal', 'addCarianModal', 'editUserModal', 'confirmModal', 'changePasswordModal'].forEach(id => {
+  ['detailModal', 'importModal', 'addCarianModal', 'editUserModal', 'confirmModal', 'changePasswordModal', 'absensiSettingsModal', 'announcementModal'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
       el.addEventListener('click', e => {
@@ -949,40 +1025,53 @@ function showOnscreenError(source, err) {
 
   async function loadUsers() {
     const tbody = document.getElementById('usersTableBody');
-    tbody.innerHTML = `<tr><td colspan="8"><div class="loading-spinner"><div class="spin"></div></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9"><div class="loading-spinner"><div class="spin"></div></div></td></tr>`;
     try {
       allUsers = await fetch('/api/users').then(r => r.json());
       renderUsersTable();
     } catch(err) {
-      tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">⚠️</div><h3>Gagal memuat data</h3></div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">⚠️</div><h3>Gagal memuat data</h3></div></td></tr>`;
     }
   }
 
   function renderUsersTable() {
     const tbody = document.getElementById('usersTableBody');
     if (!allUsers.length) {
-      tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">👥</div><h3>Belum ada user operasional</h3><p>Gunakan form di atas untuk membuat user baru</p></div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">👥</div><h3>Belum ada user operasional</h3><p>Gunakan form di atas untuk membuat user baru</p></div></td></tr>`;
       return;
     }
     tbody.innerHTML = allUsers.map((u, i) => {
       const posBadge = u.posisi === 'Picker' ? 'badge-picker' : u.posisi === 'Sorter' ? 'badge-sorter' : 'badge-loader';
       const tipeBadge = u.tipe_karyawan === 'PHL' ? 'badge-phl' : u.tipe_karyawan === 'Productivity' ? 'badge-prod' : 'badge-other';
+      // is_active: null/undefined dianggap aktif (data lama)
+      const isActive = u.is_active !== false;
+      const statusBadge = isActive
+        ? `<span class="badge-status badge-status-active"><span class="status-dot"></span>Aktif</span>`
+        : `<span class="badge-status badge-status-inactive"><span class="status-dot"></span>Non-Aktif</span>`;
+      const toggleTitle = isActive ? 'Nonaktifkan user ini' : 'Aktifkan kembali user ini';
+      const toggleIcon = isActive
+        ? `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="5" width="22" height="14" rx="7" ry="7"/><circle cx="16" cy="12" r="3" fill="currentColor"/></svg>`
+        : `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="5" width="22" height="14" rx="7" ry="7"/><circle cx="8" cy="12" r="3" fill="currentColor"/></svg>`;
       // Safe escaping for quote chars in names/usernames
       const safeNama = u.nama_lengkap.replace(/'/g, "\\'");
       const safeUser = u.username.replace(/'/g, "\\'");
       const safeNik = u.nik.replace(/'/g, "\\'");
       const safeTipe = (u.tipe_karyawan || '').replace(/'/g, "\\'");
       return `
-        <tr style="animation-delay:${i*0.04}s">
+        <tr style="animation-delay:${i*0.04}s${!isActive ? ';opacity:0.6' : ''}">
           <td>${i+1}</td>
-          <td class="text-main">${u.nama_lengkap}</td>
+          <td class="text-main">${u.nama_lengkap}${!isActive ? ' <span style="font-size:10px;color:var(--text-dim);font-weight:500;">(Keluar)</span>' : ''}</td>
           <td><code style="background:rgba(108,60,225,0.06);padding:2px 8px;border-radius:5px;font-size:12px;">${u.username}</code></td>
           <td><span style="font-family:monospace;background:rgba(0,0,0,0.04);padding:2px 8px;border-radius:5px;font-size:13px;">${u.nik}</span></td>
           <td><span class="badge ${posBadge}">${u.posisi}</span></td>
           <td><span class="badge ${tipeBadge}">${u.tipe_karyawan || 'Belum Ditentukan'}</span></td>
+          <td>${statusBadge}</td>
           <td>${formatDate(u.created_at)}</td>
           <td>
             <div class="action-btns">
+              <button class="btn-icon btn-toggle-status ${isActive ? 'btn-deactivate' : 'btn-activate'}" onclick="toggleUserStatus('${u.id}', '${safeNama}', ${isActive})" title="${toggleTitle}">
+                ${toggleIcon}
+              </button>
               <button class="btn-icon btn-edit" onclick="openEditUserModal('${u.id}', '${safeNama}', '${safeUser}', '${safeNik}', '${u.posisi}', '${safeTipe}')" title="Edit user">
                 <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
               </button>
@@ -1056,6 +1145,29 @@ function showOnscreenError(source, err) {
         await loadUsers();
       } else { showToast('Gagal menghapus user.', 'error'); }
     } catch(err) { showToast('Gagal menghapus user.', 'error'); }
+  }
+
+  async function toggleUserStatus(id, nama, currentlyActive) {
+    const action = currentlyActive ? 'nonaktifkan' : 'aktifkan kembali';
+    const emoji = currentlyActive ? '🔒' : '🔓';
+    const confirmed = await showConfirmModal({
+      title: currentlyActive ? 'Nonaktifkan User' : 'Aktifkan User',
+      message: currentlyActive
+        ? `Apakah Anda yakin ingin menonaktifkan "${nama}"?\n\nUser tidak akan bisa login dan akan mendapat notifikasi bahwa akunnya dinonaktifkan.`
+        : `Aktifkan kembali akun "${nama}"?\n\nUser akan bisa login seperti biasa.`,
+      icon: emoji,
+      okText: currentlyActive ? 'Ya, Nonaktifkan' : 'Ya, Aktifkan',
+      okClass: currentlyActive ? 'btn-danger' : 'btn-primary'
+    });
+    if (!confirmed) return;
+    try {
+      const res = await fetch(`/api/users/${id}/toggle-status`, { method: 'PATCH' }).then(r => r.json());
+      if (res.success) {
+        const label = res.data.is_active === false ? 'dinonaktifkan' : 'diaktifkan';
+        showToast(`User "${nama}" berhasil ${label}.`, 'success');
+        await loadUsers();
+      } else { showToast(res.error || 'Gagal mengubah status user.', 'error'); }
+    } catch(err) { showToast('Gagal menghubungi server.', 'error'); }
   }
 
   function openEditUserModal(id, nama, username, nik, posisi, tipe_karyawan) {
@@ -1672,10 +1784,7 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
     }
   }
 
-  // Mobile
-  if (window.innerWidth <= 768) {
-    document.getElementById('mobileMenuBtn').style.display = 'flex';
-  }
+
 
   // ============================================================
   // REKAP HARIAN PER TOKO
@@ -1870,8 +1979,8 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
       zones.forEach(z => {
         row2 += `<th class="zona-header ${g.zonaCls}" colspan="3">${z}</th>`;
         row3 += `<th class="sub-header">Batch</th>`;
-        row3 += `<th class="sub-header">QTY</th>`;
-        row3 += `<th class="sub-header col-kont">KONT</th>`;
+        row3 += `<th class="sub-header">ACT / TGT</th>`;
+        row3 += `<th class="sub-header col-kont">ACT / TGT</th>`;
       });
     });
 
@@ -1914,14 +2023,40 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
             cells += `<td class="col-qty"><span class="rekap-dash">—</span></td>`;
             cells += `<td class="col-kont"><span class="rekap-dash">—</span></td>`;
           } else {
-            // Combine multiple batches for same zona (take first batch, sum qty & kont)
+            // Combine multiple batches for same zona
             const batchNums = [...new Set(rows.map(r => r.batch))].join(', ');
             const totalQty  = rows.reduce((s,r) => s + (r.qty_target||0), 0);
             const totalKont = rows.reduce((s,r) => s + (r.kont_target||0), 0);
+            // Actual: deduplicate by batch agar tidak double-count
+            const uniqueByBatch = [...new Map(rows.map(r => [r.batch, r])).values()];
+            const actQty  = uniqueByBatch.reduce((s,r) => s + (r.actual_qty||0), 0);
+            const actKont = uniqueByBatch.reduce((s,r) => s + (r.actual_kont||0), 0);
+            const qtyColor  = actQty > 0 ? (actQty >= totalQty ? 'act-done' : 'act-partial') : 'act-none';
+            const kontColor = actKont > 0 ? (actKont >= totalKont ? 'act-done' : 'act-partial') : 'act-none';
+
             cells += `<td class="col-batch">${batchNums || '—'}</td>`;
-            cells += `<td class="col-qty${totalQty > 0 ? ' has-data' : ''}">${totalQty > 0 ? totalQty.toLocaleString('id-ID') : '<span class="rekap-dash">—</span>'}</td>`;
-            cells += `<td class="col-kont"><span class="kont-badge${totalKont === 0 ? ' kont-zero':''}">` +
-              (totalKont > 0 ? totalKont : '—') + `</span></td>`;
+
+            if (totalQty > 0) {
+              cells += `<td class="col-qty act-cell ${qtyColor}">`
+                + `<span class="act-val">${actQty.toLocaleString('id-ID')}</span>`
+                + `<span class="act-sep"> / </span>`
+                + `<span class="tgt-val">${totalQty.toLocaleString('id-ID')}</span>`
+                + (actQty >= totalQty ? `<span class="act-check">✓</span>` : '')
+                + `</td>`;
+            } else {
+              cells += `<td class="col-qty"><span class="rekap-dash">—</span></td>`;
+            }
+
+            if (totalKont > 0) {
+              cells += `<td class="col-kont act-cell ${kontColor}">`
+                + `<span class="act-val">${actKont.toLocaleString('id-ID')}</span>`
+                + `<span class="act-sep"> / </span>`
+                + `<span class="kont-badge">${totalKont.toLocaleString('id-ID')}</span>`
+                + (actKont >= totalKont ? `<span class="act-check">✓</span>` : '')
+                + `</td>`;
+            } else {
+              cells += `<td class="col-kont"><span class="rekap-dash">—</span></td>`;
+            }
           }
         });
       });
@@ -2064,28 +2199,35 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
     }
   });
 
-  // ===== REALTIME NOTIFICATIONS (SSE) =====
+  // ===== REALTIME NOTIFICATIONS (Polling - menggantikan SSE agar hemat resource Vercel) =====
+  let pollLastSeen = Date.now();
+  let pollTimer = null;
+
   function initRealtimeNotifications() {
-    const eventSource = new EventSource('/api/admin/updates');
+    if (pollTimer) clearInterval(pollTimer);
+    pollLastSeen = Date.now();
+    pollTimer = setInterval(pollNotifications, 15000); // cek setiap 15 detik
+    console.log('[Poll] Notification polling started (every 15s)');
+  }
 
-    eventSource.onmessage = function(event) {
-      try {
-        const payload = JSON.parse(event.data);
-        if (payload.type === 'new_submission') {
-          playNotificationSound();
-          showToast(`Submission PENDING baru dari ${payload.data.nama} (${payload.data.posisi})!`, 'warning');
-          loadData();
-        }
-      } catch (e) {
-        console.error('SSE message parse error:', e);
+  async function pollNotifications() {
+    try {
+      const res = await fetch(`/api/admin/updates-poll?since=${pollLastSeen}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.serverTime) pollLastSeen = data.serverTime;
+      if (data.notifications && data.notifications.length > 0) {
+        data.notifications.forEach(notif => {
+          if (notif.type === 'new_submission') {
+            playNotificationSound();
+            showToast(`Submission PENDING baru dari ${notif.data.nama} (${notif.data.posisi})!`, 'warning');
+          }
+        });
+        loadData();
       }
-    };
-
-    eventSource.onerror = function(err) {
-      console.warn('SSE connection closed or failed. Retrying in 10s...');
-      eventSource.close();
-      setTimeout(initRealtimeNotifications, 10000);
-    };
+    } catch (e) {
+      console.warn('[Poll] Notification poll failed:', e.message);
+    }
   }
 
   function playNotificationSound() {
@@ -2146,6 +2288,7 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
         let actionClass = 'log-badge-other';
         const action = l.action || 'OTHER';
         if (action.includes('LOGIN')) actionClass = 'log-badge-login';
+        else if (action.includes('ABSENSI')) actionClass = 'log-badge-absensi';
         else if (action.includes('CREATE')) actionClass = 'log-badge-create';
         else if (action.includes('UPDATE')) actionClass = 'log-badge-update';
         else if (action.includes('DELETE')) actionClass = 'log-badge-delete';
@@ -2168,13 +2311,13 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
       let pagHtml = '';
       if (totalPages > 1) {
         if (page > 1) {
-          pagHtml += `<button onclick="loadAuditLogs(${page - 1})">←</button>`;
+          pagHtml += `<button class="page-btn" onclick="loadAuditLogs(${page - 1})">‹</button>`;
         }
         for (let i = Math.max(1, page - 3); i <= Math.min(totalPages, page + 3); i++) {
-          pagHtml += `<button class="${i === page ? 'active' : ''}" onclick="loadAuditLogs(${i})">${i}</button>`;
+          pagHtml += `<button class="page-btn${i === page ? ' active' : ''}" onclick="loadAuditLogs(${i})">${i}</button>`;
         }
         if (page < totalPages) {
-          pagHtml += `<button onclick="loadAuditLogs(${page + 1})">→</button>`;
+          pagHtml += `<button class="page-btn" onclick="loadAuditLogs(${page + 1})">›</button>`;
         }
       }
       document.getElementById('logPagination').innerHTML = pagHtml;
@@ -2361,10 +2504,154 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
   document.addEventListener('click', closeAllCustomDropdowns);
 
   // Expose to global scope
-  window.loadRekapToko  = loadRekapToko;
+  window.loadRekapToko    = loadRekapToko;
   window.filterRekapTable = filterRekapTable;
-  window.toggleDarkMode = toggleDarkMode;
-  window.closeLightbox = closeLightbox;
-  window.loadAuditLogs = loadAuditLogs;
-  window.filterLogs = filterLogs;
+  window.toggleDarkMode   = toggleDarkMode;
+  window.closeLightbox    = closeLightbox;
+  window.loadAuditLogs    = loadAuditLogs;
+  window.filterLogs       = filterLogs;
   window.initCustomSelects = initCustomSelects;
+  window.showPage         = showPage;
+
+  // ===================== ANNOUNCEMENTS =====================
+
+  async function loadAnnouncements() {
+    const list = document.getElementById('announcementList');
+    if (!list) return;
+    list.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-muted);"><div style="font-size:28px;margin-bottom:10px;">⏳</div><div>Memuat...</div></div>`;
+    try {
+      const data = await fetch('/api/announcements/all').then(r => r.json());
+      if (!Array.isArray(data) || data.length === 0) {
+        list.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--text-muted);">
+          <div style="font-size:40px;margin-bottom:12px;">📭</div>
+          <div style="font-weight:600;font-size:15px;">Belum ada pengumuman</div>
+          <div style="font-size:13px;margin-top:6px;">Klik "Buat Pengumuman Baru" untuk memulai</div>
+        </div>`;
+        return;
+      }
+      list.innerHTML = data.map(ann => `
+        <div class="ann-admin-card ${ann.is_active ? '' : 'inactive'}" id="ann-card-${ann.id}">
+          <div class="ann-admin-emoji">${ann.emoji || '📢'}</div>
+          <div class="ann-admin-body">
+            <div class="ann-admin-title">${ann.title}</div>
+            <div class="ann-admin-content">${autoLink(ann.content)}</div>
+            <div class="ann-admin-meta">
+              <span class="ann-type-badge ${ann.type}">${ann.type}</span>
+              <span>${ann.is_active ? '🟢 Aktif' : '⚫ Nonaktif'}</span>
+              <span>· ${new Date(ann.created_at).toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'})}</span>
+            </div>
+          </div>
+          <div class="ann-admin-actions">
+            <button class="ann-toggle-btn ${ann.is_active ? 'on' : ''}" title="${ann.is_active ? 'Nonaktifkan' : 'Aktifkan'}"
+              onclick="toggleAnnouncement('${ann.id}', this)"></button>
+            <button class="btn btn-outline" style="padding:5px 12px;font-size:11px;" onclick="editAnnouncement(${JSON.stringify(ann).replace(/"/g,'&quot;')})">Edit</button>
+            <button class="btn" style="padding:5px 12px;font-size:11px;background:rgba(239,68,68,0.1);color:#f87171;border:1px solid rgba(239,68,68,0.3);"
+              onclick="deleteAnnouncement('${ann.id}')">Hapus</button>
+          </div>
+        </div>`).join('');
+    } catch (err) {
+      list.innerHTML = `<div style="text-align:center;padding:40px;color:#f87171;">Gagal memuat pengumuman.</div>`;
+    }
+  }
+
+  function buildAnnPreview() {
+    const emoji   = document.getElementById('annEmoji')?.value || '📢';
+    const title   = document.getElementById('annTitle')?.value || 'Judul Pengumuman';
+    const content = document.getElementById('annContent')?.value || 'Isi pengumuman akan tampil di sini...';
+    const type    = document.querySelector('input[name="annType"]:checked')?.value || 'info';
+    const preview = document.getElementById('annPreview');
+    if (!preview) return;
+    preview.className = `ann-banner ${type}`;
+    preview.innerHTML = `
+      <div class="ann-banner-emoji">${emoji}</div>
+      <div class="ann-banner-body">
+        <div class="ann-banner-title">${title}</div>
+        <div class="ann-banner-content">${autoLink(content)}</div>
+      </div>`;
+  }
+
+  function openAnnouncementModal(ann = null) {
+    document.getElementById('annId').value        = ann?.id || '';
+    document.getElementById('annEmoji').value     = ann?.emoji   || '📢';
+    document.getElementById('annTitle').value     = ann?.title   || '';
+    document.getElementById('annContent').value   = ann?.content || '';
+    document.getElementById('announcementModalTitle').textContent = ann ? 'Edit Pengumuman' : 'Buat Pengumuman Baru';
+    const type = ann?.type || 'info';
+    document.querySelectorAll('input[name="annType"]').forEach(r => { r.checked = r.value === type; });
+    buildAnnPreview();
+    const modal = document.getElementById('announcementModal');
+    modal.classList.add('visible');
+    // Live preview
+    ['annEmoji','annTitle','annContent'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.oninput = buildAnnPreview; }
+    });
+    document.querySelectorAll('input[name="annType"]').forEach(r => { r.onchange = buildAnnPreview; });
+  }
+  window.openAnnouncementModal = openAnnouncementModal;
+
+  function editAnnouncement(ann) {
+    openAnnouncementModal(ann);
+  }
+  window.editAnnouncement = editAnnouncement;
+
+  function closeAnnouncementModal() {
+    closeModal('announcementModal');
+  }
+  window.closeAnnouncementModal = closeAnnouncementModal;
+
+  async function saveAnnouncement() {
+    const id      = document.getElementById('annId').value;
+    const emoji   = document.getElementById('annEmoji').value.trim() || '📢';
+    const title   = document.getElementById('annTitle').value.trim();
+    const content = document.getElementById('annContent').value.trim();
+    const type    = document.querySelector('input[name="annType"]:checked')?.value || 'info';
+    if (!title || !content) { showToast('Judul dan isi pengumuman wajib diisi.', 'error'); return; }
+    const btn = document.getElementById('annSaveBtn');
+    btn.disabled = true; btn.textContent = 'Menyimpan...';
+    try {
+      const url    = id ? `/api/announcements/${id}` : '/api/announcements';
+      const method = id ? 'PUT' : 'POST';
+      const r = await fetch(url, {
+        method, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emoji, title, content, type })
+      });
+      if (!r.ok) throw new Error((await r.json()).error || 'Gagal menyimpan');
+      showToast(id ? 'Pengumuman diperbarui ✓' : 'Pengumuman berhasil dibuat ✓', 'success');
+      closeAnnouncementModal();
+      loadAnnouncements();
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Simpan Pengumuman';
+    }
+  }
+  window.saveAnnouncement = saveAnnouncement;
+
+  async function toggleAnnouncement(id, btn) {
+    try {
+      const r = await fetch(`/api/announcements/${id}/toggle`, { method: 'PATCH' });
+      if (!r.ok) throw new Error();
+      const ann = await r.json();
+      btn.classList.toggle('on', ann.is_active);
+      btn.title = ann.is_active ? 'Nonaktifkan' : 'Aktifkan';
+      const card = document.getElementById(`ann-card-${id}`);
+      if (card) card.classList.toggle('inactive', !ann.is_active);
+      const meta = card?.querySelector('.ann-admin-meta span:nth-child(2)');
+      if (meta) meta.textContent = ann.is_active ? '🟢 Aktif' : '⚫ Nonaktif';
+      showToast(ann.is_active ? 'Pengumuman diaktifkan' : 'Pengumuman dinonaktifkan', 'success');
+    } catch { showToast('Gagal mengubah status pengumuman.', 'error'); }
+  }
+  window.toggleAnnouncement = toggleAnnouncement;
+
+  async function deleteAnnouncement(id) {
+    if (!confirm('Hapus pengumuman ini? Tidak bisa dibatalkan.')) return;
+    try {
+      const r = await fetch(`/api/announcements/${id}`, { method: 'DELETE' });
+      if (!r.ok) throw new Error();
+      showToast('Pengumuman dihapus.', 'success');
+      loadAnnouncements();
+    } catch { showToast('Gagal menghapus pengumuman.', 'error'); }
+  }
+  window.deleteAnnouncement = deleteAnnouncement;
+  window.loadAnnouncements  = loadAnnouncements;

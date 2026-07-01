@@ -14,14 +14,19 @@ const googleSheets = require('./googleSheets');
 
 const app = express();
 
-// Active SSE clients for real-time notifications
-let sseClients = [];
+// Pending notifications store (for polling - replaces SSE)
+// Max 50 notifications kept in memory, auto-cleared setelah 5 menit
+const pendingNotifications = [];
+const NOTIF_TTL_MS = 5 * 60 * 1000; // 5 menit
 
-function broadcastUpdate(type, data) {
-  const payload = JSON.stringify({ type, data });
-  sseClients.forEach(client => {
-    client.write(`data: ${payload}\n\n`);
-  });
+function storeNotification(type, data) {
+  pendingNotifications.push({ type, data, createdAt: Date.now() });
+  // Bersihkan notifikasi lama (> 5 menit) dan batasi max 50
+  const cutoff = Date.now() - NOTIF_TTL_MS;
+  while (pendingNotifications.length > 0 && pendingNotifications[0].createdAt < cutoff) {
+    pendingNotifications.shift();
+  }
+  if (pendingNotifications.length > 50) pendingNotifications.splice(0, pendingNotifications.length - 50);
 }
 
 // JWT Secret Key configuration
@@ -101,6 +106,26 @@ app.post('/api/submit', (req, res, next) => {
       return res.status(400).json({ error: 'Semua field yang bertanda * wajib diisi.' });
     }
 
+    // ===== CEK ABSENSI =====
+    // Jika fitur absensi aktif, user harus terdaftar hadir untuk tanggal_carian
+    const { user_id: submittedUserId } = req.body;
+    if (submittedUserId) {
+      try {
+        const absensiSettings = await db.getAbsensiSettings();
+        if (absensiSettings.absensi_required) {
+          const hadir = await db.isUserAbsen(tanggal_carian, submittedUserId);
+          if (!hadir) {
+            return res.status(403).json({
+              error: 'Kamu belum diabsen untuk tanggal ini. Hubungi admin untuk mendaftarkan kehadiranmu.',
+              code: 'NOT_ABSEN'
+            });
+          }
+        }
+      } catch (absenErr) {
+        console.warn('Absensi check warning (allowing submit):', absenErr.message);
+      }
+    }
+    // ===== AKHIR CEK ABSENSI =====
     // Validasi: lembar register wajib diupload - REMOVED
 
     // Parse batch_outputs: [{batch, jumlah}]
@@ -205,7 +230,7 @@ app.post('/api/submit', (req, res, next) => {
     });
 
     if (hasPending) {
-      broadcastUpdate('new_submission', { nama, posisi, pendingBatches, tanggal_carian });
+      storeNotification('new_submission', { nama, posisi, pendingBatches, tanggal_carian });
     }
 
     // ===== AUTO-SYNC ke Google Sheets (fire-and-forget, tidak block response) =====
@@ -269,6 +294,13 @@ app.post('/api/login', async (req, res) => {
       user = await db.getUserByUsernameAndNik(username.trim(), nik.trim());
       if (!user) {
         return res.status(401).json({ error: 'Username atau NIK tidak ditemukan. Hubungi HR/Admin.' });
+      }
+      // Cek status aktif
+      if (user.is_active === false) {
+        return res.status(403).json({
+          error: 'Akun Anda telah dinonaktifkan. Silakan hubungi Administrator atau HR.',
+          code: 'ACCOUNT_INACTIVE'
+        });
       }
       tokenPayload = {
         userId: user.id,
@@ -347,6 +379,7 @@ app.get('/api/check-auth', (req, res) => {
       const decoded = jwt.verify(token, JWT_SECRET);
       return res.json({
         authenticated: true,
+        userId: decoded.userId || null,
         username: decoded.username,
         nama_lengkap: decoded.nama_lengkap || decoded.username,
         role: decoded.role || 'admin',
@@ -375,23 +408,14 @@ const requireAdmin = (req, res, next) => {
   }
 };
 
-// SSE endpoint for admin real-time updates
-app.get('/api/admin/updates', requireAdmin, (req, res) => {
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.flushHeaders(); // Establish connection
-
-  sseClients.push(res);
-
-  // Keep connection alive with a ping every 30s
-  const keepAlive = setInterval(() => {
-    res.write(': keepalive\n\n');
-  }, 30000);
-
-  req.on('close', () => {
-    clearInterval(keepAlive);
-    sseClients = sseClients.filter(client => client !== res);
+// Polling endpoint untuk admin notifications (menggantikan SSE)
+// Admin frontend fetch endpoint ini setiap 15 detik - AMAN untuk serverless
+app.get('/api/admin/updates-poll', requireAdmin, (req, res) => {
+  const since = parseInt(req.query.since) || 0;
+  const newNotifs = pendingNotifications.filter(n => n.createdAt > since);
+  res.json({
+    notifications: newNotifs,
+    serverTime: Date.now()
   });
 });
 
@@ -431,6 +455,131 @@ app.post('/api/settings/login', requireAuth, requireAdmin, async (req, res) => {
     res.status(500).json({ error: 'Gagal menyimpan pengaturan.' });
   }
 });
+
+// ==================== ABSENSI ROUTES ====================
+
+// GET /api/settings/absensi — Ambil pengaturan absensi (public)
+app.get('/api/settings/absensi', async (req, res) => {
+  try {
+    const settings = await db.getAbsensiSettings();
+    res.json(settings);
+  } catch (err) {
+    console.error('Get absensi settings error:', err);
+    res.json(db.DEFAULT_ABSENSI_SETTINGS);
+  }
+});
+
+// PUT /api/settings/absensi — Simpan pengaturan absensi (admin only)
+app.put('/api/settings/absensi', requireAdmin, async (req, res) => {
+  try {
+    const { absensi_required, absensi_visible_to_user } = req.body;
+    const saved = await db.saveAbsensiSettings({
+      absensi_required: !!absensi_required,
+      absensi_visible_to_user: !!absensi_visible_to_user
+    });
+    await db.insertAuditLog(req.user.username, 'UPDATE_SETTINGS',
+      `Mengubah pengaturan absensi: wajib=${saved.absensi_required}, visible=${saved.absensi_visible_to_user}`);
+    res.json({ success: true, settings: saved });
+  } catch (err) {
+    console.error('Save absensi settings error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan pengaturan absensi.' });
+  }
+});
+
+// GET /api/absensi/tanggal-list — Daftar tanggal punya absensi (admin only)
+app.get('/api/absensi/tanggal-list', requireAdmin, async (req, res) => {
+  try {
+    const dates = await db.getAbsensiTanggalList();
+    res.json(dates);
+  } catch (err) {
+    console.error('Get absensi tanggal list error:', err);
+    res.status(500).json({ error: 'Gagal memuat daftar tanggal absensi.' });
+  }
+});
+
+// GET /api/absensi/check — Cek apakah user hadir untuk tanggal tertentu (public)
+app.get('/api/absensi/check', async (req, res) => {
+  try {
+    const { tanggal, user_id } = req.query;
+    if (!tanggal || !user_id) return res.status(400).json({ error: 'tanggal dan user_id diperlukan.' });
+    const settings = await db.getAbsensiSettings();
+    if (!settings.absensi_required) {
+      return res.json({ boleh_input: true, absensi_required: false });
+    }
+    const hadir = await db.isUserAbsen(tanggal, user_id);
+    res.json({ boleh_input: hadir, absensi_required: true, hadir });
+  } catch (err) {
+    console.error('Check absensi error:', err);
+    res.json({ boleh_input: true, absensi_required: false });
+  }
+});
+
+// GET /api/absensi/hadir-hari-ini?tanggal=YYYY-MM-DD — Rekap hadir (public jika visible)
+app.get('/api/absensi/hadir-hari-ini', async (req, res) => {
+  try {
+    const tanggal = req.query.tanggal;
+    if (!tanggal) return res.status(400).json({ error: 'Parameter tanggal diperlukan.' });
+    const settings = await db.getAbsensiSettings();
+    let isAdmin = false;
+    try {
+      const token = req.cookies.token;
+      if (token) {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'ss08-secret-key-2024');
+        if (decoded.role === 'admin') isAdmin = true;
+      }
+    } catch (e) { /* not admin */ }
+    if (!settings.absensi_visible_to_user && !isAdmin) return res.json([]);
+    const records = await db.getAbsensiByTanggal(tanggal);
+    res.json(records);
+  } catch (err) {
+    console.error('Get hadir hari ini error:', err);
+    res.status(500).json({ error: 'Gagal memuat data kehadiran.' });
+  }
+});
+
+// GET /api/absensi?tanggal=YYYY-MM-DD — Rekap absensi per tanggal (admin only)
+app.get('/api/absensi', requireAdmin, async (req, res) => {
+  try {
+    const tanggal = req.query.tanggal;
+    if (!tanggal) return res.status(400).json({ error: 'Parameter tanggal diperlukan.' });
+    const records = await db.getAbsensiByTanggal(tanggal);
+    res.json(records);
+  } catch (err) {
+    console.error('Get absensi error:', err);
+    res.status(500).json({ error: 'Gagal memuat data absensi.' });
+  }
+});
+
+// POST /api/absensi — Tambah user ke absensi (admin only)
+app.post('/api/absensi', requireAdmin, async (req, res) => {
+  try {
+    const { tanggal, user_id } = req.body;
+    if (!tanggal || !user_id) return res.status(400).json({ error: 'tanggal dan user_id diperlukan.' });
+    const record = await db.addAbsensi(tanggal, user_id, req.user.username);
+    const user = await db.getUserById(user_id);
+    await db.insertAuditLog(req.user.username, 'ABSENSI_ADD',
+      `Menambah absensi: ${user ? user.nama_lengkap : user_id} untuk tanggal ${tanggal}`);
+    res.json({ success: true, record });
+  } catch (err) {
+    console.error('Add absensi error:', err);
+    res.status(500).json({ error: 'Gagal menambah absensi.' });
+  }
+});
+
+// DELETE /api/absensi/:id — Hapus user dari absensi (admin only)
+app.delete('/api/absensi/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.removeAbsensi(id);
+    await db.insertAuditLog(req.user.username, 'ABSENSI_REMOVE',
+      `Menghapus record absensi ID: ${id}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Remove absensi error:', err);
+    res.status(500).json({ error: 'Gagal menghapus absensi.' });
+  }
+});
+
 
 // GET /api/submissions/:id
 app.get('/api/submissions/:id', requireAuth, async (req, res) => {
@@ -2005,6 +2154,19 @@ app.delete('/api/users/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// PATCH /api/users/:id/toggle-status — Aktifkan/Nonaktifkan user operasional
+app.patch('/api/users/:id/toggle-status', requireAdmin, async (req, res) => {
+  try {
+    const updated = await db.toggleUserStatus(req.params.id);
+    const statusLabel = updated.is_active === false ? 'dinonaktifkan' : 'diaktifkan';
+    await db.insertAuditLog(req.user.username, 'TOGGLE_USER_STATUS', `User operasional ${updated.username} (${updated.nama_lengkap}) telah ${statusLabel}`);
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    console.error('Toggle user status error:', err);
+    res.status(500).json({ error: 'Gagal mengubah status user.' });
+  }
+});
+
 // PUT /api/users/:id — Edit user operasional
 app.put('/api/users/:id', requireAdmin, async (req, res) => {
   try {
@@ -2171,7 +2333,85 @@ app.delete('/api/rekap-toko/tanggal/:tanggal', requireAuth, async (req, res) => 
   }
 });
 
+// ==================== ANNOUNCEMENTS ROUTES ====================
+
+// GET /api/announcements — Public: get active announcements only
+app.get('/api/announcements', async (req, res) => {
+  try {
+    const data = await db.getActiveAnnouncements();
+    res.json(data);
+  } catch (err) {
+    console.error('Get announcements error:', err);
+    res.status(500).json({ error: 'Gagal memuat pengumuman.' });
+  }
+});
+
+// GET /api/announcements/all — Admin: get all (active + inactive)
+app.get('/api/announcements/all', requireAuth, async (req, res) => {
+  try {
+    const data = await db.getAllAnnouncements();
+    res.json(data);
+  } catch (err) {
+    console.error('Get all announcements error:', err);
+    res.status(500).json({ error: 'Gagal memuat pengumuman.' });
+  }
+});
+
+// POST /api/announcements — Admin: create new
+app.post('/api/announcements', requireAuth, async (req, res) => {
+  try {
+    const { title, content, type, emoji } = req.body;
+    if (!title || !content) return res.status(400).json({ error: 'Title dan content wajib diisi.' });
+    const record = await db.createAnnouncement({
+      title, content, type, emoji,
+      created_by: req.user?.username || 'admin'
+    });
+    await db.insertAuditLog(req.user?.username, 'CREATE_ANNOUNCEMENT', `Buat pengumuman: ${title}`);
+    res.json(record);
+  } catch (err) {
+    console.error('Create announcement error:', err);
+    res.status(500).json({ error: 'Gagal membuat pengumuman.' });
+  }
+});
+
+// PUT /api/announcements/:id — Admin: update
+app.put('/api/announcements/:id', requireAuth, async (req, res) => {
+  try {
+    const { title, content, type, emoji, is_active } = req.body;
+    const record = await db.updateAnnouncement(req.params.id, { title, content, type, emoji, is_active });
+    await db.insertAuditLog(req.user?.username, 'UPDATE_ANNOUNCEMENT', `Update pengumuman: ${title}`);
+    res.json(record);
+  } catch (err) {
+    console.error('Update announcement error:', err);
+    res.status(500).json({ error: 'Gagal update pengumuman.' });
+  }
+});
+
+// PATCH /api/announcements/:id/toggle — Admin: toggle active/inactive
+app.patch('/api/announcements/:id/toggle', requireAuth, async (req, res) => {
+  try {
+    const record = await db.toggleAnnouncement(req.params.id);
+    res.json(record);
+  } catch (err) {
+    console.error('Toggle announcement error:', err);
+    res.status(500).json({ error: 'Gagal toggle pengumuman.' });
+  }
+});
+
+// DELETE /api/announcements/:id — Admin: delete
+app.delete('/api/announcements/:id', requireAuth, async (req, res) => {
+  try {
+    await db.deleteAnnouncement(req.params.id);
+    await db.insertAuditLog(req.user?.username, 'DELETE_ANNOUNCEMENT', `Hapus pengumuman ID: ${req.params.id}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete announcement error:', err);
+    res.status(500).json({ error: 'Gagal menghapus pengumuman.' });
+  }
+});
+
 // ==================== LOADER ENTRIES ROUTES ====================
+
 
 // GET /api/loader-entries — Semua atau filter per tanggal (lengkap dengan info file/foto)
 app.get('/api/loader-entries', requireAuth, async (req, res) => {

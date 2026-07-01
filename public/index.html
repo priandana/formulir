@@ -614,7 +614,7 @@
               </div>
               <div>
                 <div class="section-title">Data Pengiriman</div>
-                <div class="section-subtitle">Tanggal carian, kirim, dan cluster</div>
+                <div class="section-subtitle">Tanggal carian dan pengiriman</div>
               </div>
             </div>
             <div class="section-body">
@@ -642,20 +642,6 @@
                     <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
                     Wajib diisi
                   </div>
-                </div>
-              </div>
-              <div class="field-group" style="margin-top:6px;">
-                <label class="field-label" for="ld_cluster_picker">Cluster (Tipe Zona) <span class="required">*</span></label>
-                <div class="field-hint">Pilih cluster yang Anda kerjakan hari ini</div>
-                <select id="ld_cluster_picker" class="form-select blue" required>
-                  <option value="">-- Pilih Cluster --</option>
-                  <option value="FREZZER">FREZZER (F1)</option>
-                  <option value="CHILLER">CHILLER (R1, R2, R3)</option>
-                  <option value="AMBIENT">AMBIENT (T1-T5)</option>
-                </select>
-                <div class="field-error" id="err-ld_cluster_picker">
-                  <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                  Wajib diisi
                 </div>
               </div>
             </div>
@@ -725,7 +711,7 @@
               <div class="field-group">
                 <div class="field-label">Jumlah Kontainer Aktual <span class="required">*</span></div>
                 <div class="field-hint">Total kontainer yang berhasil dimuat.</div>
-                <div class="batch-output-empty" id="ldClusterOutputEmpty">Pilih Tanggal Carian dan Cluster terlebih dahulu.</div>
+                <div class="batch-output-empty" id="ldClusterOutputEmpty">Pilih Tanggal Carian terlebih dahulu.</div>
                 <div id="ldClusterOutputList"></div>
                 <div class="field-error" id="err-ld_kontainer">
                   <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
@@ -866,6 +852,28 @@
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
+<!-- ===== ANNOUNCEMENT POPUP MODAL ===== -->
+<div class="ann-overlay" id="annOverlay" onclick="closeAnnouncementModalOnly()"></div>
+<div class="ann-modal" id="annModal" role="dialog" aria-modal="true" aria-labelledby="annModalTitle">
+  <div class="ann-modal-header">
+    <div class="ann-modal-glow">📢</div>
+    <div>
+      <div class="ann-modal-title" id="annModalTitle">Pengumuman Penting</div>
+      <div class="ann-modal-sub">Informasi terbaru untuk seluruh operasional hari ini</div>
+    </div>
+    <button class="ann-modal-close" onclick="closeAnnouncementModalOnly()" aria-label="Tutup">
+      &times;
+    </button>
+  </div>
+  <div class="ann-modal-body" id="annModalBody">
+    <!-- Announcements render here dynamically -->
+  </div>
+  <div class="ann-modal-footer" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+    <button class="ann-close-btn-secondary" onclick="closeAnnouncementModalOnly()" style="flex:1; min-width:140px;">Tutup Sementara</button>
+    <button class="ann-read-btn" onclick="dismissAnnouncements()" style="flex:2; min-width:200px;">Saya Sudah Membaca & Paham</button>
+  </div>
+</div>
+
 <!-- ===== MODAL GANTI PASSWORD ===== -->
 <div class="cp-overlay" id="cpOverlay" onclick="closeChangePasswordModal()"></div>
 <div class="cp-modal" id="cpModal" role="dialog" aria-modal="true" aria-labelledby="cpModalTitle">
@@ -940,6 +948,6 @@
   <div class="lightbox-caption" id="lightboxCaption">Bukti Foto</div>
 </div>
 
-<script src="/js/index.js?v=1.2" defer></script>
+<script src="/js/index.js?v=1.3" defer></script>
 </body>
 </html>

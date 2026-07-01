@@ -1,5 +1,18 @@
 const formatNum = (v) => (v !== null && v !== undefined && !isNaN(v)) ? Number(v).toLocaleString('id-ID') : '0';
 
+function autoLink(text) {
+  if (!text) return '';
+  const regex = /(https?:\/\/[^\s]+|wa\.me\/[^\s\n\r\t]+)/gi;
+  return text.replace(regex, (url) => {
+    let href = url;
+    if (!/^https?:\/\//i.test(url)) {
+      href = 'https://' + url;
+    }
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+  });
+}
+
+
 // ===================== AUTH =====================
 let currentUser = null;
 
@@ -11,6 +24,8 @@ async function initAuth() {
     if (auth.role === 'admin') { window.location.href = '/admin'; return; }
     currentUser = auth;
     populateUserUI();
+    // Load announcements immediately after user validation
+    loadAnnouncements();
   } catch(e) {
     window.location.href = '/login';
   } finally {
@@ -1008,6 +1023,7 @@ document.getElementById('pickerForm').addEventListener('submit', async e => {
   fd.append('zona',              document.getElementById('ps_zona').value);
   fd.append('catatan_tambahan',  finalCatatan);
   fd.append('batch_outputs',     JSON.stringify(batchOutputs));
+  if (currentUser && currentUser.userId) fd.append('user_id', currentUser.userId);
   getChecked('psBatchSection').forEach(v => fd.append('batch_cluster', v));
   psSelectedFiles.forEach(f => fd.append('lembar_register', f));
 
@@ -1021,7 +1037,11 @@ document.getElementById('pickerForm').addEventListener('submit', async e => {
       // Refresh dashboard di background
       loadDashboard();
     } else {
-      showToast(d.error || 'Terjadi kesalahan. Coba lagi.', 'error');
+      if (d.code === 'NOT_ABSEN') {
+        showAbsensiBlockedToast(d.error);
+      } else {
+        showToast(d.error || 'Terjadi kesalahan. Coba lagi.', 'error');
+      }
     }
   } catch(err) {
     showToast('Gagal menghubungi server. Periksa koneksi Anda.', 'error');
@@ -1058,6 +1078,7 @@ let ldCapacityCallId = 0; // Race condition guard for ldLoadClusterCapacity
 let ldCatatanRequired = false;
 let ldArmadas = [{ id: Date.now(), no_polisi: '', selectedGms: [] }];
 let ldAvailableGroupMobils = [];
+let ldGmZonaMap = {}; // Map: group_mobil -> zona (FREZZER/CHILLER/AMBIENT)
 let ldSelectedFiles = [];
 
 // File upload handler for Loader
@@ -1128,11 +1149,9 @@ function ldRenderFileList() {
 }
 function ldRemoveFile(idx) { ldSelectedFiles.splice(idx, 1); ldRenderFileList(); }
 
-['ld_cluster_picker', 'ld_tanggal_carian'].forEach(id => {
-  document.getElementById(id).addEventListener('change', () => {
-    ldBatchCapacityCache = {};
-    ldLoadGroupMobils();
-  });
+document.getElementById('ld_tanggal_carian').addEventListener('change', () => {
+  ldBatchCapacityCache = {};
+  ldLoadGroupMobils();
 });
 
 function ldUpdateCount() {
@@ -1289,7 +1308,6 @@ function ldRemoveArmada(index) {
 async function ldLoadGroupMobils() {
   try {
     const tanggal = document.getElementById('ld_tanggal_carian').value;
-    const cluster = document.getElementById('ld_cluster_picker').value;
     const armadaSection = document.getElementById('ldArmadaSection');
     const armadaListContainer = document.getElementById('ldArmadaListContainer');
     
@@ -1311,28 +1329,32 @@ async function ldLoadGroupMobils() {
     
     ldArmadas = [{ id: Date.now(), no_polisi: '', selectedGms: [] }];
     ldAvailableGroupMobils = [];
+    ldGmZonaMap = {};
     
     ldUpdateTotal();
 
-    if (!tanggal || !cluster) return;
+    if (!tanggal) return;
 
     empty.textContent = 'Memuat daftar Group Mobil dari server...';
 
     const r = await fetch(`/api/data-carian?tanggal=${tanggal}`);
     const records = await r.json();
     
-    // Filter records Loader for this cluster
-    const activeRecords = records.filter(rec => 
-      rec.posisi === 'Loader' && 
-      String(rec.zona).trim().toUpperCase() === String(cluster).trim().toUpperCase()
-    );
+    // Ambil SEMUA records Loader, semua zona digabung
+    const activeRecords = records.filter(rec => rec.posisi === 'Loader');
 
     if (activeRecords.length === 0) {
-      empty.textContent = `⚠️ Tidak ada data carian untuk tanggal ${tanggal} dan cluster ${cluster}.`;
+      empty.textContent = `⚠️ Tidak ada data carian Loader untuk tanggal ${tanggal}.`;
       return;
     }
 
-    // Unique list of group mobil (rec.batch)
+    // Bangun map GM -> zona, dan list unik GM
+    activeRecords.forEach(rec => {
+      const gm = String(rec.batch).trim();
+      const zona = String(rec.zona).trim().toUpperCase();
+      if (!ldGmZonaMap[gm]) ldGmZonaMap[gm] = [];
+      if (!ldGmZonaMap[gm].includes(zona)) ldGmZonaMap[gm].push(zona);
+    });
     ldAvailableGroupMobils = Array.from(new Set(activeRecords.map(rec => String(rec.batch).trim()))).sort();
     
     if (armadaSection) armadaSection.style.display = 'block';
@@ -1349,7 +1371,7 @@ async function ldLoadClusterCapacity() {
   const myCallId = ++ldCapacityCallId; // Capture this call's ID to detect stale calls
   try {
     const tanggal = document.getElementById('ld_tanggal_carian').value;
-    const cluster = document.getElementById('ld_cluster_picker').value; // FREZZER/CHILLER/AMBIENT
+    // zona per GM diambil dari ldGmZonaMap saat fetch capacity
     const outputList = document.getElementById('ldClusterOutputList');
     const empty      = document.getElementById('ldClusterOutputEmpty');
     const capCard    = document.getElementById('ldCapacityCard');
@@ -1379,7 +1401,7 @@ async function ldLoadClusterCapacity() {
       detailsContainer.style.display = 'none';
     }
     
-    if (!tanggal || !cluster || allSelectedGms.length === 0) {
+    if (!tanggal || allSelectedGms.length === 0) {
       empty.style.display = '';
       empty.textContent = 'Pilih satu atau beberapa Group Mobil terlebih dahulu.';
       if (capCard) capCard.style.display = 'none';
@@ -1396,12 +1418,23 @@ async function ldLoadClusterCapacity() {
     if (capLoading) capLoading.style.display = 'flex';
     if (capInfo) capInfo.style.display = 'none';
     
-    // Fetch capacities for all selected group mobils in parallel
     const promises = allSelectedGms.map(async gm => {
       if (ldBatchCapacityCache[gm]) return { gm, cap: ldBatchCapacityCache[gm] };
-      
-      const r = await fetch(`/api/batch-capacity?tanggal_carian=${tanggal}&posisi=Loader&zona=${encodeURIComponent(cluster)}&batch=${encodeURIComponent(gm)}`);
-      const cap = await r.json();
+      const zonas = Array.isArray(ldGmZonaMap[gm]) ? ldGmZonaMap[gm] : (ldGmZonaMap[gm] ? [ldGmZonaMap[gm]] : []);
+      if (zonas.length === 0) return { gm, cap: { ada_data_carian: false, total_output: 0, satuan: 'kontainer', sudah_diisi: 0, sisa: 0 } };
+      // Fetch untuk semua zona yang dimiliki GM ini
+      const capResults = await Promise.all(zonas.map(async zona => {
+        const r = await fetch(`/api/batch-capacity?tanggal_carian=${tanggal}&posisi=Loader&zona=${encodeURIComponent(zona)}&batch=${encodeURIComponent(gm)}`);
+        return r.json();
+      }));
+      // Gabungkan hasil semua zona
+      const cap = {
+        ada_data_carian: capResults.some(c => c.ada_data_carian),
+        total_output:    capResults.reduce((s, c) => s + (c.total_output  || 0), 0),
+        satuan:          capResults.find(c => c.satuan)?.satuan || 'kontainer',
+        sudah_diisi:     capResults.reduce((s, c) => s + (c.sudah_diisi   || 0), 0),
+        sisa:            capResults.reduce((s, c) => s + (c.sisa          || 0), 0),
+      };
       ldBatchCapacityCache[gm] = cap;
       return { gm, cap };
     });
@@ -1431,7 +1464,10 @@ async function ldLoadClusterCapacity() {
         capInfo.style.display = 'flex';
         const plates = ldArmadas.map(a => a.no_polisi || '-').filter(p => p !== '-');
         const plateLabel = plates.length > 0 ? plates.join(', ') : 'Daftar Armada';
-        document.getElementById('ldCapacityClusterLabel').textContent = `${plateLabel} (${cluster})`;
+        // Tampilkan zona unik dari GMs yang dipilih
+        const zonaSet = new Set(allSelectedGms.flatMap(gm => ldGmZonaMap[gm] || []).filter(Boolean));
+        const zonaLabel = zonaSet.size > 0 ? Array.from(zonaSet).join(', ') : 'Semua Zona';
+        document.getElementById('ldCapacityClusterLabel').textContent = `${plateLabel} (${zonaLabel})`;
         document.getElementById('ldCapacityValue').textContent = formatNum(totalTarget);
       }
       
@@ -1727,12 +1763,11 @@ function ldShowErr(id, show) {
 function ldValidate() {
   let valid = true;
   
-  // Validate global fields
-  ['ld_tanggal_carian','ld_tanggal_kirim','ld_cluster_picker'].forEach(id => {
+  // Validate global fields — hanya tanggal, cluster tidak perlu dipilih lagi
+  ['ld_tanggal_carian','ld_tanggal_kirim'].forEach(id => {
     const el = document.getElementById(id);
-    const errId = id === 'ld_cluster_picker' ? 'ld_cluster_picker' : id;
     const empty = !el.value.trim();
-    ldShowErr(errId, empty);
+    ldShowErr(id, empty);
     if (empty) valid = false;
   });
 
@@ -1801,7 +1836,11 @@ document.getElementById('loaderForm').addEventListener('submit', async e => {
 
   // Ambil files loader
   const ldFiles = ldSelectedFiles.slice();
-  const cluster = document.getElementById('ld_cluster_picker').value;
+  // Derive zona dari GM yang dipilih via ldGmZonaMap
+  const allSelectedGmsForZona = [];
+  ldArmadas.forEach(a => a.selectedGms.forEach(gm => { if (!allSelectedGmsForZona.includes(gm)) allSelectedGmsForZona.push(gm); }));
+  const zonaSet = new Set(allSelectedGmsForZona.flatMap(gm => ldGmZonaMap[gm] || []).filter(Boolean));
+  const zona = zonaSet.size > 0 ? Array.from(zonaSet).sort().join(', ') : 'LOADER';
   const clusterOutputs = {};
   document.querySelectorAll('#ldClusterOutputList .bor-input').forEach(inp => {
     if (!inp.disabled) {
@@ -1844,7 +1883,7 @@ document.getElementById('loaderForm').addEventListener('submit', async e => {
       fd.append('tanggal_carian',    document.getElementById('ld_tanggal_carian').value);
       fd.append('tanggal_kirim',     document.getElementById('ld_tanggal_kirim').value);
       fd.append('nama',              currentUser.nama_lengkap);
-      fd.append('zona',              cluster);
+      fd.append('zona',              zona);
       fd.append('no_polisi',         truck.no_polisi);
       fd.append('clusters',          JSON.stringify(truck.selectedGms));
       fd.append('cluster_outputs',   JSON.stringify(truckOutputs));
@@ -1898,6 +1937,7 @@ function ldResetForm() {
   
   ldArmadas = [{ id: Date.now(), no_polisi: '', selectedGms: [] }];
   ldAvailableGroupMobils = [];
+  ldGmZonaMap = {};
 
   ldUpdateTotal();
 
@@ -2332,3 +2372,95 @@ document.addEventListener('click', (e) => {
 
 // Run theme initialization
 initTheme();
+
+function showAbsensiBlockedToast(msg) {
+  const existing = document.getElementById('absensiBlockedNotif');
+  if (existing) existing.remove();
+  
+  const el = document.createElement('div');
+  el.id = 'absensiBlockedNotif';
+  el.style.cssText = 'position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:9999;background:linear-gradient(135deg,#EF4444,#DC2626);color:#fff;padding:16px 24px;border-radius:14px;box-shadow:0 10px 30px rgba(239,68,68,0.35);font-size:14px;font-weight:600;max-width:90%;width:420px;text-align:center;display:flex;align-items:center;justify-content:center;gap:12px;box-sizing:border-box;border:1px solid rgba(255,255,255,0.1);';
+  
+  el.innerHTML = `<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>${msg || 'Kamu belum diabsen untuk tanggal ini.'}</span>`;
+  
+  document.body.appendChild(el);
+  setTimeout(() => {
+    el.style.opacity = '0';
+    el.style.transform = 'translate(-50%, -10px)';
+    el.style.transition = 'all 0.4s ease';
+    setTimeout(() => el.remove(), 400);
+  }, 5000);
+}
+
+// ===================== ANNOUNCEMENTS (Operasional) =====================
+let currentAnnouncementsKey = '';
+
+async function loadAnnouncements() {
+  const overlay = document.getElementById('annOverlay');
+  const modal   = document.getElementById('annModal');
+  const body    = document.getElementById('annModalBody');
+  if (!overlay || !modal || !body) return;
+
+  try {
+    const data = await fetch('/api/announcements').then(r => r.json());
+    if (!Array.isArray(data) || data.length === 0) {
+      overlay.classList.remove('active');
+      modal.classList.remove('active');
+      return;
+    }
+
+    // Buat unique key berdasarkan gabungan ID pengumuman aktif agar jika ada pengumuman baru, modal tetap muncul kembali
+    const activeIds = data.map(ann => ann.id).sort().join('_');
+    currentAnnouncementsKey = `ann_dismissed_${activeIds}`;
+
+    // Cek apakah user sudah dismiss sesi pengumuman aktif ini
+    if (sessionStorage.getItem(currentAnnouncementsKey) === 'true') {
+      return;
+    }
+
+    // Render pengumuman di dalam modal
+    body.innerHTML = data.map(ann => {
+      const dateStr = new Date(ann.created_at).toLocaleDateString('id-ID', {
+        weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+      });
+      return `<div class="ann-banner ${ann.type || 'info'}">
+        <div class="ann-banner-emoji">${ann.emoji || '📢'}</div>
+        <div class="ann-banner-body">
+          <div class="ann-banner-title">${ann.title}</div>
+          <div class="ann-banner-content">${autoLink(ann.content)}</div>
+          <div class="ann-banner-date">${dateStr}</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    // Tampilkan modal dengan transisi
+    overlay.classList.add('active');
+    modal.classList.add('active');
+  } catch (e) {
+    console.error('loadAnnouncements error:', e);
+  }
+}
+
+function dismissAnnouncements() {
+  const overlay = document.getElementById('annOverlay');
+  const modal   = document.getElementById('annModal');
+  if (overlay) overlay.classList.remove('active');
+  if (modal) modal.classList.remove('active');
+
+  // Set di sessionStorage agar tidak muncul lagi pada sesi tab/browser ini
+  if (currentAnnouncementsKey) {
+    sessionStorage.setItem(currentAnnouncementsKey, 'true');
+  }
+}
+
+function closeAnnouncementModalOnly() {
+  const overlay = document.getElementById('annOverlay');
+  const modal   = document.getElementById('annModal');
+  if (overlay) overlay.classList.remove('active');
+  if (modal) modal.classList.remove('active');
+}
+
+// Expose to global scope
+window.dismissAnnouncements = dismissAnnouncements;
+window.closeAnnouncementModalOnly = closeAnnouncementModalOnly;
+window.loadAnnouncements    = loadAnnouncements;

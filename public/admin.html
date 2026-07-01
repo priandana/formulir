@@ -8,7 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="dns-prefetch" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/admin.css?v=1.2">
+  <link rel="stylesheet" href="/css/admin.css?v=1.4">
+  <link rel="stylesheet" href="/css/absensi.css?v=1.0">
   <script>
     if (localStorage.getItem('theme') === 'dark') {
       document.body.classList.add('dark-mode');
@@ -63,7 +64,14 @@
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
       Hasil Entry Loader
     </a>
-    <div class="nav-section-title">Tools</div>
+    <a class="nav-item" id="nav-absensi" onclick="showPage('absensi')">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+      Absensi
+    </a>
+    <a class="nav-item" id="nav-announcements" onclick="showPage('announcements')">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
+      Pengumuman
+    </a>
     <a class="nav-item" onclick="showPage('export')"
       id="nav-export">
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
@@ -114,11 +122,14 @@
   </div>
 </aside>
 
+<!-- Sidebar Overlay for mobile -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="document.getElementById('sidebar').classList.remove('open')"></div>
+
 <!-- Main Content -->
 <main class="main-content">
   <div class="topbar">
     <div style="display:flex;align-items:center;gap:12px;">
-      <button class="btn btn-outline" id="mobileMenuBtn" onclick="document.getElementById('sidebar').classList.toggle('open')" style="display:none">
+      <button class="btn btn-outline" id="mobileMenuBtn" onclick="document.getElementById('sidebar').classList.toggle('open')">
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
       <h2 id="pageTitle">Dashboard</h2>
@@ -368,7 +379,25 @@
       <div class="table-card">
         <div class="table-header">
           <div class="table-title" id="dcTableTitle">Data Kapasitas Batch</div>
-          <div class="table-actions">
+          <div class="table-actions" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <select id="dcPosisiFilter" class="filter-select" onchange="filterDCTable()" style="height:36px; padding:0 12px; font-size:12px; font-weight:600; border-radius:10px; border:1px solid var(--card-border); background:var(--card-bg); color:var(--text); cursor:pointer;">
+              <option value="">Semua Posisi</option>
+              <option value="Picker">🔵 Picker</option>
+              <option value="Sorter">🟢 Sorter</option>
+              <option value="Loader">🟡 Loader</option>
+            </select>
+            <select id="dcZonaFilter" class="filter-select" onchange="filterDCTable()" style="height:36px; padding:0 12px; font-size:12px; font-weight:600; border-radius:10px; border:1px solid var(--card-border); background:var(--card-bg); color:var(--text); cursor:pointer;">
+              <option value="">Semua Zona</option>
+              <option value="AMBIENT">AMBIENT</option>
+              <option value="FREEZER">FREEZER</option>
+              <option value="CHILLER">CHILLER</option>
+            </select>
+            <select id="dcStatusFilter" class="filter-select" onchange="filterDCTable()" style="height:36px; padding:0 12px; font-size:12px; font-weight:600; border-radius:10px; border:1px solid var(--card-border); background:var(--card-bg); color:var(--text); cursor:pointer;">
+              <option value="">Semua Status</option>
+              <option value="belum">Belum Terisi (0%)</option>
+              <option value="sebagian">Sebagian (1%-99%)</option>
+              <option value="selesai">Selesai (100%)</option>
+            </select>
             <div class="search-bar">
               <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
               <input type="text" id="dcSearchInput" placeholder="Cari zona, batch, posisi..." oninput="filterDCTable()">
@@ -515,10 +544,10 @@
         <div class="table-wrap">
           <table>
             <thead>
-              <tr><th>No</th><th>Nama Lengkap</th><th>Username</th><th>NIK</th><th>Posisi</th><th>Tipe</th><th>Dibuat</th><th>Aksi</th></tr>
+              <tr><th>No</th><th>Nama Lengkap</th><th>Username</th><th>NIK</th><th>Posisi</th><th>Tipe</th><th>Status</th><th>Dibuat</th><th>Aksi</th></tr>
             </thead>
             <tbody id="usersTableBody">
-              <tr><td colspan="8"><div class="loading-spinner"><div class="spin"></div></div></td></tr>
+              <tr><td colspan="9"><div class="loading-spinner"><div class="spin"></div></div></td></tr>
             </tbody>
           </table>
         </div>
@@ -639,7 +668,100 @@
       </div>
     </div>
 
+    <!-- ===== ANNOUNCEMENTS PAGE ===== -->
+    <div id="page-announcements" class="page-section" style="display:none;">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:16px; margin-bottom:28px;">
+        <div>
+          <h2 style="font-size:22px; font-weight:800; color:var(--text); margin-bottom:6px;">📢 Pengumuman</h2>
+          <p style="font-size:13px; color:var(--text-muted);">Buat dan kelola pengumuman yang ditampilkan di dashboard karyawan.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openAnnouncementModal()" id="btnNewAnnouncement" style="gap:8px; display:flex; align-items:center;">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Buat Pengumuman Baru
+        </button>
+      </div>
+
+      <!-- List -->
+      <div id="announcementList">
+        <div style="text-align:center; padding:60px 20px; color:var(--text-muted);">
+          <div style="font-size:40px; margin-bottom:12px;">📭</div>
+          <div style="font-weight:600; font-size:15px;">Memuat pengumuman...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Announcement Modal -->
+    <div class="modal-overlay" id="announcementModal">
+      <div class="modal" style="max-width:560px;">
+        <div class="modal-header">
+          <h3 id="announcementModalTitle">Buat Pengumuman Baru</h3>
+          <button class="modal-close" onclick="closeAnnouncementModal()">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="modal-body" style="padding:24px;">
+          <input type="hidden" id="annId">
+
+          <!-- Emoji + Title -->
+          <div style="display:flex; gap:12px; margin-bottom:18px;">
+            <div>
+              <label style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:.5px;">Emoji</label>
+              <input id="annEmoji" type="text" maxlength="4" value="📢"
+                style="width:60px; text-align:center; font-size:24px; padding:8px; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); cursor:pointer;"
+                title="Klik untuk ganti emoji">
+            </div>
+            <div style="flex:1;">
+              <label style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:.5px;">Judul *</label>
+              <input id="annTitle" type="text" placeholder="Contoh: Perubahan Jadwal Shift" maxlength="100"
+                style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); font-size:14px; box-sizing:border-box;">
+            </div>
+          </div>
+
+          <!-- Content -->
+          <div style="margin-bottom:18px;">
+            <label style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:.5px;">Isi Pengumuman *</label>
+            <textarea id="annContent" rows="4" placeholder="Tulis isi pengumuman di sini..." maxlength="500"
+              style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); font-size:14px; box-sizing:border-box; resize:vertical; font-family:inherit;"></textarea>
+          </div>
+
+          <!-- Type -->
+          <div style="margin-bottom:24px;">
+            <label style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:10px; text-transform:uppercase; letter-spacing:.5px;">Tipe Tampilan</label>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;" id="annTypeSelector">
+              <label class="ann-type-opt" data-type="info" style="cursor:pointer; flex:1; min-width:100px;">
+                <input type="radio" name="annType" value="info" checked style="display:none;">
+                <div class="ann-type-card info-preview">ℹ️ Info</div>
+              </label>
+              <label class="ann-type-opt" data-type="success" style="cursor:pointer; flex:1; min-width:100px;">
+                <input type="radio" name="annType" value="success" style="display:none;">
+                <div class="ann-type-card success-preview">✅ Sukses</div>
+              </label>
+              <label class="ann-type-opt" data-type="warning" style="cursor:pointer; flex:1; min-width:100px;">
+                <input type="radio" name="annType" value="warning" style="display:none;">
+                <div class="ann-type-card warning-preview">⚠️ Peringatan</div>
+              </label>
+              <label class="ann-type-opt" data-type="celebration" style="cursor:pointer; flex:1; min-width:100px;">
+                <input type="radio" name="annType" value="celebration" style="display:none;">
+                <div class="ann-type-card celebration-preview">🎉 Perayaan</div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Preview -->
+          <div style="margin-bottom:24px;">
+            <label style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:10px; text-transform:uppercase; letter-spacing:.5px;">Preview Tampilan</label>
+            <div id="annPreview" class="ann-banner info"></div>
+          </div>
+        </div>
+        <div class="modal-footer" style="padding:16px 24px; display:flex; gap:12px;">
+          <button onclick="closeAnnouncementModal()" class="btn btn-outline" style="flex:1;">Batal</button>
+          <button onclick="saveAnnouncement()" class="btn btn-primary" style="flex:2;" id="annSaveBtn">Simpan Pengumuman</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ===== FEATURE GUIDE PAGE ===== -->
+
     <div id="page-feature-guide" class="page-section" style="display:none;">
       <div class="guide-container">
         
@@ -778,6 +900,30 @@
               <div class="guide-section">
                 <span class="guide-label benefits">Manfaat Utama:</span>
                 <p>Meningkatkan kenyamanan kerja staf gudang serta meminimalisir persentase kesalahan ketik atau salah klik saat menginput data pencapaian harian.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 6: Sistem Absensi Karyawan -->
+          <div class="guide-card">
+            <div class="guide-card-header">
+              <div class="guide-card-icon absensi-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <polyline points="23 7 16 14 12 10" />
+                </svg>
+              </div>
+              <h4 class="guide-card-title">Sistem Absensi Karyawan</h4>
+            </div>
+            <div class="guide-card-body">
+              <div class="guide-section">
+                <span class="guide-label">Cara Penggunaan:</span>
+                <p>Buka menu <strong>"Absensi"</strong> di sidebar admin. Pilih tanggal kerja, lalu tandai karyawan yang hadir dengan mengklik kartu nama mereka (berubah warna hijau). Klik tombol <strong>"Pengaturan"</strong> di pojok kanan atas untuk mengaktifkan kebijakan wajib absen atau menampilkan rekap absensi harian kepada karyawan.</p>
+              </div>
+              <div class="guide-section">
+                <span class="guide-label benefits">Manfaat Utama:</span>
+                <p>Mencegah manipulasi input data oleh karyawan lapangan dengan memblokir pengiriman formulir bagi siapa saja yang tidak diabsen hadir oleh admin pada hari kerja tersebut, menjamin keaslian data laporan carian.</p>
               </div>
             </div>
           </div>
@@ -1017,6 +1163,7 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
           </div>
         </div>
       </div>
+    </div> <!-- Closes page-gsheets -->
 
       <!-- Hidden template for connected state -->
       <script type="text/x-template" id="gsTplConnected">
@@ -1115,6 +1262,126 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
         </div>
       </div>
     </div>
+
+    <!-- ===== ABSENSI PAGE ===== -->
+    <div id="page-absensi" class="page-section" style="display:none;">
+
+      <!-- Header -->
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:16px; margin-bottom:24px;">
+        <div>
+          <h2 style="font-size:22px; font-weight:800; color:var(--text); margin-bottom:6px;">Manajemen Absensi</h2>
+          <p style="font-size:13px; color:var(--text-muted);">Pilih tanggal dan tandai siapa yang hadir. Hanya yang diabsen yang bisa input formulir (jika fitur aktif).</p>
+        </div>
+        <button class="btn btn-outline" onclick="openAbsensiSettings()" id="btnAbsensiSettings" style="gap:8px; padding:9px 16px; font-size:13px; display:flex; align-items:center;">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          Pengaturan
+        </button>
+      </div>
+
+      <!-- Status Banner -->
+      <div id="absensiStatusBanner" style="display:none; margin-bottom:20px;"></div>
+
+      <!-- Stats Row -->
+      <div id="absensiStatsRow" style="display:none; display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:20px;">
+        <div class="absensi-stat-card absensi-stat-hadir">
+          <div class="absensi-stat-icon">&#10003;</div>
+          <div>
+            <div class="absensi-stat-num" id="statHadir">0</div>
+            <div class="absensi-stat-label">Hadir</div>
+          </div>
+        </div>
+        <div class="absensi-stat-card absensi-stat-belum">
+          <div class="absensi-stat-icon">&#10005;</div>
+          <div>
+            <div class="absensi-stat-num" id="statBelumHadir">0</div>
+            <div class="absensi-stat-label">Tidak Hadir</div>
+          </div>
+        </div>
+        <div class="absensi-stat-card absensi-stat-total">
+          <div class="absensi-stat-icon">&#128101;</div>
+          <div>
+            <div class="absensi-stat-num" id="statTotalUser">0</div>
+            <div class="absensi-stat-label">Total Karyawan</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Card -->
+      <div class="table-card">
+        <div class="table-header" style="align-items:center; gap:16px; flex-wrap:wrap;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color:var(--primary);"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <label for="absensiTanggal" style="font-size:13px; font-weight:700; color:var(--text-muted);">Tanggal:</label>
+            <input type="date" id="absensiTanggal" class="filter-input" style="width:160px;" onchange="loadAbsensiForDate()">
+          </div>
+          <div class="search-bar" style="flex:1; max-width:280px;">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" id="absensiSearch" placeholder="Cari nama karyawan..." oninput="filterAbsensiUsers()">
+          </div>
+          <div style="margin-left:auto; display:flex; gap:8px;">
+            <button class="btn btn-success" onclick="absensiSemuaHadir()" style="gap:6px; font-size:12px; padding:7px 14px;" id="btnHadirSemua">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+              Hadir Semua
+            </button>
+            <button class="btn btn-danger" onclick="absensiClearSemua()" style="gap:6px; font-size:12px; padding:7px 14px;" id="btnClearSemua">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              Hapus Semua
+            </button>
+          </div>
+        </div>
+
+        <!-- Section Tabs -->
+        <div class="absensi-section-tabs" id="absensiSectionTabs">
+          <button class="absensi-section-tab active" id="tabSemua" onclick="setAbsensiSection('Semua')" data-section="Semua">
+            <span class="tab-label">Semua</span>
+            <span class="tab-count" id="countSemua">0/0</span>
+          </button>
+          <button class="absensi-section-tab picker" id="tabPicker" onclick="setAbsensiSection('Picker')" data-section="Picker">
+            <span class="tab-icon">📦</span>
+            <span class="tab-label">Picker</span>
+            <span class="tab-count" id="countPicker">0/0</span>
+          </button>
+          <button class="absensi-section-tab sorter" id="tabSorter" onclick="setAbsensiSection('Sorter')" data-section="Sorter">
+            <span class="tab-icon">🔄</span>
+            <span class="tab-label">Sorter</span>
+            <span class="tab-count" id="countSorter">0/0</span>
+          </button>
+          <button class="absensi-section-tab loader" id="tabLoader" onclick="setAbsensiSection('Loader')" data-section="Loader">
+            <span class="tab-icon">🚛</span>
+            <span class="tab-label">Loader</span>
+            <span class="tab-count" id="countLoader">0/0</span>
+          </button>
+        </div>
+
+        <div class="absensi-user-list" id="absensiUserList">
+          <div class="absensi-empty-state">
+            <svg width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="opacity:0.35; margin-bottom:12px;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <p>Pilih tanggal untuk melihat dan mengatur kehadiran</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rekap Table -->
+      <div id="absensiRekapSection" style="display:none; margin-top:20px;">
+        <div class="table-card">
+          <div class="table-header">
+            <div class="table-title">Rekap Kehadiran <span id="absensiRekapDate" style="font-size:12px; font-weight:500; color:var(--text-muted); margin-left:8px;"></span></div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>No</th><th>Nama Lengkap</th><th>Posisi</th><th>NIK</th><th>Diabsen Oleh</th><th>Waktu</th>
+                </tr>
+              </thead>
+              <tbody id="absensiRekapBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <!-- ===== END ABSENSI PAGE ===== -->
 
   </div>
 </main>
@@ -1379,6 +1646,463 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
   <div class="lightbox-caption" id="lightboxCaption">Bukti Foto</div>
 </div>
 
-<script src="/js/admin.js?v=1.2" defer></script>
+<script src="/js/admin.js?v=1.3" defer></script>
+
+<!-- ===== ABSENSI SETTINGS MODAL ===== -->
+<div class="modal-overlay" id="absensiSettingsModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Pengaturan Absensi</h3>
+      <button class="modal-close" onclick="closeModal('absensiSettingsModal')">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="absensi-toggle-row">
+        <div>
+          <div class="absensi-toggle-label">Wajib Absen untuk Input Formulir</div>
+          <div class="absensi-toggle-desc">Jika aktif, user yang tidak diabsen tidak dapat submit formulir untuk tanggal tersebut.</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggleAbsensiRequired" onchange="saveAbsensiSettings()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="absensi-toggle-row">
+        <div>
+          <div class="absensi-toggle-label">Tampilkan Rekap Kehadiran ke User</div>
+          <div class="absensi-toggle-desc">Jika aktif, user dapat melihat siapa saja yang hadir hari ini di halaman formulir.</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggleAbsensiVisible" onchange="saveAbsensiSettings()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div id="absensiSettingsSaveStatus" style="margin-top:12px; font-size:13px; color:var(--success); display:none; text-align:center; font-weight:600;">
+        ✓ Pengaturan berhasil disimpan
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeModal('absensiSettingsModal')">Tutup</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+// ===================== ABSENSI MODULE =====================
+let absensiAllUsers = [];   // all operational users
+let absensiPresent = [];    // current attendance records for selected date
+let absensiSettings = { absensi_required: false, absensi_visible_to_user: false };
+let absensiActiveSection = 'Semua';  // active section tab: 'Semua', 'Picker', 'Sorter', 'Loader'
+
+window.setAbsensiSection = function setAbsensiSection(section) {
+  absensiActiveSection = section;
+  document.querySelectorAll('.absensi-section-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.section === section);
+  });
+  renderAbsensiUserList();
+};
+
+window.initAbsensiPage = async function initAbsensiPage() {
+  // Set today as default date
+  const today = new Date().toISOString().split('T')[0];
+  const inp = document.getElementById('absensiTanggal');
+  if (inp && !inp.value) inp.value = today;
+
+  await Promise.all([
+    loadAbsensiUsers(),
+    loadAbsensiSettingsUI()
+  ]);
+  await loadAbsensiForDate();
+}
+
+async function loadAbsensiUsers() {
+  try {
+    const res = await fetch('/api/users', { credentials: 'include' });
+    if (!res.ok) return;
+    absensiAllUsers = await res.json();
+  } catch(e) { console.error('loadAbsensiUsers:', e); }
+}
+
+async function loadAbsensiSettingsUI() {
+  try {
+    const res = await fetch('/api/settings/absensi');
+    absensiSettings = await res.json();
+    // Update toggles
+    const req = document.getElementById('toggleAbsensiRequired');
+    const vis = document.getElementById('toggleAbsensiVisible');
+    if (req) req.checked = absensiSettings.absensi_required;
+    if (vis) vis.checked = absensiSettings.absensi_visible_to_user;
+    // Update status banner
+    updateAbsensiStatusBanner();
+  } catch(e) { console.error('loadAbsensiSettingsUI:', e); }
+}
+
+function updateAbsensiStatusBanner() {
+  const banner = document.getElementById('absensiStatusBanner');
+  if (!banner) return;
+  if (absensiSettings.absensi_required) {
+    banner.style.display = 'flex';
+    banner.className = 'absensi-status-banner active';
+    banner.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Sistem absensi <strong style="margin:0 4px">AKTIF</strong> — user yang tidak diabsen tidak bisa input formulir.';
+  } else {
+    banner.style.display = 'flex';
+    banner.className = 'absensi-status-banner inactive';
+    banner.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Sistem absensi <strong style="margin:0 4px">NONAKTIF</strong> — semua user bebas input formulir.';
+  }
+}
+
+async function loadAbsensiForDate() {
+  const tanggal = document.getElementById('absensiTanggal')?.value;
+  if (!tanggal) return;
+
+  try {
+    const res = await fetch('/api/absensi?tanggal=' + tanggal, { credentials: 'include' });
+    if (!res.ok) return;
+    absensiPresent = await res.json();
+    renderAbsensiUserList();
+    renderAbsensiRekap();
+  } catch(e) { console.error('loadAbsensiForDate:', e); }
+}
+
+function renderAbsensiUserList() {
+  const container = document.getElementById('absensiUserList');
+  const statsRow = document.getElementById('absensiStatsRow');
+  const search = (document.getElementById('absensiSearch')?.value || '').toLowerCase();
+  if (!container) return;
+
+  if (absensiAllUsers.length === 0) {
+    container.innerHTML = '<div class="absensi-empty-state"><svg width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="opacity:0.35; margin-bottom:12px;"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg><p>Belum ada karyawan terdaftar. Tambahkan karyawan di halaman Manajemen User.</p></div>';
+    return;
+  }
+
+  const presentIds = new Set(absensiPresent.map(a => a.user_id));
+
+  // Update global stats row
+  if (statsRow) {
+    statsRow.style.display = 'grid';
+    document.getElementById('statHadir').textContent = presentIds.size;
+    document.getElementById('statBelumHadir').textContent = absensiAllUsers.length - presentIds.size;
+    document.getElementById('statTotalUser').textContent = absensiAllUsers.length;
+  }
+
+  // Update per-section tab counters
+  ['Picker', 'Sorter', 'Loader'].forEach(sec => {
+    const secUsers = absensiAllUsers.filter(u => (u.posisi || '') === sec);
+    const secHadir = secUsers.filter(u => presentIds.has(u.id)).length;
+    const el = document.getElementById('count' + sec);
+    if (el) el.textContent = secHadir + '/' + secUsers.length;
+  });
+  const elSemua = document.getElementById('countSemua');
+  if (elSemua) elSemua.textContent = presentIds.size + '/' + absensiAllUsers.length;
+
+  // Apply section + search filter
+  const filtered = absensiAllUsers.filter(u => {
+    const matchSection = absensiActiveSection === 'Semua' || (u.posisi || '') === absensiActiveSection;
+    const matchSearch = !search ||
+      (u.nama_lengkap || '').toLowerCase().includes(search) ||
+      (u.posisi || '').toLowerCase().includes(search) ||
+      (u.username || '').toLowerCase().includes(search);
+    return matchSection && matchSearch;
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="absensi-empty-state"><p>Tidak ada karyawan yang cocok.</p></div>';
+    return;
+  }
+
+  // Sort: hadir first, then name
+  const sorted = [...filtered].sort((a, b) => {
+    const aH = presentIds.has(a.id) ? 0 : 1;
+    const bH = presentIds.has(b.id) ? 0 : 1;
+    return aH - bH || (a.nama_lengkap || '').localeCompare(b.nama_lengkap || '');
+  });
+
+  container.innerHTML = sorted.map(user => {
+    const hadir = presentIds.has(user.id);
+    const initials = (user.nama_lengkap || user.username || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+    const posisiBadge = user.posisi ? getPosisiBadge(user.posisi) : '';
+    const absenRecord = absensiPresent.find(a => a.user_id === user.id);
+
+    return `
+      <div class="absensi-user-card ${hadir ? 'hadir' : ''}" onclick="window.toggleAbsensi('${user.id}', '${absenRecord ? absenRecord.id : ''}')" data-user-id="${user.id}" data-nama="${(user.nama_lengkap || '').toLowerCase()}">
+        <div class="absensi-user-avatar">${initials}</div>
+        <div class="absensi-user-info">
+          <div class="absensi-user-name">${user.nama_lengkap || user.username}</div>
+          <div class="absensi-user-meta">${posisiBadge} ${hadir ? '<span style="color:#10B981; font-weight:600;">Hadir</span>' : '<span style="color:var(--text-dim);">Tidak Hadir</span>'}</div>
+        </div>
+        <div class="absensi-check-icon">
+          ${hadir ? '<svg width="12" height="12" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function getPosisiBadge(posisi) {
+  const map = { 'Picker': 'badge-posisi-picker', 'Sorter': 'badge-posisi-sorter', 'Loader': 'badge-posisi-loader' };
+  const cls = map[posisi] || '';
+  return cls ? '<span class="' + cls + '">' + posisi + '</span>' : '<span>' + posisi + '</span>';
+}
+
+window.filterAbsensiUsers = function filterAbsensiUsers() {
+  renderAbsensiUserList();
+}
+
+window.toggleAbsensi = async function toggleAbsensi(userId, absensiRecordId) {
+  const tanggal = document.getElementById('absensiTanggal')?.value;
+  if (!tanggal) return;
+
+  const backupPresent = [...absensiPresent];
+  const presentIds = new Set(absensiPresent.map(a => a.user_id));
+  const isHadir = presentIds.has(userId);
+
+  // Optimistic UI Update: Toggle status locally and re-render immediately
+  if (isHadir) {
+    absensiPresent = absensiPresent.filter(a => a.user_id !== userId);
+  } else {
+    const user = absensiAllUsers.find(u => u.id === userId);
+    if (user) {
+      absensiPresent.push({
+        id: 'temp-' + Date.now(), // Temporary ID
+        tanggal,
+        user_id: userId,
+        username: user.username,
+        nama_lengkap: user.nama_lengkap,
+        posisi: user.posisi,
+        nik: user.nik,
+        created_by: 'Mengabsen...',
+        created_at: new Date().toISOString()
+      });
+    }
+  }
+  renderAbsensiUserList();
+  renderAbsensiRekap();
+
+  // Run HTTP request in background
+  try {
+    if (isHadir && absensiRecordId) {
+      // Remove
+      const res = await fetch('/api/absensi/' + absensiRecordId, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error('Gagal menghapus absensi');
+    } else if (!isHadir) {
+      // Add
+      const res = await fetch('/api/absensi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ tanggal, user_id: userId })
+      });
+      if (!res.ok) throw new Error('Gagal menambah absensi');
+      const data = await res.json();
+      
+      // Update the temporary ID with the real ID from the server
+      const tempRec = absensiPresent.find(a => a.user_id === userId && String(a.id).startsWith('temp-'));
+      if (tempRec && data.record) {
+        tempRec.id = data.record.id;
+        tempRec.created_by = data.record.created_by || '';
+        tempRec.created_at = data.record.created_at || tempRec.created_at;
+        renderAbsensiUserList();
+        renderAbsensiRekap();
+      }
+    }
+  } catch(e) {
+    console.error('toggleAbsensi error:', e);
+    // Revert to backup state on error
+    absensiPresent = backupPresent;
+    renderAbsensiUserList();
+    renderAbsensiRekap();
+    alert('Gagal mengubah status absensi: ' + e.message);
+  }
+}
+
+window.absensiSemuaHadir = async function absensiSemuaHadir() {
+  const tanggal = document.getElementById('absensiTanggal')?.value;
+  if (!tanggal) return;
+  if (!absensiAllUsers.length) return;
+  const confirmed = await showConfirmModal({
+    title: 'Konfirmasi Hadir Semua',
+    message: 'Tandai semua karyawan sebagai hadir untuk tanggal ' + tanggal + '?',
+    icon: '✅',
+    okText: 'Ya, Hadirkan',
+    okClass: 'btn-success'
+  });
+  if (!confirmed) return;
+
+
+  const backupPresent = [...absensiPresent];
+  const presentIds = new Set(absensiPresent.map(a => a.user_id));
+  const toAdd = absensiAllUsers.filter(u => !presentIds.has(u.id));
+
+  if (toAdd.length === 0) return;
+
+  // Optimistic UI Update: Mark all as present locally
+  toAdd.forEach(user => {
+    absensiPresent.push({
+      id: 'temp-' + user.id,
+      tanggal,
+      user_id: user.id,
+      username: user.username,
+      nama_lengkap: user.nama_lengkap,
+      posisi: user.posisi,
+      nik: user.nik,
+      created_by: 'Mengabsen...',
+      created_at: new Date().toISOString()
+    });
+  });
+  renderAbsensiUserList();
+  renderAbsensiRekap();
+
+  // Run API requests in PARALLEL
+  try {
+    const promises = toAdd.map(async (user) => {
+      const res = await fetch('/api/absensi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ tanggal, user_id: user.id })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return { userId: user.id, record: data.record };
+      }
+      return null;
+    });
+
+    const results = await Promise.all(promises);
+    
+    // Update temporary IDs with real ones
+    results.forEach(res => {
+      if (res && res.record) {
+        const tempRec = absensiPresent.find(a => a.user_id === res.userId && String(a.id).startsWith('temp-'));
+        if (tempRec) {
+          tempRec.id = res.record.id;
+          tempRec.created_by = res.record.created_by || '';
+          tempRec.created_at = res.record.created_at || tempRec.created_at;
+        }
+      }
+    });
+    renderAbsensiUserList();
+    renderAbsensiRekap();
+  } catch(e) {
+    console.error('absensiSemuaHadir error:', e);
+    absensiPresent = backupPresent;
+    renderAbsensiUserList();
+    renderAbsensiRekap();
+    alert('Terjadi kesalahan saat mengabsen semua karyawan.');
+  }
+}
+
+window.absensiClearSemua = async function absensiClearSemua() {
+  const tanggal = document.getElementById('absensiTanggal')?.value;
+  if (!tanggal) return;
+  if (!absensiPresent.length) return;
+  const confirmed = await showConfirmModal({
+    title: 'Konfirmasi Hapus Semua',
+    message: 'Hapus semua data absensi untuk tanggal ' + tanggal + '?',
+    icon: '⚠️',
+    okText: 'Ya, Hapus Semua',
+    okClass: 'btn-danger'
+  });
+  if (!confirmed) return;
+
+
+  const backupPresent = [...absensiPresent];
+
+  // Optimistic UI Update: Clear immediately
+  absensiPresent = [];
+  renderAbsensiUserList();
+  renderAbsensiRekap();
+
+  // Run API requests in PARALLEL
+  try {
+    const promises = backupPresent.map(async (record) => {
+      if (String(record.id).startsWith('temp-')) return; // Skip temp records
+      await fetch('/api/absensi/' + record.id, { method: 'DELETE', credentials: 'include' });
+    });
+    await Promise.all(promises);
+  } catch(e) {
+    console.error('absensiClearSemua error:', e);
+    // If it fails, we fetch the updated state from the server
+    absensiPresent = backupPresent;
+    renderAbsensiUserList();
+    renderAbsensiRekap();
+    alert('Terjadi kesalahan saat menghapus absensi.');
+  }
+}
+
+function renderAbsensiRekap() {
+  const section = document.getElementById('absensiRekapSection');
+  const tbody = document.getElementById('absensiRekapBody');
+  const dateLabel = document.getElementById('absensiRekapDate');
+  const tanggal = document.getElementById('absensiTanggal')?.value;
+
+  if (!section || !tbody) return;
+
+  if (absensiPresent.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'block';
+  if (dateLabel && tanggal) {
+    const d = new Date(tanggal + 'T00:00:00');
+    dateLabel.textContent = '— ' + d.toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  }
+
+  tbody.innerHTML = absensiPresent.map((r, i) => {
+    const posisiBadge = r.posisi ? '<span class="' + (r.posisi === 'Picker' ? 'badge-posisi-picker' : r.posisi === 'Sorter' ? 'badge-posisi-sorter' : 'badge-posisi-loader') + '">' + r.posisi + '</span>' : '-';
+    const waktu = r.created_at ? new Date(r.created_at).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }) : '-';
+    return '<tr>' +
+      '<td>' + (i+1) + '</td>' +
+      '<td style="font-weight:600;">' + (r.nama_lengkap || r.username || '-') + '</td>' +
+      '<td>' + posisiBadge + '</td>' +
+      '<td style="font-family:monospace; font-size:12px;">' + (r.nik || '-') + '</td>' +
+      '<td style="color:var(--text-muted); font-size:12px;">' + (r.created_by || '-') + '</td>' +
+      '<td style="color:var(--text-muted); font-size:12px;">' + waktu + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+window.openAbsensiSettings = function openAbsensiSettings() {
+  loadAbsensiSettingsUI();
+  document.getElementById('absensiSettingsModal').classList.add('visible');
+}
+
+let absensiSettingsSaveTimer = null;
+window.saveAbsensiSettings = async function saveAbsensiSettings() {
+  const required = document.getElementById('toggleAbsensiRequired')?.checked || false;
+  const visible = document.getElementById('toggleAbsensiVisible')?.checked || false;
+
+  try {
+    const res = await fetch('/api/settings/absensi', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ absensi_required: required, absensi_visible_to_user: visible })
+    });
+    if (!res.ok) throw new Error('Gagal menyimpan');
+    absensiSettings.absensi_required = required;
+    absensiSettings.absensi_visible_to_user = visible;
+    updateAbsensiStatusBanner();
+
+    // Show save success
+    const status = document.getElementById('absensiSettingsSaveStatus');
+    if (status) {
+      status.style.display = 'block';
+      clearTimeout(absensiSettingsSaveTimer);
+      absensiSettingsSaveTimer = setTimeout(() => { status.style.display = 'none'; }, 2500);
+    }
+  } catch(e) {
+    alert('Gagal menyimpan pengaturan: ' + e.message);
+  }
+}
+// ===================== END ABSENSI MODULE =====================
+</script>
+
 </body>
 </html>

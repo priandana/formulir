@@ -324,6 +324,29 @@ body {
 }
 .error-msg.visible { display: flex; }
 
+/* Notifikasi akun dinonaktifkan */
+.inactive-msg {
+  background: rgba(245,158,11,0.07);
+  border: 1px solid rgba(245,158,11,0.3);
+  border-radius: 10px;
+  padding: 13px 16px;
+  font-size: 13px;
+  color: #92400E;
+  margin-bottom: 16px;
+  display: none;
+  align-items: flex-start;
+  gap: 10px;
+  animation: slideDown 0.3s ease;
+}
+.inactive-msg svg { flex-shrink: 0; margin-top: 1px; color: #D97706; }
+.inactive-msg.visible { display: flex; }
+.inactive-msg-title { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+.inactive-msg-desc { font-size: 12px; color: #78350F; line-height: 1.5; }
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 .page-footer {
   position: absolute;
   bottom: 20px;
@@ -429,6 +452,14 @@ body.dark-mode .error-msg {
   background: rgba(239,68,68,0.1);
   border-color: rgba(239,68,68,0.3);
 }
+body.dark-mode .inactive-msg {
+  background: rgba(251,191,36,0.08);
+  border-color: rgba(251,191,36,0.25);
+  color: #FCD34D;
+}
+body.dark-mode .inactive-msg svg { color: #FBBF24; }
+body.dark-mode .inactive-msg-title { color: #FDE68A; }
+body.dark-mode .inactive-msg-desc { color: #D97706; }
 body.dark-mode .page-footer {
   color: #4B5563;
 }
