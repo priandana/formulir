@@ -218,6 +218,10 @@ function switchTab(tab) {
     document.getElementById('panel-riwayat').classList.add('active');
     document.getElementById('tab-riwayat').classList.add('active-teal');
     loadRiwayat();
+  } else if (tab === 'pendapatan') {
+    document.getElementById('panel-pendapatan').classList.add('active');
+    document.getElementById('tab-pendapatan').style.background = 'linear-gradient(135deg, rgba(245,158,11,0.08), rgba(239,68,68,0.05))';
+    document.getElementById('tab-pendapatan').style.borderColor = 'rgba(245,158,11,0.3)';
   } else if (tab === 'picker') {
     document.getElementById('panel-picker').classList.add('active');
     document.getElementById('tab-picker').classList.add('active-purple');
@@ -225,9 +229,15 @@ function switchTab(tab) {
     document.getElementById('panel-loader').classList.add('active');
     document.getElementById('tab-loader').classList.add('active-blue');
   }
+  // Reset pendapatan tab style if not active
+  if (tab !== 'pendapatan') {
+    const pdBtn = document.getElementById('tab-pendapatan');
+    if (pdBtn) { pdBtn.style.background = ''; pdBtn.style.borderColor = ''; }
+  }
   // Close mobile sidebar
   document.getElementById('sidebar').classList.remove('open');
 }
+
 
 // ===================== RIWAYAT =====================
 let riwayatLoaded = false;

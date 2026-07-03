@@ -547,12 +547,29 @@ module.exports = {
       if (posisi === 'Loader') {
         const norm = zona.trim().toUpperCase();
         if (norm.startsWith('F') || norm.includes('FREEZ')) {
-          zonesToSearch = ['F1', 'FREEZER', 'FREZZER'];
+          zonesToSearch = ['F1', 'FREEZER', 'FREZZER', 'LOADER'];
         } else if (norm.startsWith('R') || norm.includes('CHILL')) {
-          zonesToSearch = ['R1', 'R2', 'R3', 'CHILLER'];
+          zonesToSearch = ['R1', 'R2', 'R3', 'CHILLER', 'LOADER'];
         } else if (norm.startsWith('T') || norm.includes('AMBIE')) {
-          zonesToSearch = ['T1', 'T2', 'T3', 'T4', 'T5', 'AMBIENT'];
+          zonesToSearch = ['T1', 'T2', 'T3', 'T4', 'T5', 'AMBIENT', 'LOADER'];
+        } else {
+          zonesToSearch = [zona, 'LOADER'];
         }
+      }
+
+      if (posisi === 'Loader') {
+        const { data, error } = await supabase
+          .from('data_carian')
+          .select('*')
+          .eq('tanggal_carian', tanggal_carian)
+          .eq('posisi', posisi)
+          .eq('batch', batch)
+          .limit(1);
+        if (error) {
+          console.error('Supabase getDataCarianByKey Loader error:', error);
+          throw error;
+        }
+        return (data && data[0]) || null;
       }
 
       const { data, error } = await supabase
@@ -575,12 +592,21 @@ module.exports = {
       if (posisi === 'Loader') {
         const norm = zona.trim().toUpperCase();
         if (norm.startsWith('F') || norm.includes('FREEZ')) {
-          zonesToSearch = ['F1', 'FREEZER', 'FREZZER'];
+          zonesToSearch = ['F1', 'FREEZER', 'FREZZER', 'LOADER'];
         } else if (norm.startsWith('R') || norm.includes('CHILL')) {
-          zonesToSearch = ['R1', 'R2', 'R3', 'CHILLER'];
+          zonesToSearch = ['R1', 'R2', 'R3', 'CHILLER', 'LOADER'];
         } else if (norm.startsWith('T') || norm.includes('AMBIE')) {
-          zonesToSearch = ['T1', 'T2', 'T3', 'T4', 'T5', 'AMBIENT'];
+          zonesToSearch = ['T1', 'T2', 'T3', 'T4', 'T5', 'AMBIENT', 'LOADER'];
+        } else {
+          zonesToSearch = [zona, 'LOADER'];
         }
+      }
+      if (posisi === 'Loader') {
+        return db.data_carian.find(d =>
+          d.tanggal_carian === tanggal_carian &&
+          d.posisi === posisi &&
+          String(d.batch) === String(batch)
+        ) || null;
       }
       return db.data_carian.find(d =>
         d.tanggal_carian === tanggal_carian &&
@@ -705,22 +731,20 @@ module.exports = {
       }
 
       for (const e of entries) {
-        if (zonesToSearch.includes(e.zona)) {
-          let clustersList = [];
-          let clusterOutputs = {};
-          if (Array.isArray(e.clusters)) {
-            clustersList = e.clusters;
-          } else if (e.clusters && typeof e.clusters === 'object') {
-            clustersList = e.clusters.list || [];
-            clusterOutputs = e.clusters.outputs || {};
-          }
+        let clustersList = [];
+        let clusterOutputs = {};
+        if (Array.isArray(e.clusters)) {
+          clustersList = e.clusters;
+        } else if (e.clusters && typeof e.clusters === 'object') {
+          clustersList = e.clusters.list || [];
+          clusterOutputs = e.clusters.outputs || {};
+        }
 
-          if (clustersList.includes(batch)) {
-            if (clusterOutputs[batch] !== undefined) {
-              total += parseInt(clusterOutputs[batch]) || 0;
-            } else {
-              total += parseInt(e.jumlah_kontainer) || 0;
-            }
+        if (clustersList.includes(batch)) {
+          if (clusterOutputs[batch] !== undefined) {
+            total += parseInt(clusterOutputs[batch]) || 0;
+          } else {
+            total += parseInt(e.jumlah_kontainer) || 0;
           }
         }
       }
@@ -777,33 +801,8 @@ module.exports = {
    * Return: { total_output, satuan, sudah_diisi, sisa, ada_data_carian }
    */
   async getBatchCapacity(tanggal_carian, posisi, zona, batch) {
-    const dataCarian = await this.getDataCarianByKey(tanggal_carian, posisi, zona, batch);
-    if (!dataCarian) {
-      // Coba cari posisi lain yang punya data untuk zona+batch yang sama
-      const POSISI_LIST = ['Picker', 'Sorter', 'Loader'].filter(p => p !== posisi);
-      let suggestionPosisi = null;
-      for (const altPosisi of POSISI_LIST) {
-        const alt = await this.getDataCarianByKey(tanggal_carian, altPosisi, zona, batch);
-        if (alt) { suggestionPosisi = altPosisi; break; }
-      }
-      return {
-        ada_data_carian: false,
-        total_output: null,
-        satuan: null,
-        sudah_diisi: 0,
-        sisa: null,
-        suggestion_posisi: suggestionPosisi
-      };
-    }
-    const sudah_diisi = await this.getSubmittedOutputForBatch(tanggal_carian, posisi, zona, batch);
-    const sisa = Math.max(0, dataCarian.total_output - sudah_diisi);
-    return {
-      ada_data_carian: true,
-      total_output: dataCarian.total_output,
-      satuan: dataCarian.satuan,
-      sudah_diisi,
-      sisa
-    };
+    const capacities = await this.getMultipleBatchesCapacity(tanggal_carian, posisi, zona, [batch]);
+    return capacities[batch];
   },
 
   /**
@@ -1837,10 +1836,405 @@ module.exports = {
       save(db);
       return ann;
     }
+  },
+
+  async getAllFiles() {
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase
+        .from('files')
+        .select('*');
+      if (error) {
+        console.error('Supabase getAllFiles error:', error);
+        throw error;
+      }
+      return data;
+    } else {
+      const db = load();
+      return db.files || [];
+    }
+  },
+
+  async getMultipleBatchesCapacity(tanggal_carian, posisi, zona, batches) {
+    const isLoader = posisi === 'Loader';
+    
+    // Ambil data carian, submissions, dan loader entries secara parallel (max 3 query)
+    const [carianList, submissionsList, loaderList] = await Promise.all([
+      this.getDataCarian(tanggal_carian),
+      (async () => {
+        if (isSupabaseEnabled) {
+          const { data, error } = await supabase
+            .from('submissions')
+            .select('jumlah_output, batch_cluster, posisi, zona')
+            .eq('tanggal_carian', tanggal_carian)
+            .eq('posisi', posisi)
+            .eq('zona', zona)
+            .eq('status', 'approved');
+          if (error) {
+            console.error('Supabase getMultipleBatchesCapacity submissions error:', error);
+            throw error;
+          }
+          return data || [];
+        } else {
+          const db = load();
+          return db.submissions.filter(s =>
+            s.tanggal_carian === tanggal_carian &&
+            s.posisi === posisi &&
+            s.zona === zona &&
+            s.status === 'approved'
+          );
+        }
+      })(),
+      isLoader ? this.getAllLoaderEntries(tanggal_carian) : Promise.resolve([])
+    ]);
+
+    // Helper untuk zone mapping (Loader menggunakan cluster name seperti Freezer/Chiller/Ambient)
+    const getZoneSearchList = (pos, z) => {
+      let zones = [z];
+      if (pos === 'Loader') {
+        const norm = z.trim().toUpperCase();
+        if (norm.startsWith('F') || norm.includes('FREEZ')) {
+          zones = ['F1', 'FREEZER', 'FREZZER', 'LOADER'];
+        } else if (norm.startsWith('R') || norm.includes('CHILL')) {
+          zones = ['R1', 'R2', 'R3', 'CHILLER', 'LOADER'];
+        } else if (norm.startsWith('T') || norm.includes('AMBIE')) {
+          zones = ['T1', 'T2', 'T3', 'T4', 'T5', 'AMBIENT', 'LOADER'];
+        } else {
+          zones = [z, 'LOADER'];
+        }
+      }
+      return zones;
+    };
+
+    // Helper untuk cari data carian di memory list
+    const findCarianInMemory = (pos, z, b) => {
+      if (pos === 'Loader') {
+        return carianList.find(c =>
+          c.posisi === pos &&
+          String(c.batch).trim() === String(b).trim()
+        ) || null;
+      }
+      const zones = getZoneSearchList(pos, z);
+      return carianList.find(c =>
+        c.posisi === pos &&
+        zones.some(zoneName => zoneName.trim().toUpperCase() === c.zona.trim().toUpperCase()) &&
+        String(c.batch).trim() === String(b).trim()
+      ) || null;
+    };
+
+    // Hitung output yang sudah diisi per batch
+    const submittedMap = {};
+    if (isLoader) {
+      for (const e of loaderList) {
+        let clustersList = [];
+        let clusterOutputs = {};
+        if (Array.isArray(e.clusters)) {
+          clustersList = e.clusters;
+        } else if (e.clusters && typeof e.clusters === 'object') {
+          clustersList = e.clusters.list || [];
+          clusterOutputs = e.clusters.outputs || {};
+        }
+        for (const b of batches) {
+          if (clustersList.includes(b)) {
+            const val = clusterOutputs[b] !== undefined
+              ? (parseInt(clusterOutputs[b]) || 0)
+              : (parseInt(e.jumlah_kontainer) || 0);
+            submittedMap[b] = (submittedMap[b] || 0) + val;
+          }
+        }
+      }
+    } else {
+      for (const s of submissionsList) {
+        const clusters = Array.isArray(s.batch_cluster)
+          ? s.batch_cluster
+          : JSON.parse(s.batch_cluster || '[]');
+        for (const b of clusters) {
+          submittedMap[b] = (submittedMap[b] || 0) + (parseInt(s.jumlah_output) || 0);
+        }
+      }
+    }
+
+    const results = {};
+    for (const b of batches) {
+      const dataCarian = findCarianInMemory(posisi, zona, b);
+      if (!dataCarian) {
+        const POSISI_LIST = ['Picker', 'Sorter', 'Loader'].filter(p => p !== posisi);
+        let suggestionPosisi = null;
+        for (const altPosisi of POSISI_LIST) {
+          const alt = findCarianInMemory(altPosisi, zona, b);
+          if (alt) { suggestionPosisi = altPosisi; break; }
+        }
+        results[b] = {
+          ada_data_carian: false,
+          total_output: null,
+          satuan: null,
+          sudah_diisi: 0,
+          sisa: null,
+          suggestion_posisi: suggestionPosisi
+        };
+      } else {
+        const sudah_diisi = submittedMap[b] || 0;
+        const sisa = Math.max(0, dataCarian.total_output - sudah_diisi);
+        results[b] = {
+          ada_data_carian: true,
+          total_output: dataCarian.total_output,
+          satuan: dataCarian.satuan,
+          sudah_diisi,
+          sisa
+        };
+      }
+    }
+
+    return results;
+  },
+
+  // ============= KETENTUAN HARGA =============
+
+  async getKetentuanHarga() {
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase
+        .from('ketentuan_harga')
+        .select('*')
+        .order('posisi', { ascending: true })
+        .order('zona', { ascending: true });
+      if (error) { console.error('Supabase getKetentuanHarga error:', error); throw error; }
+      return data || [];
+    } else {
+      const db = load();
+      return (db.ketentuan_harga || []).sort((a, b) => a.posisi.localeCompare(b.posisi) || a.zona.localeCompare(b.zona));
+    }
+  },
+
+  async getKetentuanHargaByKey(posisi, zona) {
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase
+        .from('ketentuan_harga')
+        .select('*')
+        .eq('posisi', posisi)
+        .eq('zona', zona)
+        .maybeSingle();
+      if (error) { console.error('Supabase getKetentuanHargaByKey error:', error); throw error; }
+      return data || null;
+    } else {
+      const db = load();
+      return (db.ketentuan_harga || []).find(h => h.posisi === posisi && h.zona === zona) || null;
+    }
+  },
+
+  async insertKetentuanHarga({ posisi, zona, harga, satuan, keterangan }) {
+    const now = new Date().toISOString();
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase
+        .from('ketentuan_harga')
+        .insert([{ posisi, zona, harga: parseInt(harga) || 0, satuan, keterangan: keterangan || null }])
+        .select()
+        .single();
+      if (error) { console.error('Supabase insertKetentuanHarga error:', error); throw error; }
+      return data;
+    } else {
+      const db = load();
+      if (!db.ketentuan_harga) db.ketentuan_harga = [];
+      const existing = db.ketentuan_harga.find(h => h.posisi === posisi && h.zona === zona);
+      if (existing) throw new Error('Harga untuk kombinasi posisi dan zona ini sudah ada.');
+      const record = { id: uuidv4(), posisi, zona, harga: parseInt(harga) || 0, satuan, keterangan: keterangan || null, created_at: now, updated_at: now };
+      db.ketentuan_harga.push(record);
+      save(db);
+      return record;
+    }
+  },
+
+  async updateKetentuanHarga(id, { harga, keterangan }) {
+    const now = new Date().toISOString();
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase
+        .from('ketentuan_harga')
+        .update({ harga: parseInt(harga) || 0, keterangan: keterangan || null, updated_at: now })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) { console.error('Supabase updateKetentuanHarga error:', error); throw error; }
+      return data;
+    } else {
+      const db = load();
+      if (!db.ketentuan_harga) db.ketentuan_harga = [];
+      const idx = db.ketentuan_harga.findIndex(h => h.id === id);
+      if (idx === -1) throw new Error('Ketentuan harga tidak ditemukan.');
+      db.ketentuan_harga[idx] = { ...db.ketentuan_harga[idx], harga: parseInt(harga) || 0, keterangan: keterangan || null, updated_at: now };
+      save(db);
+      return db.ketentuan_harga[idx];
+    }
+  },
+
+  async deleteKetentuanHarga(id) {
+    if (isSupabaseEnabled) {
+      const { error } = await supabase.from('ketentuan_harga').delete().eq('id', id);
+      if (error) { console.error('Supabase deleteKetentuanHarga error:', error); throw error; }
+      return true;
+    } else {
+      const db = load();
+      if (!db.ketentuan_harga) db.ketentuan_harga = [];
+      const idx = db.ketentuan_harga.findIndex(h => h.id === id);
+      if (idx === -1) throw new Error('Ketentuan harga tidak ditemukan.');
+      db.ketentuan_harga.splice(idx, 1);
+      save(db);
+      return true;
+    }
+  },
+
+  // ============= MONITORING MPP =============
+
+  async getMonitoringMPP(tanggal) {
+    // MPP All: user aktif per posisi
+    let mppAll = { picker: 0, sorter: 0, loader: 0 };
+    // MPP Today: hadir hari ini per posisi
+    let mppToday = { picker: 0, sorter: 0, loader: 0 };
+    // Pencapaian per pekerja
+    let pencapaianList = [];
+
+    if (isSupabaseEnabled) {
+      // MPP All
+      const { data: usersData } = await supabase
+        .from('users')
+        .select('posisi')
+        .eq('role', 'user')
+        .eq('is_active', true);
+      (usersData || []).forEach(u => {
+        const pos = (u.posisi || '').toLowerCase();
+        if (pos === 'picker') mppAll.picker++;
+        else if (pos === 'sorter') mppAll.sorter++;
+        else if (pos === 'loader') mppAll.loader++;
+      });
+
+      // MPP Today (from absensi table)
+      const { data: absensiData } = await supabase
+        .from('absensi')
+        .select('user_id, status')
+        .eq('tanggal', tanggal)
+        .eq('status', 'hadir');
+      const hadirUserIds = new Set((absensiData || []).map(a => a.user_id));
+      if (hadirUserIds.size > 0) {
+        const { data: hadirUsers } = await supabase
+          .from('users')
+          .select('id, posisi')
+          .in('id', Array.from(hadirUserIds));
+        (hadirUsers || []).forEach(u => {
+          const pos = (u.posisi || '').toLowerCase();
+          if (pos === 'picker') mppToday.picker++;
+          else if (pos === 'sorter') mppToday.sorter++;
+          else if (pos === 'loader') mppToday.loader++;
+        });
+      }
+
+      // Pencapaian: Picker & Sorter dari submissions (approved)
+      const [{ data: subData }, { data: loaderData }, { data: hargaData }] = await Promise.all([
+        supabase.from('submissions').select('user_id, nama_lengkap, posisi, zona, jumlah_output').eq('tanggal_carian', tanggal).eq('status', 'approved'),
+        supabase.from('loader_entries').select('nama_lengkap, total_kontainer').eq('tanggal_carian', tanggal),
+        supabase.from('ketentuan_harga').select('*')
+      ]);
+
+      const hargaMap = {};
+      (hargaData || []).forEach(h => { hargaMap[`${h.posisi}|${h.zona}`] = h; });
+
+      // Aggregasi submission per user+posisi+zona
+      const submissionAgg = {};
+      (subData || []).forEach(s => {
+        const key = `${s.user_id}|${s.posisi}|${s.zona}`;
+        if (!submissionAgg[key]) submissionAgg[key] = { nama: s.nama_lengkap, posisi: s.posisi, zona: s.zona, total: 0 };
+        submissionAgg[key].total += parseInt(s.jumlah_output) || 0;
+      });
+      Object.values(submissionAgg).forEach(agg => {
+        const hargaKey = `${agg.posisi}|${agg.zona}`;
+        const h = hargaMap[hargaKey];
+        pencapaianList.push({
+          nama: agg.nama, posisi: agg.posisi, zona: agg.zona,
+          pencapaian: agg.total, satuan: h ? h.satuan : 'pcs',
+          harga_satuan: h ? h.harga : null,
+          total_nilai: h ? agg.total * h.harga : null
+        });
+      });
+
+      // Aggregasi loader per nama
+      const loaderAgg = {};
+      (loaderData || []).forEach(l => {
+        const key = l.nama_lengkap;
+        if (!loaderAgg[key]) loaderAgg[key] = { nama: l.nama_lengkap, total: 0 };
+        loaderAgg[key].total += parseInt(l.total_kontainer) || 0;
+      });
+      const loaderHarga = hargaMap['Loader|AMBIENT, CHILLER, FREEZER'] || hargaMap['Loader|LOADER'] || null;
+      Object.values(loaderAgg).forEach(agg => {
+        pencapaianList.push({
+          nama: agg.nama, posisi: 'Loader', zona: 'AMBIENT, CHILLER, FREEZER',
+          pencapaian: agg.total, satuan: loaderHarga ? loaderHarga.satuan : 'kontainer',
+          harga_satuan: loaderHarga ? loaderHarga.harga : null,
+          total_nilai: loaderHarga ? agg.total * loaderHarga.harga : null
+        });
+      });
+
+    } else {
+      // Local JSON fallback
+      const db = load();
+      const users = (db.users || []).filter(u => u.role === 'user' && u.is_active !== false);
+      users.forEach(u => {
+        const pos = (u.posisi || '').toLowerCase();
+        if (pos === 'picker') mppAll.picker++;
+        else if (pos === 'sorter') mppAll.sorter++;
+        else if (pos === 'loader') mppAll.loader++;
+      });
+
+      const absensi = (db.absensi || []).filter(a => a.tanggal === tanggal && a.status === 'hadir');
+      const hadirIds = new Set(absensi.map(a => a.user_id));
+      users.filter(u => hadirIds.has(u.id)).forEach(u => {
+        const pos = (u.posisi || '').toLowerCase();
+        if (pos === 'picker') mppToday.picker++;
+        else if (pos === 'sorter') mppToday.sorter++;
+        else if (pos === 'loader') mppToday.loader++;
+      });
+
+      const hargaList = db.ketentuan_harga || [];
+      const hargaMap = {};
+      hargaList.forEach(h => { hargaMap[`${h.posisi}|${h.zona}`] = h; });
+
+      const submissions = (db.submissions || []).filter(s => s.tanggal_carian === tanggal && s.status === 'approved');
+      const submissionAgg = {};
+      submissions.forEach(s => {
+        const key = `${s.user_id}|${s.posisi}|${s.zona}`;
+        if (!submissionAgg[key]) submissionAgg[key] = { nama: s.nama_lengkap, posisi: s.posisi, zona: s.zona, total: 0 };
+        submissionAgg[key].total += parseInt(s.jumlah_output) || 0;
+      });
+      Object.values(submissionAgg).forEach(agg => {
+        const h = hargaMap[`${agg.posisi}|${agg.zona}`];
+        pencapaianList.push({
+          nama: agg.nama, posisi: agg.posisi, zona: agg.zona,
+          pencapaian: agg.total, satuan: h ? h.satuan : 'pcs',
+          harga_satuan: h ? h.harga : null,
+          total_nilai: h ? agg.total * h.harga : null
+        });
+      });
+
+      const loaderEntries = (db.loader_entries || []).filter(l => l.tanggal_carian === tanggal);
+      const loaderAgg = {};
+      loaderEntries.forEach(l => {
+        const key = l.nama_lengkap;
+        if (!loaderAgg[key]) loaderAgg[key] = { nama: l.nama_lengkap, total: 0 };
+        loaderAgg[key].total += parseInt(l.total_kontainer) || 0;
+      });
+      const loaderHarga = hargaMap['Loader|AMBIENT, CHILLER, FREEZER'] || hargaMap['Loader|LOADER'] || null;
+      Object.values(loaderAgg).forEach(agg => {
+        pencapaianList.push({
+          nama: agg.nama, posisi: 'Loader', zona: 'AMBIENT, CHILLER, FREEZER',
+          pencapaian: agg.total, satuan: loaderHarga ? loaderHarga.satuan : 'kontainer',
+          harga_satuan: loaderHarga ? loaderHarga.harga : null,
+          total_nilai: loaderHarga ? agg.total * loaderHarga.harga : null
+        });
+      });
+    }
+
+    pencapaianList.sort((a, b) => a.nama.localeCompare(b.nama));
+
+    return {
+      mpp_all: { ...mppAll, total: mppAll.picker + mppAll.sorter + mppAll.loader },
+      mpp_today: { ...mppToday, total: mppToday.picker + mppToday.sorter + mppToday.loader },
+      pencapaian: pencapaianList
+    };
   }
 };
-
-
-
-
 

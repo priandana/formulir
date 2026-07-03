@@ -29,6 +29,28 @@ function storeNotification(type, data) {
   if (pendingNotifications.length > 50) pendingNotifications.splice(0, pendingNotifications.length - 50);
 }
 
+// Optimized helper function to sync all submissions to Google Sheets (combining queries to avoid N+1)
+async function syncSubmissionsToSheets() {
+  if (!googleSheets.isConfigured()) return;
+  try {
+    const allSubs = await db.getAllSubmissions();
+    const allFiles = await db.getAllFiles();
+
+    // Map files in memory by submission_id to avoid N+1 queries
+    const filesMap = new Map();
+    for (const f of allFiles) {
+      if (!filesMap.has(f.submission_id)) {
+        filesMap.set(f.submission_id, []);
+      }
+      filesMap.get(f.submission_id).push(f);
+    }
+
+    await googleSheets.pushAllSubmissions(allSubs, filesMap);
+  } catch(e) {
+    console.error('[AutoSync] Google Sheets sync error:', e.message);
+  }
+}
+
 // JWT Secret Key configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'ss08-formulir-secret-fallback-2026';
 
@@ -148,10 +170,14 @@ app.post('/api/submit', (req, res, next) => {
     // Jika semua dalam batas → status 'approved'
     const pendingBatches = []; // batch yang melebihi kapasitas
     const overCapacityInfo = {}; // detail info per batch yang over
+    
+    const batchNames = batchOutputs.map(b => b.batch);
+    const capacities = await db.getMultipleBatchesCapacity(tanggal_carian, posisi, zona, batchNames);
+
     for (const { batch, jumlah } of batchOutputs) {
       const outputValue = parseInt(jumlah);
-      const capacity = await db.getBatchCapacity(tanggal_carian, posisi, zona, batch);
-      if (capacity.ada_data_carian && outputValue > capacity.sisa) {
+      const capacity = capacities[batch];
+      if (capacity && capacity.ada_data_carian && outputValue > capacity.sisa) {
         pendingBatches.push(batch);
         overCapacityInfo[batch] = {
           input: outputValue,
@@ -236,21 +262,7 @@ app.post('/api/submit', (req, res, next) => {
     // ===== AUTO-SYNC ke Google Sheets (fire-and-forget, tidak block response) =====
     if (googleSheets.isConfigured()) {
       setImmediate(async () => {
-        try {
-          // Ambil semua submissions terbaru
-          const allSubs = await db.getAllSubmissions();
-
-          // Fetch files per submission untuk link foto di Sheets
-          const filesMap = new Map();
-          await Promise.all(allSubs.map(async (s) => {
-            const files = await db.getFilesBySubmissionId(s.id);
-            if (files && files.length > 0) filesMap.set(s.id, files);
-          }));
-
-          await googleSheets.pushAllSubmissions(allSubs, filesMap);
-        } catch(e) {
-          console.error('[AutoSync] Google Sheets sync error:', e.message);
-        }
+        await syncSubmissionsToSheets();
       });
     }
     // ====================================================================
@@ -610,13 +622,7 @@ app.delete('/api/submissions/:id', requireAuth, async (req, res) => {
     if (googleSheets.isConfigured()) {
       setImmediate(async () => {
         try {
-          const allSubs = await db.getAllSubmissions();
-          const filesMap = new Map();
-          await Promise.all(allSubs.map(async (s) => {
-            const files = await db.getFilesBySubmissionId(s.id);
-            if (files && files.length > 0) filesMap.set(s.id, files);
-          }));
-          await googleSheets.pushAllSubmissions(allSubs, filesMap);
+          await syncSubmissionsToSheets();
           console.log(`[AutoSync] Submission ${req.params.id} dihapus — Sheets berhasil diperbarui.`);
         } catch(e) {
           console.error('[AutoSync] Gagal sync hapus ke Google Sheets:', e.message);
@@ -675,13 +681,7 @@ app.put('/api/submissions/:id/status', requireAdmin, async (req, res) => {
     if (googleSheets.isConfigured()) {
       setImmediate(async () => {
         try {
-          const allSubs = await db.getAllSubmissions();
-          const filesMap = new Map();
-          await Promise.all(allSubs.map(async (s) => {
-            const files = await db.getFilesBySubmissionId(s.id);
-            if (files && files.length > 0) filesMap.set(s.id, files);
-          }));
-          await googleSheets.pushAllSubmissions(allSubs, filesMap);
+          await syncSubmissionsToSheets();
           console.log(`[AutoSync] Status submission ${req.params.id} → "${status}" berhasil disync ke Sheets.`);
         } catch(e) {
           console.error('[AutoSync] Gagal sync status ke Google Sheets:', e.message);
@@ -963,15 +963,23 @@ app.post('/api/google-sheets/push', requireAdmin, async (req, res) => {
 
     let result = { success: true, rowCount: 0, message: '' };
 
+    // Fetch all files once to avoid N+1 queries
+    let allFiles = [];
+    if (shouldPushSubmissions || shouldPushLoader) {
+      allFiles = await db.getAllFiles();
+    }
+
     if (shouldPushSubmissions) {
       if (filterPosisi && filterPosisi !== 'semua') {
         submissions = submissions.filter(s => s.posisi === filterPosisi);
       }
       const filesMap = new Map();
-      await Promise.all(submissions.map(async (s) => {
-        const files = await db.getFilesBySubmissionId(s.id);
-        if (files && files.length > 0) filesMap.set(s.id, files);
-      }));
+      for (const f of allFiles) {
+        if (!filesMap.has(f.submission_id)) {
+          filesMap.set(f.submission_id, []);
+        }
+        filesMap.get(f.submission_id).push(f);
+      }
       const subResult = await googleSheets.pushAllSubmissions(submissions, filesMap);
       result.success = result.success && subResult.success;
       result.rowCount += subResult.rowCount;
@@ -980,10 +988,12 @@ app.post('/api/google-sheets/push', requireAdmin, async (req, res) => {
 
     if (shouldPushLoader) {
       const loaderFilesMap = new Map();
-      await Promise.all(loaderEntries.map(async (e) => {
-        const files = await db.getFilesBySubmissionId(e.id);
-        if (files && files.length > 0) loaderFilesMap.set(e.id, files);
-      }));
+      for (const f of allFiles) {
+        if (!loaderFilesMap.has(f.submission_id)) {
+          loaderFilesMap.set(f.submission_id, []);
+        }
+        loaderFilesMap.get(f.submission_id).push(f);
+      }
       const loaderResult = await googleSheets.pushAllLoaderEntries(loaderEntries, loaderFilesMap);
       result.success = result.success && loaderResult.success;
       result.rowCount += loaderResult.rowCount;
@@ -1087,6 +1097,7 @@ app.put('/api/data-carian/:id', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Total output wajib diisi.' });
     }
     const satuan = posisi === 'Picker' ? 'pcs' : 'kontainer';
+    const finalZona = posisi === 'Loader' ? 'LOADER' : (req.body.zona || null);
     const record = await db.updateDataCarian(req.params.id, {
       total_output: parseInt(total_output),
       jumlah_toko: parseInt(jumlah_toko) || 0,
@@ -1917,6 +1928,45 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
         records.push({ tanggal_carian, posisi: posisiNorm, zona, batch, jumlah_toko, total_output, satuan: posisiNorm === 'Picker' ? 'pcs' : 'kontainer' });
       }
     }
+
+    // Group Loader records by tanggal_carian and batch to combine their zones
+    const finalRecords = [];
+    const loaderGroups = {}; // key: `${tanggal_carian}|${batch}` -> record
+    
+    for (const r of records) {
+      if (r.posisi === 'Loader') {
+        const key = `${r.tanggal_carian}|${r.batch}`;
+        if (!loaderGroups[key]) {
+          loaderGroups[key] = {
+            tanggal_carian: r.tanggal_carian,
+            posisi: 'Loader',
+            zonaSet: new Set([r.zona]),
+            batch: r.batch,
+            jumlah_toko: r.jumlah_toko || 0,
+            total_output: r.total_output || 0,
+            satuan: r.satuan || 'kontainer'
+          };
+        } else {
+          loaderGroups[key].total_output += r.total_output || 0;
+          loaderGroups[key].jumlah_toko += r.jumlah_toko || 0;
+          loaderGroups[key].zonaSet.add(r.zona);
+        }
+      } else {
+        finalRecords.push(r);
+      }
+    }
+    
+    for (const lr of Object.values(loaderGroups)) {
+      const zonesList = Array.from(lr.zonaSet)
+        .map(z => z.trim())
+        .filter(Boolean)
+        .map(z => z.toUpperCase());
+      lr.zona = zonesList.length > 0 ? zonesList.sort().join(', ') : 'LOADER';
+      delete lr.zonaSet;
+      finalRecords.push(lr);
+    }
+    
+    records = finalRecords;
 
     if (records.length === 0) {
       return res.status(400).json({ error: 'Tidak ada data valid yang berhasil diparse.', skipped, info });
@@ -2758,9 +2808,83 @@ app.get('/api/my-achievements', requireAuth, async (req, res) => {
 // SPA fallback routes
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
+// ============= KETENTUAN HARGA API =============
 
+// GET /api/ketentuan-harga — ambil semua ketentuan harga
+app.get('/api/ketentuan-harga', requireAuth, async (req, res) => {
+  try {
+    const data = await db.getKetentuanHarga();
+    res.json(data);
+  } catch (err) {
+    console.error('GET ketentuan-harga error:', err);
+    res.status(500).json({ error: 'Gagal memuat ketentuan harga.' });
+  }
+});
+
+// POST /api/ketentuan-harga — tambah ketentuan harga baru
+app.post('/api/ketentuan-harga', requireAuth, async (req, res) => {
+  try {
+    const { posisi, zona, harga, keterangan } = req.body;
+    if (!posisi || !zona || harga === undefined || harga === null || harga === '') {
+      return res.status(400).json({ error: 'Posisi, zona, dan harga wajib diisi.' });
+    }
+    if (!['Picker', 'Sorter', 'Loader'].includes(posisi)) {
+      return res.status(400).json({ error: 'Posisi tidak valid.' });
+    }
+    const finalSatuan = posisi === 'Picker' ? 'pcs' : 'kontainer';
+    const record = await db.insertKetentuanHarga({ posisi, zona, harga: parseInt(harga), satuan: finalSatuan, keterangan });
+    res.json({ success: true, data: record });
+  } catch (err) {
+    console.error('POST ketentuan-harga error:', err);
+    if (err.message && err.message.includes('sudah ada')) {
+      return res.status(409).json({ error: err.message });
+    }
+    res.status(500).json({ error: 'Gagal menyimpan ketentuan harga.' });
+  }
+});
+
+// PUT /api/ketentuan-harga/:id — edit harga
+app.put('/api/ketentuan-harga/:id', requireAuth, async (req, res) => {
+  try {
+    const { harga, keterangan } = req.body;
+    if (harga === undefined || harga === null || harga === '') {
+      return res.status(400).json({ error: 'Harga wajib diisi.' });
+    }
+    const record = await db.updateKetentuanHarga(req.params.id, { harga: parseInt(harga), keterangan });
+    res.json({ success: true, data: record });
+  } catch (err) {
+    console.error('PUT ketentuan-harga error:', err);
+    res.status(500).json({ error: 'Gagal mengupdate ketentuan harga.' });
+  }
+});
+
+// DELETE /api/ketentuan-harga/:id — hapus ketentuan harga
+app.delete('/api/ketentuan-harga/:id', requireAuth, async (req, res) => {
+  try {
+    await db.deleteKetentuanHarga(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('DELETE ketentuan-harga error:', err);
+    res.status(500).json({ error: 'Gagal menghapus ketentuan harga.' });
+  }
+});
+
+// ============= MONITORING MPP API =============
+
+// GET /api/monitoring-mpp?tanggal=YYYY-MM-DD
+app.get('/api/monitoring-mpp', requireAuth, async (req, res) => {
+  try {
+    const tanggal = req.query.tanggal || new Date().toISOString().split('T')[0];
+    const data = await db.getMonitoringMPP(tanggal);
+    res.json(data);
+  } catch (err) {
+    console.error('GET monitoring-mpp error:', err);
+    res.status(500).json({ error: 'Gagal memuat data Monitoring MPP.' });
+  }
+});
 
 const PORT = process.env.PORT || 3000;
+
 
 if (require.main === module) {
   app.listen(PORT, () => {

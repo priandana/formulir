@@ -64,6 +64,10 @@
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
       Hasil Entry Loader
     </a>
+    <a class="nav-item" id="nav-ketentuan-harga" onclick="showPage('ketentuan-harga')">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      Ketentuan Harga
+    </a>
     <a class="nav-item" id="nav-absensi" onclick="showPage('absensi')">
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
       Absensi
@@ -153,55 +157,189 @@
 
   <div class="page-content">
 
-    <!-- ===== DASHBOARD PAGE ===== -->
+    <!-- ===== MONITORING MPP PAGE (formerly Dashboard) ===== -->
     <div id="page-dashboard" class="page-section">
-      <div class="stats-grid">
+      <!-- Header with date picker -->
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:24px;">
+        <div>
+          <div style="font-size:13px; color:var(--text-secondary); margin-bottom:4px;">MPP All = jumlah user operasional aktif (Manajemen User). MPP Today = jumlah user yang tercatat hadir (Absensi) pada tanggal dipilih.</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <label style="font-size:13px; font-weight:600; color:var(--text-secondary);">Tanggal</label>
+          <input type="date" id="mppDatePicker" class="form-input" style="width:160px; font-size:13px; padding:8px 12px;" onchange="loadMonitoringMPP()">
+        </div>
+      </div>
+
+      <!-- MPP ALL -->
+      <div style="font-size:11px; font-weight:700; letter-spacing:1.2px; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">MPP ALL (Total User Aktif)</div>
+      <div class="stats-grid" style="margin-bottom:24px;">
         <div class="stat-card purple">
-          <div class="stat-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/></svg></div>
-          <div class="stat-label">Total Submissions</div>
-          <div class="stat-value" id="stat-total">-</div>
-          <div class="stat-sub">Semua waktu</div>
+          <div class="stat-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+          <div class="stat-label">PICKER</div>
+          <div class="stat-value" id="mpp-all-picker">—</div>
+          <div class="stat-sub">Total user aktif</div>
         </div>
         <div class="stat-card green">
-          <div class="stat-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
-          <div class="stat-label">Hari Ini</div>
-          <div class="stat-value" id="stat-today">-</div>
-          <div class="stat-sub">Submission hari ini</div>
+          <div class="stat-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></div>
+          <div class="stat-label">SORTER</div>
+          <div class="stat-value" id="mpp-all-sorter">—</div>
+          <div class="stat-sub">Total user aktif</div>
+        </div>
+        <div class="stat-card amber">
+          <div class="stat-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg></div>
+          <div class="stat-label">LOADER</div>
+          <div class="stat-value" id="mpp-all-loader">—</div>
+          <div class="stat-sub">Total user aktif</div>
         </div>
         <div class="stat-card pink">
           <div class="stat-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
-          <div class="stat-label">Picker</div>
-          <div class="stat-value" id="stat-picker">-</div>
-          <div class="stat-sub">Total submissions</div>
-        </div>
-        <div class="stat-card amber">
-          <div class="stat-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></div>
-          <div class="stat-label">Sorter &amp; Loader</div>
-          <div class="stat-value" id="stat-other">-</div>
-          <div class="stat-sub">Total submissions</div>
+          <div class="stat-label">TOTAL MPP ALL</div>
+          <div class="stat-value" id="mpp-all-total">—</div>
+          <div class="stat-sub">Semua posisi</div>
         </div>
       </div>
+
+      <!-- MPP TODAY -->
+      <div style="font-size:11px; font-weight:700; letter-spacing:1.2px; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">MPP TODAY (Hadir Sesuai Absensi)</div>
+      <div class="stats-grid" style="margin-bottom:28px;">
+        <div class="stat-card" style="border-left:3px solid #6366f1;">
+          <div class="stat-icon" style="background:rgba(99,102,241,0.1);"><svg width="20" height="20" fill="none" stroke="#6366f1" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></div>
+          <div class="stat-label">PICKER</div>
+          <div class="stat-value" id="mpp-today-picker" style="color:#6366f1;">—</div>
+          <div class="stat-sub">Hadir hari ini</div>
+        </div>
+        <div class="stat-card" style="border-left:3px solid #10b981;">
+          <div class="stat-icon" style="background:rgba(16,185,129,0.1);"><svg width="20" height="20" fill="none" stroke="#10b981" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></div>
+          <div class="stat-label">SORTER</div>
+          <div class="stat-value" id="mpp-today-sorter" style="color:#10b981;">—</div>
+          <div class="stat-sub">Hadir hari ini</div>
+        </div>
+        <div class="stat-card" style="border-left:3px solid #f59e0b;">
+          <div class="stat-icon" style="background:rgba(245,158,11,0.1);"><svg width="20" height="20" fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></div>
+          <div class="stat-label">LOADER</div>
+          <div class="stat-value" id="mpp-today-loader" style="color:#f59e0b;">—</div>
+          <div class="stat-sub">Hadir hari ini</div>
+        </div>
+        <div class="stat-card" style="border-left:3px solid #ec4899;">
+          <div class="stat-icon" style="background:rgba(236,72,153,0.1);"><svg width="20" height="20" fill="none" stroke="#ec4899" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
+          <div class="stat-label">TOTAL MPP TODAY</div>
+          <div class="stat-value" id="mpp-today-total" style="color:#ec4899;">—</div>
+          <div class="stat-sub">Semua posisi</div>
+        </div>
+      </div>
+
+      <!-- Pencapaian & Nilai Per Pekerja -->
       <div class="table-card">
         <div class="table-header">
-          <div class="table-title">Submissions Terbaru</div>
-          <button class="btn btn-outline" onclick="showPage('submissions')">Lihat Semua →</button>
+          <div class="table-title">Pencapaian &amp; Nilai Per Pekerja</div>
+          <div style="font-size:12px; color:var(--text-secondary);">Picker &amp; Sorter dari Data Submissions (status approved) · Loader dari Hasil Entry Loader. Harga mengikuti <a href="#" onclick="showPage('ketentuan-harga')" style="color:var(--primary); text-decoration:underline;">Ketentuan Harga</a>.</div>
         </div>
         <div class="table-wrap">
-          <table id="recentTable">
+          <table id="mppPencapaianTable">
             <thead>
               <tr>
-                <th>Nama</th><th>Posisi</th><th>Tipe Lokasi</th><th>Zona</th><th>Jumlah Output</th><th>Waktu Submit</th><th>Aksi</th>
+                <th>Nama</th><th>Posisi</th><th>Zona</th><th>Pencapaian</th><th>Satuan</th><th>Harga Satuan</th><th>Total Nilai</th>
               </tr>
             </thead>
-            <tbody id="recentTableBody">
+            <tbody id="mppPencapaianBody">
               <tr><td colspan="7"><div class="loading-spinner"><div class="spin"></div></div></td></tr>
             </tbody>
           </table>
         </div>
       </div>
+
+      <!-- Error state -->
+      <div id="mppErrorBanner" style="display:none; margin-top:16px; padding:14px 18px; background:rgba(239,68,68,0.07); border:1.5px solid rgba(239,68,68,0.2); border-radius:12px; color:var(--error); font-size:13px;"></div>
+    </div>
+
+    <!-- ===== KETENTUAN HARGA PAGE ===== -->
+    <div id="page-ketentuan-harga" class="page-section" style="display:none;">
+      <div style="display:grid; grid-template-columns:380px 1fr; gap:24px; align-items:start;">
+
+        <!-- Form Tambah/Edit -->
+        <div class="table-card" style="position:sticky; top:24px;">
+          <div class="table-header" style="border-bottom:1px solid var(--border); padding-bottom:16px; margin-bottom:20px;">
+            <div class="table-title" id="hargaFormTitle">Tambah Ketentuan Harga</div>
+          </div>
+          <form id="hargaForm" onsubmit="submitHargaForm(event)" style="display:flex; flex-direction:column; gap:16px;">
+            <input type="hidden" id="hargaEditId">
+            <div>
+              <label class="form-label">Posisi <span style="color:var(--error)">*</span></label>
+              <select id="hargaPosisi" class="form-input" onchange="onHargaPosisiChange()" required>
+                <option value="">— Pilih Posisi —</option>
+                <option value="Picker">Picker</option>
+                <option value="Sorter">Sorter</option>
+                <option value="Loader">Loader</option>
+              </select>
+            </div>
+            <div id="hargaZonaWrap">
+              <label class="form-label">Zona <span style="color:var(--error)">*</span></label>
+              <select id="hargaZona" class="form-input" required>
+                <option value="">— Pilih zona dulu —</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">Harga per Satuan (Rp) <span style="color:var(--error)">*</span></label>
+              <input type="number" id="hargaNominal" class="form-input" placeholder="Contoh: 150" min="0" required>
+            </div>
+            <div>
+              <label class="form-label">Satuan</label>
+              <input type="text" id="hargaSatuan" class="form-input" placeholder="pcs / kontainer" readonly style="background:var(--surface-2); cursor:not-allowed; opacity:0.7;">
+            </div>
+            <div>
+              <label class="form-label">Keterangan</label>
+              <textarea id="hargaKeterangan" class="form-input" placeholder="Opsional" rows="2" style="resize:vertical;"></textarea>
+            </div>
+            <div style="display:flex; gap:10px;">
+              <button type="submit" class="btn btn-primary" id="hargaSubmitBtn" style="flex:1;">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Simpan Ketentuan Harga
+              </button>
+              <button type="button" class="btn btn-outline" id="hargaCancelEditBtn" onclick="cancelHargaEdit()" style="display:none;">Batal</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Daftar Ketentuan Harga -->
+        <div>
+          <div class="table-card">
+            <div class="table-header">
+              <div class="table-title">Daftar Ketentuan Harga</div>
+              <button class="btn btn-outline" onclick="loadKetentuanHarga()">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                Refresh
+              </button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Posisi</th><th>Zona</th><th>Harga</th><th>Satuan</th><th>Keterangan</th><th>Diubah</th><th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="hargaTableBody">
+                  <tr><td colspan="7"><div class="loading-spinner"><div class="spin"></div></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Info box -->
+          <div style="margin-top:16px; padding:14px 18px; background:rgba(99,102,241,0.06); border:1.5px solid rgba(99,102,241,0.15); border-radius:12px;">
+            <div style="font-size:13px; font-weight:600; color:var(--primary); margin-bottom:6px;">💡 Info Pengaturan Harga</div>
+            <ul style="font-size:12px; color:var(--text-secondary); line-height:1.8; margin:0; padding-left:16px;">
+              <li><b>Picker</b>: Harga berbeda per zona (AMBIENT, CHILLER, FREEZER) — satuan: <b>pcs</b></li>
+              <li><b>Sorter</b>: Harga berbeda per zona (AMBIENT, CHILLER, FREEZER) — satuan: <b>kontainer</b></li>
+              <li><b>Loader</b>: Harga tunggal untuk semua zona gabungan — satuan: <b>kontainer</b></li>
+              <li>Harga ini digunakan untuk menghitung <b>Total Nilai</b> di halaman Monitoring MPP</li>
+            </ul>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ===== SUBMISSIONS PAGE ===== -->
+
     <div id="page-submissions" class="page-section" style="display:none;">
       <!-- Pending submissions alert banner -->
       <div id="pendingAlertBanner" style="display:none; margin-bottom: 20px; padding: 16px 20px; background: rgba(245,158,11,0.06); border: 1.5px solid rgba(245,158,11,0.25); border-radius: 16px; align-items: center; justify-content: space-between; gap: 12px; animation: fadeInUp 0.4s;">

@@ -920,13 +920,13 @@ function showOnscreenError(source, err) {
     currentView = page;
     const sidebar = document.getElementById('sidebar');
     if (sidebar) sidebar.classList.remove('open');
-    ['dashboard','submissions','data-carian','rekap-toko','users','loader','absensi','export','gsheets','login-settings','admin-accounts','audit-logs','feature-guide','announcements'].forEach(p => {
+    ['dashboard','submissions','data-carian','rekap-toko','users','loader','absensi','export','gsheets','login-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga'].forEach(p => {
       const el = document.getElementById('page-' + p);
       if (el) el.style.display = p === page ? 'block' : 'none';
     });
 
     const titles = {
-      dashboard: 'Dashboard',
+      dashboard: 'Monitoring MPP',
       submissions: 'Data Submissions (Picker & Sorter)',
       'data-carian': 'Data Carian Harian',
       'rekap-toko': 'Rekap Harian Per Toko',
@@ -939,11 +939,12 @@ function showOnscreenError(source, err) {
       'audit-logs': 'Log Aktivitas Sistem (Audit Trail)',
       'feature-guide': 'Panduan Fitur Baru',
       'absensi': 'Manajemen Absensi',
-      'announcements': 'Manajemen Pengumuman'
+      'announcements': 'Manajemen Pengumuman',
+      'ketentuan-harga': 'Ketentuan Harga'
     };
     document.getElementById('pageTitle').textContent = titles[page] || page;
 
-    ['dashboard','submissions','data-carian','rekap-toko','users','loader','absensi','export','gsheets','login-settings','admin-accounts','audit-logs','feature-guide','announcements'].forEach(p => {
+    ['dashboard','submissions','data-carian','rekap-toko','users','loader','absensi','export','gsheets','login-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga'].forEach(p => {
       const nav = document.getElementById('nav-' + p);
       if (nav) nav.classList.toggle('active', p === page);
     });
@@ -958,6 +959,8 @@ function showOnscreenError(source, err) {
     if (page === 'admin-accounts') loadAdminAccounts();
     if (page === 'audit-logs') loadAuditLogs(1);
     if (page === 'announcements') loadAnnouncements();
+    if (page === 'dashboard') loadMonitoringMPP();
+    if (page === 'ketentuan-harga') loadKetentuanHarga();
   }
 
   // ============= MODAL HELPERS =============
@@ -2655,3 +2658,250 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
   }
   window.deleteAnnouncement = deleteAnnouncement;
   window.loadAnnouncements  = loadAnnouncements;
+
+  // ============= MONITORING MPP =============
+
+  async function loadMonitoringMPP() {
+    const picker = document.getElementById('mppDatePicker');
+    if (!picker) return;
+    if (!picker.value) {
+      const today = new Date();
+      picker.value = today.toISOString().split('T')[0];
+    }
+    const tanggal = picker.value;
+
+    // Reset stats to loading state
+    ['mpp-all-picker','mpp-all-sorter','mpp-all-loader','mpp-all-total',
+     'mpp-today-picker','mpp-today-sorter','mpp-today-loader','mpp-today-total'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = '—';
+    });
+    const tbody = document.getElementById('mppPencapaianBody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7"><div class="loading-spinner"><div class="spin"></div></div></td></tr>';
+    const errBanner = document.getElementById('mppErrorBanner');
+    if (errBanner) errBanner.style.display = 'none';
+
+    try {
+      const res = await fetch(`/api/monitoring-mpp?tanggal=${tanggal}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal memuat data.');
+
+      // Update MPP All cards
+      document.getElementById('mpp-all-picker').textContent  = data.mpp_all.picker;
+      document.getElementById('mpp-all-sorter').textContent  = data.mpp_all.sorter;
+      document.getElementById('mpp-all-loader').textContent  = data.mpp_all.loader;
+      document.getElementById('mpp-all-total').textContent   = data.mpp_all.total;
+
+      // Update MPP Today cards
+      document.getElementById('mpp-today-picker').textContent  = data.mpp_today.picker;
+      document.getElementById('mpp-today-sorter').textContent  = data.mpp_today.sorter;
+      document.getElementById('mpp-today-loader').textContent  = data.mpp_today.loader;
+      document.getElementById('mpp-today-total').textContent   = data.mpp_today.total;
+
+      // Render pencapaian table
+      const posisiBadgeColor = { 'Picker': '#8b5cf6', 'Sorter': '#10b981', 'Loader': '#f59e0b' };
+      if (!data.pencapaian || data.pencapaian.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:32px; color:var(--text-secondary); font-size:13px;">
+          <div style="font-size:32px; margin-bottom:10px;">📋</div>
+          Tidak ada data pencapaian untuk tanggal ini.</td></tr>`;
+      } else {
+        let totalNilaiGrand = 0;
+        tbody.innerHTML = data.pencapaian.map(p => {
+          const color = posisiBadgeColor[p.posisi] || '#6b7280';
+          const hargaStr = p.harga_satuan !== null ? `Rp ${p.harga_satuan.toLocaleString('id-ID')}` : '<span style="color:var(--text-secondary); font-style:italic;">Belum diset</span>';
+          const nilaiStr = p.total_nilai !== null
+            ? `<b style="color:var(--success);">Rp ${p.total_nilai.toLocaleString('id-ID')}</b>`
+            : '<span style="color:var(--text-secondary); font-style:italic;">—</span>';
+          if (p.total_nilai) totalNilaiGrand += p.total_nilai;
+          return `<tr>
+            <td><b>${p.nama}</b></td>
+            <td><span class="badge" style="background:${color}20; color:${color}; font-size:11px; padding:3px 8px; border-radius:8px;">${p.posisi}</span></td>
+            <td style="font-size:12px;">${p.zona}</td>
+            <td style="font-weight:700;">${p.pencapaian.toLocaleString('id-ID')}</td>
+            <td style="font-size:12px; color:var(--text-secondary);">${p.satuan}</td>
+            <td>${hargaStr}</td>
+            <td>${nilaiStr}</td>
+          </tr>`;
+        }).join('');
+        // Add grand total row
+        tbody.innerHTML += `<tr style="background:rgba(99,102,241,0.06); font-weight:700; border-top:2px solid var(--border);">
+          <td colspan="6" style="text-align:right; padding-right:16px; font-size:13px;">TOTAL NILAI SELURUH PEKERJA</td>
+          <td style="color:var(--primary); font-size:14px;">Rp ${totalNilaiGrand.toLocaleString('id-ID')}</td>
+        </tr>`;
+      }
+    } catch (err) {
+      console.error('loadMonitoringMPP error:', err);
+      if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:var(--error);">Gagal memuat data Monitoring MPP.</td></tr>';
+      if (errBanner) { errBanner.textContent = err.message; errBanner.style.display = 'block'; }
+    }
+  }
+  window.loadMonitoringMPP = loadMonitoringMPP;
+
+  // Initialize date picker and load MPP when page first loads
+  document.addEventListener('DOMContentLoaded', () => {
+    const picker = document.getElementById('mppDatePicker');
+    if (picker && !picker.value) {
+      picker.value = new Date().toISOString().split('T')[0];
+    }
+    loadMonitoringMPP();
+  });
+
+  // ============= KETENTUAN HARGA =============
+
+  const ZONA_BY_POSISI = {
+    Picker: ['AMBIENT', 'CHILLER', 'FREEZER'],
+    Sorter: ['AMBIENT', 'CHILLER', 'FREEZER'],
+    Loader: ['AMBIENT, CHILLER, FREEZER']
+  };
+
+  function onHargaPosisiChange() {
+    const posisi = document.getElementById('hargaPosisi').value;
+    const zonaSelect = document.getElementById('hargaZona');
+    const satuanInput = document.getElementById('hargaSatuan');
+    zonaSelect.innerHTML = '<option value="">— Pilih Zona —</option>';
+
+    if (posisi && ZONA_BY_POSISI[posisi]) {
+      ZONA_BY_POSISI[posisi].forEach(z => {
+        const opt = document.createElement('option');
+        opt.value = z; opt.textContent = z;
+        zonaSelect.appendChild(opt);
+      });
+      // Loader: auto-select & disable zona
+      if (posisi === 'Loader') {
+        zonaSelect.value = 'AMBIENT, CHILLER, FREEZER';
+        zonaSelect.disabled = true;
+      } else {
+        zonaSelect.disabled = false;
+      }
+      satuanInput.value = posisi === 'Picker' ? 'pcs' : 'kontainer';
+    } else {
+      satuanInput.value = '';
+      zonaSelect.disabled = false;
+    }
+  }
+  window.onHargaPosisiChange = onHargaPosisiChange;
+
+  async function loadKetentuanHarga() {
+    const tbody = document.getElementById('hargaTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="7"><div class="loading-spinner"><div class="spin"></div></div></td></tr>';
+    try {
+      const data = await fetch('/api/ketentuan-harga').then(r => r.json());
+      if (!Array.isArray(data) || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:32px; color:var(--text-secondary); font-size:13px;"><div style="font-size:32px; margin-bottom:10px;">💰</div>Belum ada ketentuan harga. Tambahkan melalui form di sebelah kiri.</td></tr>';
+        return;
+      }
+      const posisiBadgeColor = { 'Picker': '#8b5cf6', 'Sorter': '#10b981', 'Loader': '#f59e0b' };
+      tbody.innerHTML = data.map(h => {
+        const color = posisiBadgeColor[h.posisi] || '#6b7280';
+        const updatedAt = h.updated_at ? new Date(h.updated_at).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+        return `<tr>
+          <td><span class="badge" style="background:${color}20; color:${color}; font-size:11px; padding:3px 8px; border-radius:8px;">${h.posisi}</span></td>
+          <td style="font-size:12px;">${h.zona}</td>
+          <td style="font-weight:700; color:var(--success);">Rp ${(h.harga || 0).toLocaleString('id-ID')}</td>
+          <td><span style="font-size:11px; color:var(--text-secondary);">${h.satuan}</span></td>
+          <td style="font-size:12px; color:var(--text-secondary); max-width:160px;">${h.keterangan || '—'}</td>
+          <td style="font-size:11px; color:var(--text-secondary);">${updatedAt}</td>
+          <td>
+            <div style="display:flex; gap:6px;">
+              <button class="btn btn-outline btn-icon" onclick="editHarga('${h.id}','${h.posisi}','${h.zona}',${h.harga},'${(h.keterangan||'').replace(/'/g,"\\'")}','${h.satuan}')" title="Edit">
+                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+              <button class="btn btn-danger btn-icon" onclick="deleteHarga('${h.id}')" title="Hapus">
+                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+              </button>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+    } catch (err) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:var(--error);">Gagal memuat ketentuan harga.</td></tr>';
+    }
+  }
+  window.loadKetentuanHarga = loadKetentuanHarga;
+
+  async function submitHargaForm(e) {
+    e.preventDefault();
+    const editId    = document.getElementById('hargaEditId').value;
+    const posisi    = document.getElementById('hargaPosisi').value;
+    const zona      = document.getElementById('hargaZona').value;
+    const harga     = document.getElementById('hargaNominal').value;
+    const keterangan = document.getElementById('hargaKeterangan').value;
+    const btn       = document.getElementById('hargaSubmitBtn');
+
+    btn.disabled = true; btn.textContent = 'Menyimpan...';
+    try {
+      let res;
+      if (editId) {
+        res = await fetch(`/api/ketentuan-harga/${editId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ harga: parseInt(harga), keterangan })
+        });
+      } else {
+        res = await fetch('/api/ketentuan-harga', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ posisi, zona, harga: parseInt(harga), keterangan })
+        });
+      }
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Gagal menyimpan.');
+      showToast(editId ? 'Ketentuan harga diperbarui!' : 'Ketentuan harga ditambahkan!', 'success');
+      cancelHargaEdit();
+      loadKetentuanHarga();
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+  window.submitHargaForm = submitHargaForm;
+
+  function editHarga(id, posisi, zona, harga, keterangan, satuan) {
+    document.getElementById('hargaEditId').value    = id;
+    document.getElementById('hargaPosisi').value    = posisi;
+    document.getElementById('hargaPosisi').disabled = true;
+    onHargaPosisiChange();
+    document.getElementById('hargaZona').value      = zona;
+    document.getElementById('hargaZona').disabled   = true;
+    document.getElementById('hargaNominal').value   = harga;
+    document.getElementById('hargaSatuan').value    = satuan;
+    document.getElementById('hargaKeterangan').value = keterangan;
+    document.getElementById('hargaFormTitle').textContent = 'Edit Ketentuan Harga';
+    document.getElementById('hargaSubmitBtn').innerHTML = '<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg> Perbarui Harga';
+    document.getElementById('hargaCancelEditBtn').style.display = 'inline-flex';
+    document.getElementById('hargaNominal').focus();
+    // Scroll form into view
+    document.getElementById('hargaForm').closest('.table-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  window.editHarga = editHarga;
+
+  function cancelHargaEdit() {
+    document.getElementById('hargaEditId').value = '';
+    document.getElementById('hargaForm').reset();
+    document.getElementById('hargaPosisi').disabled = false;
+    document.getElementById('hargaZona').disabled = false;
+    document.getElementById('hargaZona').innerHTML = '<option value="">— Pilih zona dulu —</option>';
+    document.getElementById('hargaSatuan').value = '';
+    document.getElementById('hargaFormTitle').textContent = 'Tambah Ketentuan Harga';
+    document.getElementById('hargaSubmitBtn').innerHTML = '<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan Ketentuan Harga';
+    document.getElementById('hargaCancelEditBtn').style.display = 'none';
+  }
+  window.cancelHargaEdit = cancelHargaEdit;
+
+  async function deleteHarga(id) {
+    const confirmed = await showConfirmModal({
+      title: 'Hapus Ketentuan Harga',
+      message: 'Yakin ingin menghapus ketentuan harga ini? Tindakan tidak dapat dibatalkan.',
+      icon: '🗑️', okText: 'Hapus', okClass: 'btn-danger'
+    });
+    if (!confirmed) return;
+    try {
+      const res = await fetch(`/api/ketentuan-harga/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      showToast('Ketentuan harga dihapus.', 'success');
+      loadKetentuanHarga();
+    } catch { showToast('Gagal menghapus ketentuan harga.', 'error'); }
+  }
+  window.deleteHarga = deleteHarga;
