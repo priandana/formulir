@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="dns-prefetch" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/admin.css?v=1.7">
+  <link rel="stylesheet" href="/css/admin.css?v=1.8">
   <link rel="stylesheet" href="/css/absensi.css?v=1.1">
   <script>
     if (localStorage.getItem('theme') === 'dark') {
@@ -807,8 +807,8 @@
     <div id="page-admin-accounts" class="page-section" style="display:none;">
 
       <!-- Ganti Password Sendiri -->
-      <div class="table-card" style="margin-bottom:20px; border: 1.5px solid rgba(108,60,225,0.25); background: linear-gradient(135deg, rgba(108,60,225,0.03) 0%, rgba(14,165,233,0.03) 100%);">
-        <div class="table-header" style="border-bottom: 1px solid rgba(108,60,225,0.12);">
+      <div class="table-card" style="margin-bottom:20px; border: 1.5px solid rgba(37, 99, 235,0.25); background: linear-gradient(135deg, rgba(37, 99, 235,0.03) 0%, rgba(14,165,233,0.03) 100%);">
+        <div class="table-header" style="border-bottom: 1px solid rgba(37, 99, 235,0.12);">
           <div class="table-title" style="display:flex;align-items:center;gap:8px;">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
             Ganti Password Akun Saya
@@ -1499,7 +1499,7 @@
             </button>
           </div>
           <!-- Format info -->
-          <div style="margin-top:20px; padding:14px 18px; background:rgba(108,60,225,0.03); border:1px solid rgba(108,60,225,0.08); border-radius:12px;">
+          <div style="margin-top:20px; padding:14px 18px; background:rgba(37, 99, 235,0.03); border:1px solid rgba(37, 99, 235,0.08); border-radius:12px;">
             <div style="font-size:12px; font-weight:700; color:var(--text-muted); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">📋 Info Format Export</div>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:13px; color:var(--text-muted);">
               <div><strong style="color:var(--text);">Excel (.xlsx)</strong><br>• Header berwarna biru + hijau<br>• Baris alternating sesuai status<br>• Auto-filter aktif di semua kolom<br>• Sheet tambahan: Ringkasan per Posisi/Zona<br>• Header row di-freeze</div>
@@ -1611,9 +1611,9 @@
             <li>Buat Service Account: <strong>IAM & Admin</strong> → <strong>Service Accounts</strong> → <strong>Create Service Account</strong></li>
             <li>Setelah dibuat, klik service account → tab <strong>Keys</strong> → <strong>Add Key</strong> → <strong>JSON</strong> → download file JSON</li>
             <li>Buat spreadsheet baru di <a href="https://sheets.google.com" target="_blank" style="color:var(--primary); font-weight:600;">Google Sheets</a></li>
-            <li>Share spreadsheet ke email service account (dari file JSON: <code style="background:rgba(108,60,225,0.06); padding:1px 6px; border-radius:4px;">client_email</code>) dengan role <strong>Editor</strong></li>
-            <li>Ambil <strong>Spreadsheet ID</strong> dari URL: <code style="background:rgba(108,60,225,0.06); padding:1px 6px; border-radius:4px;">https://docs.google.com/spreadsheets/d/<strong>[ID INI]</strong>/edit</code></li>
-            <li>Tambahkan ke file <code style="background:rgba(108,60,225,0.06); padding:1px 6px; border-radius:4px;">.env</code> di folder project:</li>
+            <li>Share spreadsheet ke email service account (dari file JSON: <code style="background:rgba(37, 99, 235,0.06); padding:1px 6px; border-radius:4px;">client_email</code>) dengan role <strong>Editor</strong></li>
+            <li>Ambil <strong>Spreadsheet ID</strong> dari URL: <code style="background:rgba(37, 99, 235,0.06); padding:1px 6px; border-radius:4px;">https://docs.google.com/spreadsheets/d/<strong>[ID INI]</strong>/edit</code></li>
+            <li>Tambahkan ke file <code style="background:rgba(37, 99, 235,0.06); padding:1px 6px; border-radius:4px;">.env</code> di folder project:</li>
           </ol>
           <div class="gs-code" style="margin-top:12px;">GOOGLE_SHEETS_ID=1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms
 GOOGLE_SERVICE_ACCOUNT_EMAIL=ss08-bot@my-project.iam.gserviceaccount.com
@@ -1656,7 +1656,7 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
       <div class="gs-panel">
         <div class="gs-header">
           <div class="gs-logo">
-            <div class="gs-icon" style="background:linear-gradient(135deg,#6C3CE1,#8B5CF6);">
+            <div class="gs-icon" style="background:linear-gradient(135deg,#2563EB,#60A5FA);">
               <svg width="22" height="22" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
             </div>
             <div>
@@ -1903,7 +1903,7 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
         <div style="overflow-x:auto;">
           <table style="border-collapse:collapse;font-size:12px;min-width:360px;">
             <thead>
-              <tr style="background:rgba(108,60,225,0.15);">
+              <tr style="background:rgba(37, 99, 235,0.15);">
                 <th style="padding:6px 12px;border:1px solid var(--card-border);color:var(--primary-light);">Posisi</th>
                 <th style="padding:6px 12px;border:1px solid var(--card-border);color:var(--primary-light);">Zona</th>
                 <th style="padding:6px 12px;border:1px solid var(--card-border);color:var(--primary-light);">Batch</th>
