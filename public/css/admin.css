@@ -1111,7 +1111,14 @@
   .modal-body { padding: 16px 18px; }
 
   /* --- Harga info grid --- */
-  .harga-info-grid { grid-template-columns: 1fr; gap: 10px; }
+  .harga-info-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
+  .harga-info-card { padding: 14px 16px !important; }
+  .harga-hero {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+    padding: 20px 18px !important;
+  }
 
   /* --- Rekap toko chips --- */
   .rekap-chip { font-size: 11px; padding: 4px 10px; }
