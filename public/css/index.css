@@ -1641,6 +1641,12 @@ body.dark-mode input[type="date"].date-styled::-webkit-calendar-picker-indicator
   .main-wrapper { padding: 68px 12px 50px; }
   .ld-photo-grid { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
   .ld-photo-btn-svg { width: 26px; height: 26px; }
+
+  /* iOS Safari: prevent auto-zoom on input focus (font-size must be >= 16px) */
+  input, input[type="text"], input[type="password"], input[type="email"],
+  input[type="number"], input[type="tel"], textarea, select {
+    font-size: 16px !important;
+  }
 }
 
 /* ================================================================

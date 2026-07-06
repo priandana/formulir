@@ -132,8 +132,68 @@
       background: var(--primary);
       border-radius: 0 4px 4px 0;
     }
-    .nav-item.active svg { color: var(--primary); }
     .nav-item svg { color: var(--text-dim); flex-shrink: 0; transition: all 0.2s ease; }
+    
+    /* ===== COLLAPSIBLE SUBMENU SYSTEM ===== */
+    .nav-group {
+      margin-bottom: 4px;
+    }
+    .nav-group-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      margin-bottom: 2px;
+      user-select: none;
+    }
+    .nav-group-header:hover {
+      background: rgba(108, 60, 225, 0.04);
+      color: var(--primary);
+      transform: translateX(4px);
+    }
+    .nav-group-header svg {
+      color: var(--text-dim);
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+    }
+    .nav-group-header:hover svg {
+      color: var(--primary);
+    }
+    .nav-group-chevron {
+      margin-left: auto;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+    .nav-group.open .nav-group-chevron {
+      transform: rotate(180deg);
+    }
+    .nav-group-items {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      padding-left: 12px; /* Indent submenus */
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .nav-group.open .nav-group-items {
+      max-height: 500px; /* Expand fully */
+      margin-top: 2px;
+      margin-bottom: 4px;
+    }
+    .nav-group-items .nav-item {
+      font-size: 13px;
+      padding: 8px 12px;
+    }
+    .nav-group-items .nav-item.active::before {
+      left: -12px;
+    }
+    
     
     .sidebar-footer { padding: 16px 12px; border-top: 1px solid var(--card-border); }
     .user-info { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; margin-bottom: 8px; background: rgba(108, 60, 225, 0.03); border: 1px solid rgba(108, 60, 225, 0.05); }
@@ -202,6 +262,321 @@
     .stat-card.green .stat-icon { background: rgba(16,185,129,0.08); color: #059669; }
     .stat-card.pink .stat-icon { background: rgba(236,72,153,0.08); color: #BE185D; }
     .stat-card.amber .stat-icon { background: rgba(245,158,11,0.08); color: #B45309; }
+
+    /* ===== DASHBOARD PREMIUM STYLES ===== */
+
+    /* Hero banner */
+    .dashboard-hero {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 20px;
+      background: linear-gradient(135deg, #6C3CE1 0%, #8B5CF6 50%, #EC4899 100%);
+      border-radius: 24px;
+      padding: 28px 32px;
+      margin-bottom: 28px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 20px 60px -15px rgba(108,60,225,0.35);
+    }
+    .dashboard-hero::before {
+      content: '';
+      position: absolute;
+      top: -40%; right: -10%;
+      width: 300px; height: 300px;
+      background: rgba(255,255,255,0.07);
+      border-radius: 50%;
+    }
+    .dashboard-hero::after {
+      content: '';
+      position: absolute;
+      bottom: -60%; left: 30%;
+      width: 250px; height: 250px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 50%;
+    }
+    .dashboard-hero-left { position: relative; z-index: 1; }
+    .dashboard-hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      padding: 5px 12px;
+      border-radius: 99px;
+      margin-bottom: 12px;
+    }
+    .dashboard-hero-title {
+      font-size: 28px;
+      font-weight: 900;
+      color: #fff;
+      line-height: 1.15;
+      margin-bottom: 8px;
+    }
+    .dashboard-hero-desc {
+      font-size: 13px;
+      color: rgba(255,255,255,0.75);
+      max-width: 480px;
+    }
+    /* Date picker wrap */
+    .dashboard-date-picker-wrap {
+      position: relative;
+      z-index: 1;
+      background: rgba(255,255,255,0.12);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 16px;
+      padding: 14px 18px;
+      min-width: 200px;
+    }
+    .dashboard-date-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.6);
+      margin-bottom: 8px;
+    }
+    .dashboard-date-input-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #fff;
+    }
+    .dashboard-date-input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #fff;
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      flex: 1;
+    }
+    .dashboard-date-input::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
+
+    /* Section label */
+    .dashboard-section-label {
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dashboard-section-label span {
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      text-transform: none;
+      color: var(--text-dim);
+    }
+
+    /* Stat Card V2 — gradient with glow */
+    .stat-card-v2 {
+      border-radius: 20px;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: default;
+    }
+    .stat-card-v2:hover { transform: translateY(-6px) scale(1.02); }
+    .stat-card-v2-glow {
+      position: absolute;
+      bottom: -30%;
+      right: -20%;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      opacity: 0.25;
+      filter: blur(30px);
+    }
+    .stat-card-v2-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+      transition: transform 0.3s ease;
+    }
+    .stat-card-v2:hover .stat-card-v2-icon { transform: scale(1.1) rotate(8deg); }
+    .stat-card-v2-label {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 6px;
+    }
+    .stat-card-v2-value {
+      font-size: 38px;
+      font-weight: 900;
+      color: #fff;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .stat-card-v2-sub { font-size: 12px; color: rgba(255,255,255,0.55); }
+
+    .v2-purple { background: linear-gradient(135deg, #6C3CE1, #8B5CF6); box-shadow: 0 12px 40px -12px rgba(108,60,225,0.45); }
+    .v2-purple .stat-card-v2-glow { background: #a78bfa; }
+    .v2-green  { background: linear-gradient(135deg, #059669, #10B981); box-shadow: 0 12px 40px -12px rgba(16,185,129,0.4); }
+    .v2-green  .stat-card-v2-glow { background: #34d399; }
+    .v2-amber  { background: linear-gradient(135deg, #D97706, #F59E0B); box-shadow: 0 12px 40px -12px rgba(245,158,11,0.4); }
+    .v2-amber  .stat-card-v2-glow { background: #fbbf24; }
+    .v2-pink   { background: linear-gradient(135deg, #BE185D, #EC4899); box-shadow: 0 12px 40px -12px rgba(236,72,153,0.4); }
+    .v2-pink   .stat-card-v2-glow { background: #f472b6; }
+
+    /* Stat Card Today — glass with accent bar */
+    .stat-card-today {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 22px 24px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+    }
+    .stat-card-today:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 16px 40px -12px var(--today-bg, rgba(0,0,0,0.1));
+      border-color: var(--today-color, var(--primary));
+    }
+    .stat-today-accent {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--today-color, var(--primary));
+      border-radius: 20px 20px 0 0;
+    }
+    .stat-today-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+      transition: transform 0.3s ease;
+    }
+    .stat-card-today:hover .stat-today-icon { transform: scale(1.1) rotate(5deg); }
+    .stat-today-value {
+      font-size: 36px;
+      font-weight: 900;
+      color: var(--today-color, var(--primary));
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    /* ===== KETENTUAN HARGA PREMIUM STYLES ===== */
+    .harga-hero {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      background: linear-gradient(135deg, #1E1B4B 0%, #3730A3 60%, #6C3CE1 100%);
+      border-radius: 20px;
+      padding: 24px 28px;
+      margin-bottom: 24px;
+      box-shadow: 0 12px 40px -12px rgba(55,48,163,0.35);
+      position: relative;
+      overflow: hidden;
+    }
+    .harga-hero::before {
+      content: '';
+      position: absolute;
+      top: -30%; right: 5%;
+      width: 200px; height: 200px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 50%;
+    }
+    .harga-hero-icon {
+      font-size: 36px;
+      flex-shrink: 0;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+    }
+    .harga-hero-title {
+      font-size: 22px;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .harga-hero-desc {
+      font-size: 13px;
+      color: rgba(255,255,255,0.65);
+      max-width: 500px;
+    }
+    /* Info grid */
+    .harga-info-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .harga-info-card {
+      border-radius: 18px;
+      padding: 20px 22px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+      cursor: default;
+    }
+    .harga-info-card:hover { transform: translateY(-4px); }
+    .harga-info-icon {
+      font-size: 28px;
+      margin-bottom: 12px;
+      display: block;
+    }
+    .harga-info-name {
+      font-size: 16px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .harga-info-desc {
+      font-size: 12px;
+      margin-bottom: 8px;
+      opacity: 0.7;
+    }
+    .harga-info-satuan {
+      font-size: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(0,0,0,0.07);
+      padding: 3px 10px;
+      border-radius: 99px;
+    }
+    .harga-picker {
+      background: linear-gradient(135deg, rgba(139,92,246,0.1), rgba(139,92,246,0.05));
+      border: 1.5px solid rgba(139,92,246,0.2);
+      color: #7c3aed;
+    }
+    .harga-picker .harga-info-satuan { background: rgba(139,92,246,0.1); }
+    .harga-sorter {
+      background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(16,185,129,0.05));
+      border: 1.5px solid rgba(16,185,129,0.2);
+      color: #059669;
+    }
+    .harga-sorter .harga-info-satuan { background: rgba(16,185,129,0.1); }
+    .harga-loader {
+      background: linear-gradient(135deg, rgba(245,158,11,0.1), rgba(245,158,11,0.05));
+      border: 1.5px solid rgba(245,158,11,0.2);
+      color: #b45309;
+    }
+    .harga-loader .harga-info-satuan { background: rgba(245,158,11,0.1); }
 
     /* Table Card */
     .table-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px -10px rgba(108, 60, 225, 0.04); transition: all 0.3s ease; }
@@ -635,6 +1010,101 @@
 }
 
 /* ============================================================
+   RESPONSIVE MOBILE — Global fixes
+   ============================================================ */
+@media (max-width: 768px) {
+
+  /* --- Topbar --- */
+  .topbar {
+    padding: 12px 14px;
+    gap: 8px;
+  }
+  .topbar h2 {
+    font-size: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 130px;
+  }
+  .topbar-actions { gap: 6px; }
+
+  /* Sembunyikan teks di tombol Export & Refresh, tampilkan icon saja */
+  #btnExportExcel span,
+  #btnRefresh span,
+  .topbar-actions .btn:not(.btn-icon) > svg + * {
+    display: none;
+  }
+  .topbar-actions .btn-success,
+  .topbar-actions .btn-outline:not(.btn-icon) {
+    padding: 8px 10px;
+    min-width: unset;
+  }
+
+  /* --- Page content padding --- */
+  .page-content { padding: 14px 12px; }
+  .page-section { padding-top: 4px; }
+
+  /* --- Dashboard hero --- */
+  .dashboard-hero {
+    flex-direction: column;
+    gap: 14px;
+    padding: 20px 18px;
+  }
+  .dashboard-hero-title { font-size: 22px; }
+  .dashboard-date-picker-wrap { width: 100%; }
+  .dashboard-date-input { width: 100%; }
+
+  /* --- MPP filter search + posisi --- */
+  .table-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  #mppSearchNama { width: 100% !important; }
+  #mppFilterPosisi { width: 100%; }
+
+  /* --- Stats grid --- */
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .mpp-all-grid { grid-template-columns: 1fr 1fr; }
+  .stat-card-v2-value { font-size: 28px; }
+  .stat-today-value { font-size: 24px; }
+
+  /* --- Tabel scroll horizontal --- */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { min-width: 560px; }
+
+  /* --- Table card --- */
+  .table-card { border-radius: 14px; }
+  .table-header { padding: 14px 16px; }
+
+  /* --- Form controls — WAJIB 16px agar iOS tidak auto-zoom saat focus --- */
+  input, input[type="text"], input[type="password"], input[type="email"],
+  input[type="number"], input[type="date"], input[type="search"],
+  input[type="tel"], input[type="url"], textarea, select,
+  .form-control {
+    font-size: 16px !important; /* iOS Safari zoom prevention */
+  }
+
+  /* --- Modal --- */
+  .modal { margin: 12px; width: calc(100% - 24px) !important; max-width: 100% !important; }
+  .modal-header { padding: 16px 18px; }
+  .modal-body { padding: 16px 18px; }
+
+  /* --- Harga info grid --- */
+  .harga-info-grid { grid-template-columns: 1fr; gap: 10px; }
+
+  /* --- Rekap toko chips --- */
+  .rekap-chip { font-size: 11px; padding: 4px 10px; }
+
+  /* --- Dashboard section label --- */
+  .dashboard-section-label { font-size: 11px; margin-bottom: 10px; }
+
+  /* --- Toast notifikasi --- */
+  .toast { right: 12px; left: 12px; bottom: 16px; }
+}
+
+/* ============================================================
    REKAP HARIAN PER TOKO — Dark Table Styles
    ============================================================ */
 
@@ -1028,6 +1498,30 @@ body.dark-mode .stat-value {
 body.dark-mode .stat-sub {
   color: #6B7280;
 }
+/* Dark mode: new premium components */
+body.dark-mode .stat-card-today {
+  background: #111425;
+  border-color: #1E243B;
+}
+body.dark-mode .dashboard-section-label {
+  color: #9CA3AF;
+}
+body.dark-mode .dashboard-section-label span {
+  color: #6B7280;
+}
+body.dark-mode .harga-info-card.harga-picker {
+  background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(139,92,246,0.08));
+  border-color: rgba(139,92,246,0.3);
+}
+body.dark-mode .harga-info-card.harga-sorter {
+  background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.08));
+  border-color: rgba(16,185,129,0.3);
+}
+body.dark-mode .harga-info-card.harga-loader {
+  background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.08));
+  border-color: rgba(245,158,11,0.3);
+}
+
 body.dark-mode .table-card {
   background: #111425;
   border-color: #1E243B;
@@ -1922,4 +2416,132 @@ body.dark-mode .custom-select-trigger-text.placeholder-text {
   opacity: 1;
   background: rgba(255, 255, 255, 0.2);
   text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+}
+
+/* Premium Permission Cards & Grid */
+.perm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.perm-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.perm-card:hover {
+  border-color: var(--primary-light);
+  background: rgba(108, 60, 225, 0.02);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.perm-card input[type="checkbox"] {
+  display: none;
+}
+
+/* Custom Checkbox Indicator */
+.perm-checkbox-indicator {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--text-dim);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.perm-card:hover .perm-checkbox-indicator {
+  border-color: var(--primary-light);
+}
+
+.perm-card:has(input[type="checkbox"]:checked) .perm-checkbox-indicator,
+.perm-card.checked .perm-checkbox-indicator {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.perm-checkbox-indicator::after {
+  content: '';
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translate(-0.5px, -0.5px);
+  opacity: 0;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.perm-card:has(input[type="checkbox"]:checked) .perm-checkbox-indicator::after,
+.perm-card.checked .perm-checkbox-indicator::after {
+  opacity: 1;
+}
+
+/* Style card when checked */
+.perm-card:has(input[type="checkbox"]:checked),
+.perm-card.checked {
+  border-color: var(--primary);
+  background: rgba(108, 60, 225, 0.06);
+  box-shadow: 0 4px 12px rgba(108, 60, 225, 0.08);
+}
+
+.perm-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(108, 60, 225, 0.06);
+  color: var(--primary);
+  border-radius: 8px;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.perm-card:has(input[type="checkbox"]:checked) .perm-card-icon,
+.perm-card.checked .perm-card-icon {
+  background: var(--primary);
+  color: #fff;
+}
+
+.perm-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0; /* allows text truncation/wrap */
+  flex-grow: 1;
+}
+
+.perm-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.perm-card-desc {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
 }

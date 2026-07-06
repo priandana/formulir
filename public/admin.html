@@ -177,13 +177,13 @@
       <h2 id="pageTitle">Dashboard</h2>
     </div>
     <div class="topbar-actions">
-      <button class="btn btn-success" onclick="exportExcel()">
+      <button class="btn btn-success" id="btnExportExcel" onclick="exportExcel()">
         <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3"/><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1"/></svg>
-        Export Excel
+        <span>Export Excel</span>
       </button>
-      <button class="btn btn-outline" onclick="loadData()">
+      <button class="btn btn-outline" id="btnRefresh" onclick="loadData()">
         <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-        Refresh
+        <span>Refresh</span>
       </button>
       <button class="btn btn-outline btn-icon" id="btnThemeToggle" onclick="toggleDarkMode()" title="Ubah Tema">
         <svg id="themeToggleIcon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
