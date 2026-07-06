@@ -599,48 +599,93 @@
 
       </div><!-- end panel-picker -->
 
-      <!-- ===== TAB PENDAPATAN: COMING SOON ===== -->
+      <!-- ===== TAB PENDAPATAN ===== -->
       <div class="tab-panel" id="panel-pendapatan">
-        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:60vh; text-align:center; padding:40px 20px;">
-          <!-- Animated coin/money icon -->
-          <div style="width:100px; height:100px; border-radius:50%; background:linear-gradient(135deg,#f59e0b,#ef4444); display:flex; align-items:center; justify-content:center; margin-bottom:28px; box-shadow:0 20px 60px rgba(245,158,11,0.35); animation:pendapatanPulse 2.5s ease-in-out infinite;">
-            <svg width="48" height="48" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-          </div>
-
-          <!-- Badge -->
-          <div style="background:linear-gradient(135deg,#f59e0b,#ef4444); color:#fff; font-size:11px; font-weight:800; padding:4px 14px; border-radius:20px; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:20px;">Segera Hadir</div>
-
-          <!-- Title -->
-          <h2 style="font-size:26px; font-weight:800; color:var(--text-primary); margin-bottom:12px; line-height:1.3;">Fitur Pendapatan<br>Sedang Disiapkan 🚀</h2>
-
-          <!-- Description -->
-          <p style="font-size:14px; color:var(--text-secondary); max-width:380px; line-height:1.8; margin-bottom:32px;">
-            Segera kamu bisa melihat <b>estimasi pendapatan harian</b> berdasarkan pencapaian kerjamu dikalikan harga satuan yang ditetapkan.
-          </p>
-
-          <!-- Feature preview cards -->
-          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px; max-width:480px; width:100%; margin-bottom:32px;">
-            <div style="padding:16px; background:var(--surface); border:1.5px solid var(--border); border-radius:14px; text-align:center;">
-              <div style="font-size:24px; margin-bottom:6px;">📊</div>
-              <div style="font-size:12px; font-weight:700; color:var(--text-primary); margin-bottom:3px;">Total Pencapaian</div>
-              <div style="font-size:11px; color:var(--text-secondary);">Output kerjamu hari ini</div>
+        <!-- Tampilan Coming Soon (Default) -->
+        <div id="pendapatan-soon-view" style="display: block; text-align: center; padding: 40px 20px;">
+          <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh;">
+            <div style="width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(135deg, #f59e0b, #ef4444); display: flex; align-items: center; justify-content: center; margin-bottom: 28px; box-shadow: 0 20px 60px rgba(245, 158, 11, 0.35); animation: pendapatanPulse 2.5s ease-in-out infinite;">
+              <svg width="48" height="48" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
             </div>
-            <div style="padding:16px; background:var(--surface); border:1.5px solid var(--border); border-radius:14px; text-align:center;">
-              <div style="font-size:24px; margin-bottom:6px;">💰</div>
-              <div style="font-size:12px; font-weight:700; color:var(--text-primary); margin-bottom:3px;">Estimasi Nilai</div>
-              <div style="font-size:11px; color:var(--text-secondary);">Output × harga satuan</div>
+            <div style="background: linear-gradient(135deg, #f59e0b, #ef4444); color: #fff; font-size: 11px; font-weight: 800; padding: 4px 14px; border-radius: 20px; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 20px;">Segera Hadir</div>
+            <h2 style="font-size: 26px; font-weight: 800; color: var(--text-primary); margin-bottom: 12px; line-height: 1.3;">Fitur Pendapatan<br>Sedang Disiapkan 🚀</h2>
+            <p style="font-size: 14px; color: var(--text-secondary); max-width: 380px; line-height: 1.8; margin-bottom: 32px;">
+              Segera kamu bisa melihat <b>estimasi pendapatan harian</b> berdasarkan pencapaian kerjamu dikalikan harga satuan yang ditetapkan.
+            </p>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; max-width: 480px; width: 100%; margin-bottom: 32px;">
+              <div style="padding: 16px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; text-align: center;">
+                <div style="font-size: 24px; margin-bottom: 6px;">📊</div>
+                <div style="font-size: 12px; font-weight: 700; color: var(--text-primary); margin-bottom: 3px;">Total Pencapaian</div>
+                <div style="font-size: 11px; color: var(--text-secondary);">Output kerjamu hari ini</div>
+              </div>
+              <div style="padding: 16px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; text-align: center;">
+                <div style="font-size: 24px; margin-bottom: 6px;">💰</div>
+                <div style="font-size: 12px; font-weight: 700; color: var(--text-primary); margin-bottom: 3px;">Estimasi Nilai</div>
+                <div style="font-size: 11px; color: var(--text-secondary);">Output × harga satuan</div>
+              </div>
+              <div style="padding: 16px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; text-align: center;">
+                <div style="font-size: 24px; margin-bottom: 6px;">📅</div>
+                <div style="font-size: 12px; font-weight: 700; color: var(--text-primary); margin-bottom: 3px;">Riwayat Harian</div>
+                <div style="font-size: 11px; color: var(--text-secondary);">Rekap per tanggal</div>
+              </div>
             </div>
-            <div style="padding:16px; background:var(--surface); border:1.5px solid var(--border); border-radius:14px; text-align:center;">
-              <div style="font-size:24px; margin-bottom:6px;">📅</div>
-              <div style="font-size:12px; font-weight:700; color:var(--text-primary); margin-bottom:3px;">Riwayat Harian</div>
-              <div style="font-size:11px; color:var(--text-secondary);">Rekap per tanggal</div>
+            <div style="font-size: 12px; color: var(--text-secondary); opacity: 0.6;">
+              Fitur ini akan aktif setelah admin mengatur Ketentuan Harga
             </div>
           </div>
+        </div>
 
-          <div style="font-size:12px; color:var(--text-secondary); opacity:0.6;">
-            Fitur ini akan aktif setelah admin mengatur Ketentuan Harga
+        <!-- Tampilan Preview Aktif -->
+        <div id="pendapatan-active-view" style="display: none; padding: 20px 0;">
+          <!-- Summary Cards -->
+          <div class="dash-stats-grid" style="margin-bottom: 24px;">
+            <div class="dash-stat-card blue">
+              <div class="stat-icon">💰</div>
+              <div class="stat-info">
+                <div class="stat-label">Estimasi Hari Ini</div>
+                <div class="stat-value" id="pd-val-today">Rp 0</div>
+              </div>
+            </div>
+            <div class="dash-stat-card blue">
+              <div class="stat-icon">📅</div>
+              <div class="stat-info">
+                <div class="stat-label">Pendapatan Bulan Ini</div>
+                <div class="stat-value" id="pd-val-month">Rp 0</div>
+              </div>
+            </div>
+            <div class="dash-stat-card blue">
+              <div class="stat-icon">🏆</div>
+              <div class="stat-info">
+                <div class="stat-label">Total Akumulasi</div>
+                <div class="stat-value" id="pd-val-total">Rp 0</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Rincian Table -->
+          <div class="table-card">
+            <div class="table-header" style="padding: 16px 20px; border-bottom: 1px solid var(--border);">
+              <div class="table-title">💵 Rincian Pendapatan Kerja Anda</div>
+            </div>
+            <div class="table-wrap">
+              <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                  <tr style="border-bottom: 1px solid var(--border); text-align: left;">
+                    <th style="padding: 12px 16px; font-size: 12px;">Tanggal</th>
+                    <th style="padding: 12px 16px; font-size: 12px;">Posisi</th>
+                    <th style="padding: 12px 16px; font-size: 12px;">Zona</th>
+                    <th style="padding: 12px 16px; font-size: 12px;">Pencapaian</th>
+                    <th style="padding: 12px 16px; font-size: 12px;">Harga Satuan</th>
+                    <th style="padding: 12px 16px; font-size: 12px;">Total Nilai</th>
+                  </tr>
+                </thead>
+                <tbody id="pd-table-body">
+                  <tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-secondary);">Memuat data...</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -1014,6 +1059,6 @@
   <div class="lightbox-caption" id="lightboxCaption">Bukti Foto</div>
 </div>
 
-<script src="/js/index.js?v=1.3" defer></script>
+<script src="/js/index.js?v=1.4" defer></script>
 </body>
 </html>

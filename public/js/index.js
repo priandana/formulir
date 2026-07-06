@@ -222,6 +222,7 @@ function switchTab(tab) {
     document.getElementById('panel-pendapatan').classList.add('active');
     document.getElementById('tab-pendapatan').style.background = 'linear-gradient(135deg, rgba(245,158,11,0.08), rgba(239,68,68,0.05))';
     document.getElementById('tab-pendapatan').style.borderColor = 'rgba(245,158,11,0.3)';
+    loadPendapatan();
   } else if (tab === 'picker') {
     document.getElementById('panel-picker').classList.add('active');
     document.getElementById('tab-picker').classList.add('active-purple');
@@ -238,6 +239,160 @@ function switchTab(tab) {
   document.getElementById('sidebar').classList.remove('open');
 }
 
+// ===================== PENDAPATAN (PREVIEW MODE) =====================
+async function loadPendapatan() {
+  const isPreview = window.location.search.includes('preview=true') || localStorage.getItem('preview_pendapatan') === 'true';
+  const soonView = document.getElementById('pendapatan-soon-view');
+  const activeView = document.getElementById('pendapatan-active-view');
+  if (!soonView || !activeView) return;
+
+  if (!isPreview) {
+    soonView.style.display = 'block';
+    activeView.style.display = 'none';
+    return;
+  }
+
+  // Aktifkan tampilan rincian pendapatan (preview)
+  soonView.style.display = 'none';
+  activeView.style.display = 'block';
+
+  const tbody = document.getElementById('pd-table-body');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-secondary);"><div class="loading-spinner"><div class="spin"></div></div></td></tr>';
+
+  try {
+    // 1. Ambil ketentuan harga
+    const hargaRes = await fetch('/api/ketentuan-harga');
+    const hargaList = await hargaRes.json();
+
+    // Map harga dengan key "POSISI|KATEGORI_ZONA"
+    const hargaMap = {};
+    if (Array.isArray(hargaList)) {
+      hargaList.forEach(h => {
+        const key = `${h.posisi.toUpperCase()}|${h.zona.toUpperCase()}`;
+        hargaMap[key] = parseFloat(h.harga_satuan) || 0;
+      });
+    }
+
+    // 2. Ambil pencapaian user
+    const achRes = await fetch('/api/my-achievements');
+    const ach = await achRes.json();
+
+    // 3. Helper mapping zona ke kategori ketentuan harga
+    const getZoneCategory = (zona) => {
+      if (!zona) return 'AMBIENT';
+      const z = zona.trim().toUpperCase();
+      if (z.startsWith('F')) return 'FREEZER';
+      if (z.startsWith('R')) return 'CHILLER';
+      return 'AMBIENT';
+    };
+
+    const getLocalDateString = (dateStr) => {
+      return dateStr.slice(0, 10);
+    };
+
+    const todayStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jakarta' }).slice(0, 10);
+    const thisMonthStr = todayStr.slice(0, 7); // YYYY-MM
+
+    let totalToday = 0;
+    let totalMonth = 0;
+    let totalAll = 0;
+    let rows = [];
+
+    // Ambil pencapaian Picker / Sorter
+    const submissions = [
+      ...(ach.picker?.all_submissions || []),
+      ...(ach.sorter?.all_submissions || [])
+    ];
+
+    submissions.forEach(sub => {
+      if (sub.status !== 'approved') return;
+
+      const dateOnly = getLocalDateString(sub.tanggal_pengerjaan);
+      const isToday = dateOnly === todayStr;
+      const isThisMonth = dateOnly.startsWith(thisMonthStr);
+
+      const zoneCat = getZoneCategory(sub.zona);
+      const priceKey = `${sub.posisi.toUpperCase()}|${zoneCat}`;
+      const price = hargaMap[priceKey] || 0;
+      const qty = parseInt(sub.jumlah_output) || 0;
+      const val = qty * price;
+
+      totalAll += val;
+      if (isToday) totalToday += val;
+      if (isThisMonth) totalMonth += val;
+
+      rows.push({
+        tanggal: dateOnly,
+        posisi: sub.posisi,
+        zona: sub.zona + ` (${zoneCat})`,
+        qty: qty,
+        satuan: 'pcs',
+        price: price,
+        val: val
+      });
+    });
+
+    // Ambil pencapaian Loader
+    const loaderEntries = ach.loader?.all_entries || [];
+    loaderEntries.forEach(entry => {
+      const dateOnly = getLocalDateString(entry.tanggal_kirim || entry.tanggal_carian);
+      const isToday = dateOnly === todayStr;
+      const isThisMonth = dateOnly.startsWith(thisMonthStr);
+
+      // Loader menggunakan tarif LOADER|AMBIENT, CHILLER, FREEZER
+      const priceKey = 'LOADER|AMBIENT, CHILLER, FREEZER';
+      const price = hargaMap[priceKey] || 0;
+      const qty = parseInt(entry.jumlah_kontainer) || 0;
+      const val = qty * price;
+
+      totalAll += val;
+      if (isToday) totalToday += val;
+      if (isThisMonth) totalMonth += val;
+
+      rows.push({
+        tanggal: dateOnly,
+        posisi: 'Loader',
+        zona: 'F, R, T (Kombinasi)',
+        qty: qty,
+        satuan: 'kontainer',
+        price: price,
+        val: val
+      });
+    });
+
+    // Urutkan rincian dari tanggal paling baru
+    rows.sort((a, b) => b.tanggal.localeCompare(a.tanggal));
+
+    // Update kartu Ringkasan
+    document.getElementById('pd-val-today').textContent = `Rp ${totalToday.toLocaleString('id-ID')}`;
+    document.getElementById('pd-val-month').textContent = `Rp ${totalMonth.toLocaleString('id-ID')}`;
+    document.getElementById('pd-val-total').textContent = `Rp ${totalAll.toLocaleString('id-ID')}`;
+
+    // Tampilkan data ke tabel
+    if (rows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--text-secondary); font-size:13px;">Belum ada estimasi pendapatan disetujui (Approved) untuk saat ini.</td></tr>';
+    } else {
+      const posColors = { 'Picker': '#8b5cf6', 'Sorter': '#10b981', 'Loader': '#f59e0b' };
+      tbody.innerHTML = rows.map(r => {
+        const color = posColors[r.posisi] || '#6b7280';
+        return `
+          <tr style="border-bottom: 1px solid var(--border); transition: background 0.2s;">
+            <td style="padding: 12px 16px; font-weight: 600; font-size:13px;">${r.tanggal}</td>
+            <td style="padding: 12px 16px;"><span class="badge" style="background:${color}15; color:${color}; font-size: 11px; padding: 3px 8px; border-radius: 8px; font-weight:700;">${r.posisi}</span></td>
+            <td style="padding: 12px 16px; color: var(--text-secondary); font-size:12px;">${r.zona}</td>
+            <td style="padding: 12px 16px; font-weight: 700; font-size:13px;">${r.qty.toLocaleString('id-ID')} <span style="font-size:11px; font-weight:500; color:var(--text-secondary);">${r.satuan}</span></td>
+            <td style="padding: 12px 16px; color: var(--text-secondary); font-size:12px;">Rp ${r.price.toLocaleString('id-ID')}</td>
+            <td style="padding: 12px 16px;"><b style="color: var(--success, #10b981); font-size:13px;">Rp ${r.val.toLocaleString('id-ID')}</b></td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+  } catch (err) {
+    console.error('loadPendapatan error:', err);
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--error-color, #ef4444);">Gagal memuat rincian estimasi pendapatan.</td></tr>';
+  }
+}
 
 // ===================== RIWAYAT =====================
 let riwayatLoaded = false;
