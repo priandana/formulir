@@ -3335,15 +3335,7 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
     }
   }
   window.loadMonitoringMPP = loadMonitoringMPP;
-
-  // Initialize date picker and load MPP when page first loads
-  document.addEventListener('DOMContentLoaded', () => {
-    const picker = document.getElementById('mppDatePicker');
-    if (picker && !picker.value) {
-      picker.value = getLocalDateString(); // use local date to avoid UTC shift
-    }
-    loadMonitoringMPP();
-  });
+  // loadMonitoringMPP dipanggil via showPage('dashboard') — tidak perlu DOMContentLoaded terpisah
 
   // ============= KETENTUAN HARGA =============
 
