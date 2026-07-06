@@ -96,7 +96,7 @@ module.exports = {
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('username', username)
+        .ilike('username', username.trim())
         .maybeSingle();
       if (error) {
         console.error('Supabase getUserByUsername error:', error);
@@ -105,7 +105,8 @@ module.exports = {
       return data;
     } else {
       const db = load();
-      return db.users.find(u => u.username === username) || null;
+      const searchVal = username.trim().toLowerCase();
+      return db.users.find(u => u.username.toLowerCase() === searchVal) || null;
     }
   },
 
@@ -894,7 +895,7 @@ module.exports = {
    * Login: username + nik (no bcrypt, plaintext NIK)
    */
   async createOperationalUser(data) {
-    const { username, nama_lengkap, nik, posisi, tipe_karyawan } = data;
+    const { username, nama_lengkap, nik, posisi, tipe_karyawan, nomor_hp } = data;
     if (isSupabaseEnabled) {
       const record = {
         id: uuidv4(),
@@ -904,7 +905,8 @@ module.exports = {
         role: 'operasional',
         nik,
         posisi,
-        tipe_karyawan: tipe_karyawan || null
+        tipe_karyawan: tipe_karyawan || null,
+        nomor_hp: nomor_hp || null
       };
       const { error } = await supabase.from('users').insert([record]);
       if (error) { console.error('Supabase createOperationalUser error:', error); throw error; }
@@ -923,6 +925,7 @@ module.exports = {
         nik,
         posisi,
         tipe_karyawan: tipe_karyawan || null,
+        nomor_hp: nomor_hp || null,
         created_at: new Date().toISOString()
       };
       db.users.push(record);
@@ -937,7 +940,7 @@ module.exports = {
   async getAllOperationalUsers() {
     if (isSupabaseEnabled) {
       const { data, error } = await supabase
-        .from('users').select('id,username,nama_lengkap,nik,posisi,role,tipe_karyawan,created_at,is_active')
+        .from('users').select('id,username,nama_lengkap,nik,posisi,role,tipe_karyawan,nomor_hp,created_at,is_active')
         .eq('role', 'operasional')
         .order('created_at', { ascending: false });
       if (error) { console.error('Supabase getAllOperationalUsers error:', error); throw error; }
@@ -997,14 +1000,15 @@ module.exports = {
    * Update an operational user's data (Nama Lengkap, Username, NIK, Posisi, Tipe Karyawan)
    */
   async updateOperationalUser(id, data) {
-    const { username, nama_lengkap, nik, posisi, tipe_karyawan } = data;
+    const { username, nama_lengkap, nik, posisi, tipe_karyawan, nomor_hp } = data;
     if (isSupabaseEnabled) {
       const updates = {
         username: username.trim(),
         nama_lengkap: nama_lengkap.trim(),
         nik: nik.trim(),
         posisi,
-        tipe_karyawan: tipe_karyawan || null
+        tipe_karyawan: tipe_karyawan || null,
+        nomor_hp: nomor_hp || null
       };
       const { data: updated, error } = await supabase
         .from('users')
@@ -1031,6 +1035,7 @@ module.exports = {
         nik: nik.trim(),
         posisi,
         tipe_karyawan: tipe_karyawan || null,
+        nomor_hp: nomor_hp || null,
         updated_at: new Date().toISOString()
       };
       save(db);
@@ -1045,7 +1050,7 @@ module.exports = {
     if (isSupabaseEnabled) {
       const { data, error } = await supabase
         .from('users')
-        .select('id, username, nama_lengkap, created_at')
+        .select('id, username, nama_lengkap, allowed_pages, created_at')
         .eq('role', 'admin')
         .order('created_at', { ascending: true });
       if (error) { console.error('Supabase getAllAdminUsers error:', error); throw error; }
@@ -1060,26 +1065,77 @@ module.exports = {
   },
 
   /**
-   * Buat akun admin baru dengan password bcrypt
+   * Buat akun admin baru dengan password bcrypt dan daftar hak akses
    */
-  async createAdminUser({ username, nama_lengkap, password }) {
+  async createAdminUser({ username, nama_lengkap, password, allowed_pages }) {
     const hashedPassword = bcrypt.hashSync(password, 10);
     const id = uuidv4();
     const created_at = new Date().toISOString();
+    const pages = Array.isArray(allowed_pages) ? allowed_pages : [];
+
     if (isSupabaseEnabled) {
       const { data: existing } = await supabase.from('users').select('id').eq('username', username).maybeSingle();
       if (existing) throw new Error('Username sudah digunakan oleh akun lain.');
-      const record = { id, username, nama_lengkap, password: hashedPassword, role: 'admin', nik: null, posisi: null, created_at };
+      
+      const record = { 
+        id, 
+        username, 
+        nama_lengkap, 
+        password: hashedPassword, 
+        role: 'admin', 
+        nik: null, 
+        posisi: null, 
+        created_at,
+        allowed_pages: pages
+      };
+      
       const { error } = await supabase.from('users').insert([record]);
-      if (error) { console.error('Supabase createAdminUser error:', error); throw error; }
-      return { id, username, nama_lengkap, created_at };
+      if (error) {
+        // Fallback jika kolom allowed_pages belum dibuat di Supabase
+        if (error.message && error.message.includes('allowed_pages')) {
+          console.warn('Kolom allowed_pages belum dibuat di Supabase. Menyimpan admin tanpa allowed_pages...');
+          delete record.allowed_pages;
+          const { error: retryError } = await supabase.from('users').insert([record]);
+          if (retryError) { console.error('Supabase createAdminUser retry error:', retryError); throw retryError; }
+        } else {
+          console.error('Supabase createAdminUser error:', error);
+          throw error;
+        }
+      }
+      return { id, username, nama_lengkap, allowed_pages: record.allowed_pages || [], created_at };
     } else {
       const db = load();
       if (db.users.find(u => u.username === username)) throw new Error('Username sudah digunakan oleh akun lain.');
-      const record = { id, username, nama_lengkap, password: hashedPassword, role: 'admin', nik: null, posisi: null, created_at };
+      const record = { id, username, nama_lengkap, password: hashedPassword, role: 'admin', nik: null, posisi: null, allowed_pages: pages, created_at };
       db.users.push(record);
       save(db);
-      return { id, username, nama_lengkap, created_at };
+      return { id, username, nama_lengkap, allowed_pages: pages, created_at };
+    }
+  },
+
+  /**
+   * Update hak akses (allowed_pages) untuk akun admin
+   */
+  async updateAdminPermissions(id, allowed_pages) {
+    const pages = Array.isArray(allowed_pages) ? allowed_pages : [];
+    if (isSupabaseEnabled) {
+      const { error } = await supabase
+        .from('users')
+        .update({ allowed_pages: pages })
+        .eq('id', id)
+        .eq('role', 'admin');
+      if (error) {
+        console.error('Supabase updateAdminPermissions error:', error);
+        throw error;
+      }
+      return { id, allowed_pages: pages };
+    } else {
+      const db = load();
+      const idx = db.users.findIndex(u => u.id === id && u.role === 'admin');
+      if (idx === -1) throw new Error('Akun admin tidak ditemukan.');
+      db.users[idx].allowed_pages = pages;
+      save(db);
+      return { id, allowed_pages: pages };
     }
   },
 
@@ -2095,7 +2151,7 @@ module.exports = {
       const { data: usersData } = await supabase
         .from('users')
         .select('posisi')
-        .eq('role', 'user')
+        .eq('role', 'operasional')
         .eq('is_active', true);
       (usersData || []).forEach(u => {
         const pos = (u.posisi || '').toLowerCase();
@@ -2107,9 +2163,8 @@ module.exports = {
       // MPP Today (from absensi table)
       const { data: absensiData } = await supabase
         .from('absensi')
-        .select('user_id, status')
-        .eq('tanggal', tanggal)
-        .eq('status', 'hadir');
+        .select('user_id')
+        .eq('tanggal', tanggal);
       const hadirUserIds = new Set((absensiData || []).map(a => a.user_id));
       if (hadirUserIds.size > 0) {
         const { data: hadirUsers } = await supabase
@@ -2126,27 +2181,38 @@ module.exports = {
 
       // Pencapaian: Picker & Sorter dari submissions (approved)
       const [{ data: subData }, { data: loaderData }, { data: hargaData }] = await Promise.all([
-        supabase.from('submissions').select('user_id, nama_lengkap, posisi, zona, jumlah_output').eq('tanggal_carian', tanggal).eq('status', 'approved'),
-        supabase.from('loader_entries').select('nama_lengkap, total_kontainer').eq('tanggal_carian', tanggal),
+        supabase.from('submissions').select('nama, posisi, zona, jumlah_output').eq('tanggal_carian', tanggal).eq('status', 'approved'),
+        supabase.from('loader_entries').select('nama, jumlah_kontainer').eq('tanggal_carian', tanggal),
         supabase.from('ketentuan_harga').select('*')
       ]);
 
       const hargaMap = {};
       (hargaData || []).forEach(h => { hargaMap[`${h.posisi}|${h.zona}`] = h; });
 
-      // Aggregasi submission per user+posisi+zona
+      // Helper: map kode zona Excel (F1, R1, T1, dst) ke kategori harga (FREEZER, CHILLER, AMBIENT)
+      const zonaToKategori = (zona) => {
+        const z = String(zona || '').trim().toUpperCase();
+        if (z.startsWith('F')) return 'FREEZER';
+        if (z.startsWith('R')) return 'CHILLER';
+        if (z.startsWith('T')) return 'AMBIENT';
+        return zona; // fallback: pakai apa adanya (misal sudah AMBIENT/CHILLER/FREEZER)
+      };
+
+      // Aggregasi submission per nama+posisi+zona
       const submissionAgg = {};
       (subData || []).forEach(s => {
-        const key = `${s.user_id}|${s.posisi}|${s.zona}`;
-        if (!submissionAgg[key]) submissionAgg[key] = { nama: s.nama_lengkap, posisi: s.posisi, zona: s.zona, total: 0 };
+        const key = `${s.nama}|${s.posisi}|${s.zona}`;
+        if (!submissionAgg[key]) submissionAgg[key] = { nama: s.nama, posisi: s.posisi, zona: s.zona, total: 0 };
         submissionAgg[key].total += parseInt(s.jumlah_output) || 0;
       });
       Object.values(submissionAgg).forEach(agg => {
+        // Coba lookup langsung dulu, kalau tidak ketemu coba dengan mapping kategori
         const hargaKey = `${agg.posisi}|${agg.zona}`;
-        const h = hargaMap[hargaKey];
+        const hargaKeyKategori = `${agg.posisi}|${zonaToKategori(agg.zona)}`;
+        const h = hargaMap[hargaKey] || hargaMap[hargaKeyKategori] || null;
         pencapaianList.push({
           nama: agg.nama, posisi: agg.posisi, zona: agg.zona,
-          pencapaian: agg.total, satuan: h ? h.satuan : 'pcs',
+          pencapaian: agg.total, satuan: h ? h.satuan : (agg.posisi === 'Picker' ? 'pcs' : 'kontainer'),
           harga_satuan: h ? h.harga : null,
           total_nilai: h ? agg.total * h.harga : null
         });
@@ -2155,9 +2221,9 @@ module.exports = {
       // Aggregasi loader per nama
       const loaderAgg = {};
       (loaderData || []).forEach(l => {
-        const key = l.nama_lengkap;
-        if (!loaderAgg[key]) loaderAgg[key] = { nama: l.nama_lengkap, total: 0 };
-        loaderAgg[key].total += parseInt(l.total_kontainer) || 0;
+        const key = l.nama;
+        if (!loaderAgg[key]) loaderAgg[key] = { nama: l.nama, total: 0 };
+        loaderAgg[key].total += parseInt(l.jumlah_kontainer) || 0;
       });
       const loaderHarga = hargaMap['Loader|AMBIENT, CHILLER, FREEZER'] || hargaMap['Loader|LOADER'] || null;
       Object.values(loaderAgg).forEach(agg => {
@@ -2172,7 +2238,7 @@ module.exports = {
     } else {
       // Local JSON fallback
       const db = load();
-      const users = (db.users || []).filter(u => u.role === 'user' && u.is_active !== false);
+      const users = (db.users || []).filter(u => u.role === 'operasional' && u.is_active !== false);
       users.forEach(u => {
         const pos = (u.posisi || '').toLowerCase();
         if (pos === 'picker') mppAll.picker++;
@@ -2180,7 +2246,7 @@ module.exports = {
         else if (pos === 'loader') mppAll.loader++;
       });
 
-      const absensi = (db.absensi || []).filter(a => a.tanggal === tanggal && a.status === 'hadir');
+      const absensi = (db.absensi || []).filter(a => a.tanggal === tanggal);
       const hadirIds = new Set(absensi.map(a => a.user_id));
       users.filter(u => hadirIds.has(u.id)).forEach(u => {
         const pos = (u.posisi || '').toLowerCase();
@@ -2193,18 +2259,29 @@ module.exports = {
       const hargaMap = {};
       hargaList.forEach(h => { hargaMap[`${h.posisi}|${h.zona}`] = h; });
 
+      // Helper: map kode zona Excel (F1, R1, T1, dst) ke kategori harga (FREEZER, CHILLER, AMBIENT)
+      const zonaToKategori = (zona) => {
+        const z = String(zona || '').trim().toUpperCase();
+        if (z.startsWith('F')) return 'FREEZER';
+        if (z.startsWith('R')) return 'CHILLER';
+        if (z.startsWith('T')) return 'AMBIENT';
+        return zona;
+      };
+
       const submissions = (db.submissions || []).filter(s => s.tanggal_carian === tanggal && s.status === 'approved');
       const submissionAgg = {};
       submissions.forEach(s => {
-        const key = `${s.user_id}|${s.posisi}|${s.zona}`;
-        if (!submissionAgg[key]) submissionAgg[key] = { nama: s.nama_lengkap, posisi: s.posisi, zona: s.zona, total: 0 };
+        const key = `${s.nama}|${s.posisi}|${s.zona}`;
+        if (!submissionAgg[key]) submissionAgg[key] = { nama: s.nama, posisi: s.posisi, zona: s.zona, total: 0 };
         submissionAgg[key].total += parseInt(s.jumlah_output) || 0;
       });
       Object.values(submissionAgg).forEach(agg => {
-        const h = hargaMap[`${agg.posisi}|${agg.zona}`];
+        const hargaKey = `${agg.posisi}|${agg.zona}`;
+        const hargaKeyKategori = `${agg.posisi}|${zonaToKategori(agg.zona)}`;
+        const h = hargaMap[hargaKey] || hargaMap[hargaKeyKategori] || null;
         pencapaianList.push({
           nama: agg.nama, posisi: agg.posisi, zona: agg.zona,
-          pencapaian: agg.total, satuan: h ? h.satuan : 'pcs',
+          pencapaian: agg.total, satuan: h ? h.satuan : (agg.posisi === 'Picker' ? 'pcs' : 'kontainer'),
           harga_satuan: h ? h.harga : null,
           total_nilai: h ? agg.total * h.harga : null
         });
@@ -2213,9 +2290,9 @@ module.exports = {
       const loaderEntries = (db.loader_entries || []).filter(l => l.tanggal_carian === tanggal);
       const loaderAgg = {};
       loaderEntries.forEach(l => {
-        const key = l.nama_lengkap;
-        if (!loaderAgg[key]) loaderAgg[key] = { nama: l.nama_lengkap, total: 0 };
-        loaderAgg[key].total += parseInt(l.total_kontainer) || 0;
+        const key = l.nama;
+        if (!loaderAgg[key]) loaderAgg[key] = { nama: l.nama, total: 0 };
+        loaderAgg[key].total += parseInt(l.jumlah_kontainer) || 0;
       });
       const loaderHarga = hargaMap['Loader|AMBIENT, CHILLER, FREEZER'] || hargaMap['Loader|LOADER'] || null;
       Object.values(loaderAgg).forEach(agg => {
@@ -2237,4 +2314,5 @@ module.exports = {
     };
   }
 };
+
 
