@@ -38,62 +38,100 @@
     </div>
   </div>
   <nav class="sidebar-nav">
-    <div class="nav-section-title">Menu</div>
+    <div class="nav-section-title">Menu Utama</div>
+    
     <a class="nav-item active" id="nav-dashboard" onclick="showPage('dashboard')">
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-      Dashboard
+      Dashboard MPP
     </a>
-    <a class="nav-item" id="nav-submissions" onclick="showPage('submissions')" style="display:flex; align-items:center; width:100%;">
-      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-      <span style="flex:1;">Data Submissions</span>
-      <span id="nav-submissions-pending" style="display:none; background:var(--error); color:#fff; font-size:10px; font-weight:700; padding:2px 6px; border-radius:20px; margin-left:auto;">0</span>
-    </a>
-    <a class="nav-item" id="nav-data-carian" onclick="showPage('data-carian')">
-      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-      Data Carian Harian
-    </a>
-    <a class="nav-item" id="nav-rekap-toko" onclick="showPage('rekap-toko')">
-      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
-      Rekap Harian
-    </a>
-    <a class="nav-item" id="nav-users" onclick="showPage('users')">
-      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-      Manajemen User
-    </a>
-    <a class="nav-item" id="nav-loader" onclick="showPage('loader')">
-      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
-      Hasil Entry Loader
-    </a>
-    <a class="nav-item" id="nav-ketentuan-harga" onclick="showPage('ketentuan-harga')">
-      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-      Ketentuan Harga
-    </a>
-    <a class="nav-item" id="nav-absensi" onclick="showPage('absensi')">
-      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-      Absensi
-    </a>
-    <a class="nav-item" id="nav-announcements" onclick="showPage('announcements')">
-      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
-      Pengumuman
-    </a>
-    <a class="nav-item" onclick="showPage('export')"
-      id="nav-export">
-      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-      Export Excel / CSV
-    </a>
-    <a class="nav-item" onclick="showPage('gsheets')" id="nav-gsheets">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
-      Google Sheets
-    </a>
-    <a class="nav-item" onclick="exportCSV()">
-      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-      Export CSV
-    </a>
-    <a class="nav-item" href="/" target="_blank">
-      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-      Buka Formulir
-    </a>
-    <div class="nav-section-title" style="margin-top:8px">Pengaturan</div>
+
+    <!-- Nav Group: Data & Transaksi -->
+    <div class="nav-group">
+      <div class="nav-group-header" onclick="toggleNavGroup(this)">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        <span class="nav-group-title">Data &amp; Transaksi</span>
+        <svg class="nav-group-chevron" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <div class="nav-group-items">
+        <a class="nav-item" id="nav-submissions" onclick="showPage('submissions')" style="display:flex; align-items:center; width:100%;">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          <span style="flex:1;">Submissions</span>
+          <span id="nav-submissions-pending" style="display:none; background:var(--error); color:#fff; font-size:10px; font-weight:700; padding:2px 6px; border-radius:20px; margin-left:auto;">0</span>
+        </a>
+        <a class="nav-item" id="nav-loader" onclick="showPage('loader')">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+          Entry Loader
+        </a>
+        <a class="nav-item" id="nav-data-carian" onclick="showPage('data-carian')">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          Carian Harian
+        </a>
+        <a class="nav-item" id="nav-rekap-toko" onclick="showPage('rekap-toko')">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+          Rekap Harian
+        </a>
+        <a class="nav-item" id="nav-status-carian" onclick="showPage('status-carian')">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Status Input Carian
+        </a>
+      </div>
+    </div>
+
+    <!-- Nav Group: Operasional -->
+    <div class="nav-group">
+      <div class="nav-group-header" onclick="toggleNavGroup(this)">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <span class="nav-group-title">Operasional</span>
+        <svg class="nav-group-chevron" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <div class="nav-group-items">
+        <a class="nav-item" id="nav-users" onclick="showPage('users')">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Manajemen User
+        </a>
+        <a class="nav-item" id="nav-absensi" onclick="showPage('absensi')">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+          Kehadiran Absensi
+        </a>
+        <a class="nav-item" id="nav-ketentuan-harga" onclick="showPage('ketentuan-harga')">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Ketentuan Harga
+        </a>
+        <a class="nav-item" id="nav-announcements" onclick="showPage('announcements')">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
+          Pengumuman info
+        </a>
+      </div>
+    </div>
+
+    <!-- Nav Group: Laporan & Integrasi -->
+    <div class="nav-group">
+      <div class="nav-group-header" onclick="toggleNavGroup(this)">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <span class="nav-group-title">Ekspor &amp; Integrasi</span>
+        <svg class="nav-group-chevron" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <div class="nav-group-items">
+        <a class="nav-item" onclick="showPage('export')" id="nav-export">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          Export Excel / CSV
+        </a>
+        <a class="nav-item" onclick="showPage('gsheets')" id="nav-gsheets">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+          Google Sheets
+        </a>
+        <a class="nav-item" onclick="exportCSV()">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          Ekspor File CSV
+        </a>
+        <a class="nav-item" href="/" target="_blank">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+          Buka Formulir Input
+        </a>
+      </div>
+    </div>
+
+    <div class="nav-section-title" style="margin-top:12px">Pengaturan</div>
     <a class="nav-item" onclick="showPage('login-settings')" id="nav-login-settings">
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 3v18"/></svg>
       Tampilan Login
@@ -159,80 +197,108 @@
 
     <!-- ===== MONITORING MPP PAGE (formerly Dashboard) ===== -->
     <div id="page-dashboard" class="page-section">
-      <!-- Header with date picker -->
-      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:24px;">
-        <div>
-          <div style="font-size:13px; color:var(--text-secondary); margin-bottom:4px;">MPP All = jumlah user operasional aktif (Manajemen User). MPP Today = jumlah user yang tercatat hadir (Absensi) pada tanggal dipilih.</div>
+
+      <!-- Hero Header -->
+      <div class="dashboard-hero">
+        <div class="dashboard-hero-left">
+          <div class="dashboard-hero-badge">📊 Live Monitoring</div>
+          <h1 class="dashboard-hero-title">Monitoring MPP</h1>
+          <p class="dashboard-hero-desc">MPP All = total user operasional aktif &nbsp;·&nbsp; MPP Today = hadir sesuai absensi pada tanggal dipilih</p>
         </div>
-        <div style="display:flex; align-items:center; gap:10px;">
-          <label style="font-size:13px; font-weight:600; color:var(--text-secondary);">Tanggal</label>
-          <input type="date" id="mppDatePicker" class="form-input" style="width:160px; font-size:13px; padding:8px 12px;" onchange="loadMonitoringMPP()">
+        <div class="dashboard-date-picker-wrap">
+          <div class="dashboard-date-label">Pilih Tanggal</div>
+          <div class="dashboard-date-input-row">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <input type="date" id="mppDatePicker" class="dashboard-date-input" onchange="loadMonitoringMPP()">
+          </div>
         </div>
       </div>
 
       <!-- MPP ALL -->
-      <div style="font-size:11px; font-weight:700; letter-spacing:1.2px; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">MPP ALL (Total User Aktif)</div>
-      <div class="stats-grid" style="margin-bottom:24px;">
-        <div class="stat-card purple">
-          <div class="stat-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
-          <div class="stat-label">PICKER</div>
-          <div class="stat-value" id="mpp-all-picker">—</div>
-          <div class="stat-sub">Total user aktif</div>
+      <div class="dashboard-section-label">MPP ALL <span>— Total User Aktif</span></div>
+      <div class="stats-grid mpp-all-grid" style="margin-bottom:28px;">
+        <div class="stat-card-v2 v2-purple">
+          <div class="stat-card-v2-glow"></div>
+          <div class="stat-card-v2-icon"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+          <div class="stat-card-v2-label">PICKER</div>
+          <div class="stat-card-v2-value" id="mpp-all-picker">—</div>
+          <div class="stat-card-v2-sub">Total user aktif</div>
         </div>
-        <div class="stat-card green">
-          <div class="stat-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></div>
-          <div class="stat-label">SORTER</div>
-          <div class="stat-value" id="mpp-all-sorter">—</div>
-          <div class="stat-sub">Total user aktif</div>
+        <div class="stat-card-v2 v2-green">
+          <div class="stat-card-v2-glow"></div>
+          <div class="stat-card-v2-icon"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></div>
+          <div class="stat-card-v2-label">SORTER</div>
+          <div class="stat-card-v2-value" id="mpp-all-sorter">—</div>
+          <div class="stat-card-v2-sub">Total user aktif</div>
         </div>
-        <div class="stat-card amber">
-          <div class="stat-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg></div>
-          <div class="stat-label">LOADER</div>
-          <div class="stat-value" id="mpp-all-loader">—</div>
-          <div class="stat-sub">Total user aktif</div>
+        <div class="stat-card-v2 v2-amber">
+          <div class="stat-card-v2-glow"></div>
+          <div class="stat-card-v2-icon"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg></div>
+          <div class="stat-card-v2-label">LOADER</div>
+          <div class="stat-card-v2-value" id="mpp-all-loader">—</div>
+          <div class="stat-card-v2-sub">Total user aktif</div>
         </div>
-        <div class="stat-card pink">
-          <div class="stat-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
-          <div class="stat-label">TOTAL MPP ALL</div>
-          <div class="stat-value" id="mpp-all-total">—</div>
-          <div class="stat-sub">Semua posisi</div>
+        <div class="stat-card-v2 v2-pink">
+          <div class="stat-card-v2-glow"></div>
+          <div class="stat-card-v2-icon"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
+          <div class="stat-card-v2-label">TOTAL MPP ALL</div>
+          <div class="stat-card-v2-value" id="mpp-all-total">—</div>
+          <div class="stat-card-v2-sub">Semua posisi</div>
         </div>
       </div>
 
       <!-- MPP TODAY -->
-      <div style="font-size:11px; font-weight:700; letter-spacing:1.2px; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">MPP TODAY (Hadir Sesuai Absensi)</div>
-      <div class="stats-grid" style="margin-bottom:28px;">
-        <div class="stat-card" style="border-left:3px solid #6366f1;">
-          <div class="stat-icon" style="background:rgba(99,102,241,0.1);"><svg width="20" height="20" fill="none" stroke="#6366f1" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></div>
-          <div class="stat-label">PICKER</div>
-          <div class="stat-value" id="mpp-today-picker" style="color:#6366f1;">—</div>
-          <div class="stat-sub">Hadir hari ini</div>
+      <div class="dashboard-section-label">MPP TODAY <span>— Hadir Sesuai Absensi</span></div>
+      <div class="stats-grid" style="margin-bottom:32px;">
+        <div class="stat-card-today" style="--today-color:#6366f1; --today-bg:rgba(99,102,241,0.08);">
+          <div class="stat-today-accent"></div>
+          <div class="stat-today-icon" style="background:rgba(99,102,241,0.1); color:#6366f1;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></div>
+          <div class="stat-card-v2-label" style="color:#6366f1;">PICKER</div>
+          <div class="stat-today-value" id="mpp-today-picker">—</div>
+          <div class="stat-card-v2-sub">Hadir hari ini</div>
         </div>
-        <div class="stat-card" style="border-left:3px solid #10b981;">
-          <div class="stat-icon" style="background:rgba(16,185,129,0.1);"><svg width="20" height="20" fill="none" stroke="#10b981" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></div>
-          <div class="stat-label">SORTER</div>
-          <div class="stat-value" id="mpp-today-sorter" style="color:#10b981;">—</div>
-          <div class="stat-sub">Hadir hari ini</div>
+        <div class="stat-card-today" style="--today-color:#10b981; --today-bg:rgba(16,185,129,0.08);">
+          <div class="stat-today-accent"></div>
+          <div class="stat-today-icon" style="background:rgba(16,185,129,0.1); color:#10b981;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></div>
+          <div class="stat-card-v2-label" style="color:#10b981;">SORTER</div>
+          <div class="stat-today-value" id="mpp-today-sorter">—</div>
+          <div class="stat-card-v2-sub">Hadir hari ini</div>
         </div>
-        <div class="stat-card" style="border-left:3px solid #f59e0b;">
-          <div class="stat-icon" style="background:rgba(245,158,11,0.1);"><svg width="20" height="20" fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></div>
-          <div class="stat-label">LOADER</div>
-          <div class="stat-value" id="mpp-today-loader" style="color:#f59e0b;">—</div>
-          <div class="stat-sub">Hadir hari ini</div>
+        <div class="stat-card-today" style="--today-color:#f59e0b; --today-bg:rgba(245,158,11,0.08);">
+          <div class="stat-today-accent"></div>
+          <div class="stat-today-icon" style="background:rgba(245,158,11,0.1); color:#f59e0b;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></div>
+          <div class="stat-card-v2-label" style="color:#f59e0b;">LOADER</div>
+          <div class="stat-today-value" id="mpp-today-loader">—</div>
+          <div class="stat-card-v2-sub">Hadir hari ini</div>
         </div>
-        <div class="stat-card" style="border-left:3px solid #ec4899;">
-          <div class="stat-icon" style="background:rgba(236,72,153,0.1);"><svg width="20" height="20" fill="none" stroke="#ec4899" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
-          <div class="stat-label">TOTAL MPP TODAY</div>
-          <div class="stat-value" id="mpp-today-total" style="color:#ec4899;">—</div>
-          <div class="stat-sub">Semua posisi</div>
+        <div class="stat-card-today" style="--today-color:#ec4899; --today-bg:rgba(236,72,153,0.08);">
+          <div class="stat-today-accent"></div>
+          <div class="stat-today-icon" style="background:rgba(236,72,153,0.1); color:#ec4899;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
+          <div class="stat-card-v2-label" style="color:#ec4899;">TOTAL MPP TODAY</div>
+          <div class="stat-today-value" id="mpp-today-total">—</div>
+          <div class="stat-card-v2-sub">Semua posisi</div>
         </div>
       </div>
 
       <!-- Pencapaian & Nilai Per Pekerja -->
       <div class="table-card">
         <div class="table-header">
-          <div class="table-title">Pencapaian &amp; Nilai Per Pekerja</div>
-          <div style="font-size:12px; color:var(--text-secondary);">Picker &amp; Sorter dari Data Submissions (status approved) · Loader dari Hasil Entry Loader. Harga mengikuti <a href="#" onclick="showPage('ketentuan-harga')" style="color:var(--primary); text-decoration:underline;">Ketentuan Harga</a>.</div>
+          <div>
+            <div class="table-title">Pencapaian &amp; Nilai Per Pekerja</div>
+            <div style="font-size:12px; color:var(--text-secondary); margin-top:3px;">Picker &amp; Sorter dari Data Submissions (status approved) · Loader dari Hasil Entry Loader. Harga mengikuti <a href="#" onclick="showPage('ketentuan-harga')" style="color:var(--primary); text-decoration:underline;">Ketentuan Harga</a>.</div>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <div style="position:relative;">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--text-secondary); pointer-events:none;"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              <input type="text" id="mppSearchNama" placeholder="Cari nama..." oninput="filterMPPTable()" style="padding:7px 12px 7px 32px; border-radius:10px; border:1px solid var(--card-border); background:var(--card-bg); color:var(--text); font-size:12px; width:180px; outline:none;">
+            </div>
+            <select id="mppFilterPosisi" onchange="filterMPPTable()" style="height:34px; padding:0 12px; font-size:12px; font-weight:600; border-radius:10px; border:1px solid var(--card-border); background:var(--card-bg); color:var(--text); cursor:pointer;">
+              <option value="">Semua Posisi</option>
+              <option value="Picker">🔵 Picker</option>
+              <option value="Sorter">🟢 Sorter</option>
+              <option value="Loader">🟡 Loader</option>
+            </select>
+          </div>
         </div>
         <div class="table-wrap">
           <table id="mppPencapaianTable">
@@ -254,91 +320,130 @@
 
     <!-- ===== KETENTUAN HARGA PAGE ===== -->
     <div id="page-ketentuan-harga" class="page-section" style="display:none;">
-      <div style="display:grid; grid-template-columns:380px 1fr; gap:24px; align-items:start;">
 
-        <!-- Form Tambah/Edit -->
-        <div class="table-card" style="position:sticky; top:24px;">
-          <div class="table-header" style="border-bottom:1px solid var(--border); padding-bottom:16px; margin-bottom:20px;">
-            <div class="table-title" id="hargaFormTitle">Tambah Ketentuan Harga</div>
+      <!-- Hero Header -->
+      <div class="harga-hero">
+        <div class="harga-hero-icon">💰</div>
+        <div>
+          <h2 class="harga-hero-title">Ketentuan Harga</h2>
+          <p class="harga-hero-desc">Kelola harga satuan per posisi dan zona. Harga ini digunakan untuk menghitung total nilai pencapaian karyawan.</p>
+        </div>
+      </div>
+
+      <!-- Info cards posisi -->
+      <div class="harga-info-grid">
+        <div class="harga-info-card harga-picker">
+          <div class="harga-info-icon">🎯</div>
+          <div class="harga-info-name">Picker</div>
+          <div class="harga-info-desc">Harga beda per zona</div>
+          <div class="harga-info-satuan">Satuan: <b>pcs</b></div>
+        </div>
+        <div class="harga-info-card harga-sorter">
+          <div class="harga-info-icon">📦</div>
+          <div class="harga-info-name">Sorter</div>
+          <div class="harga-info-desc">Harga beda per zona</div>
+          <div class="harga-info-satuan">Satuan: <b>kontainer</b></div>
+        </div>
+        <div class="harga-info-card harga-loader">
+          <div class="harga-info-icon">🚛</div>
+          <div class="harga-info-name">Loader</div>
+          <div class="harga-info-desc">1 harga semua zona</div>
+          <div class="harga-info-satuan">Satuan: <b>kontainer</b></div>
+        </div>
+      </div>
+
+      <!-- Form Tambah/Edit -->
+      <div class="table-card" style="margin-bottom:24px;">
+        <div class="table-header">
+          <div>
+            <div class="table-title" id="hargaFormTitle">➕ Tambah Ketentuan Harga</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">Isi posisi, zona, dan harga per satuan lalu klik Simpan.</div>
           </div>
-          <form id="hargaForm" onsubmit="submitHargaForm(event)" style="display:flex; flex-direction:column; gap:16px;">
+          <button type="button" class="btn btn-outline" id="hargaCancelEditBtn" onclick="cancelHargaEdit()" style="display:none; font-size:12px;">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            Batal Edit
+          </button>
+        </div>
+        <div style="padding:20px 24px;">
+          <form id="hargaForm" onsubmit="submitHargaForm(event)">
             <input type="hidden" id="hargaEditId">
-            <div>
-              <label class="form-label">Posisi <span style="color:var(--error)">*</span></label>
-              <select id="hargaPosisi" class="form-input" onchange="onHargaPosisiChange()" required>
-                <option value="">— Pilih Posisi —</option>
-                <option value="Picker">Picker</option>
-                <option value="Sorter">Sorter</option>
-                <option value="Loader">Loader</option>
-              </select>
+            
+            <!-- Row 1: Posisi & Zona -->
+            <div class="form-row" style="margin-bottom:16px;">
+              <div class="form-group">
+                <label for="hargaPosisi">Posisi <span class="req">*</span></label>
+                <select id="hargaPosisi" class="form-control" onchange="onHargaPosisiChange()" required>
+                  <option value="">— Pilih Posisi —</option>
+                  <option value="Picker">Picker</option>
+                  <option value="Sorter">Sorter</option>
+                  <option value="Loader">Loader</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="hargaZona">Zona <span class="req">*</span></label>
+                <select id="hargaZona" class="form-control" required>
+                  <option value="">— Pilih posisi dulu —</option>
+                </select>
+              </div>
             </div>
-            <div id="hargaZonaWrap">
-              <label class="form-label">Zona <span style="color:var(--error)">*</span></label>
-              <select id="hargaZona" class="form-input" required>
-                <option value="">— Pilih zona dulu —</option>
-              </select>
+
+            <!-- Row 2: Harga & Keterangan -->
+            <div class="form-row" style="margin-bottom:16px;">
+              <div class="form-group">
+                <label for="hargaNominal">Harga per Satuan (Rp) <span class="req">*</span></label>
+                <input type="number" id="hargaNominal" class="form-control" placeholder="Contoh: 150" min="0" required>
+              </div>
+              <div class="form-group">
+                <label for="hargaKeterangan">Keterangan</label>
+                <input type="text" id="hargaKeterangan" class="form-control" placeholder="Opsional (misal: Khusus Chiller)">
+              </div>
             </div>
-            <div>
-              <label class="form-label">Harga per Satuan (Rp) <span style="color:var(--error)">*</span></label>
-              <input type="number" id="hargaNominal" class="form-input" placeholder="Contoh: 150" min="0" required>
-            </div>
-            <div>
-              <label class="form-label">Satuan</label>
-              <input type="text" id="hargaSatuan" class="form-input" placeholder="pcs / kontainer" readonly style="background:var(--surface-2); cursor:not-allowed; opacity:0.7;">
-            </div>
-            <div>
-              <label class="form-label">Keterangan</label>
-              <textarea id="hargaKeterangan" class="form-input" placeholder="Opsional" rows="2" style="resize:vertical;"></textarea>
-            </div>
-            <div style="display:flex; gap:10px;">
-              <button type="submit" class="btn btn-primary" id="hargaSubmitBtn" style="flex:1;">
-                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+
+            <!-- Action Button Row -->
+            <div style="display:flex; justify-content:flex-end; margin-top:20px;">
+              <button type="submit" class="btn btn-primary" id="hargaSubmitBtn" style="padding:10px 24px;">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                 Simpan Ketentuan Harga
               </button>
-              <button type="button" class="btn btn-outline" id="hargaCancelEditBtn" onclick="cancelHargaEdit()" style="display:none;">Batal</button>
+            </div>
+            
+            <!-- Satuan (hidden helper) -->
+            <input type="hidden" id="hargaSatuan">
+            <!-- Info row -->
+            <div id="hargaFormInfo" style="margin-top:12px; font-size:12px; color:var(--text-secondary); display:none;">
+              Satuan akan terisi otomatis sesuai posisi • Loader hanya memiliki 1 zona gabungan
             </div>
           </form>
         </div>
+      </div>
 
-        <!-- Daftar Ketentuan Harga -->
-        <div>
-          <div class="table-card">
-            <div class="table-header">
-              <div class="table-title">Daftar Ketentuan Harga</div>
-              <button class="btn btn-outline" onclick="loadKetentuanHarga()">
-                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                Refresh
-              </button>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Posisi</th><th>Zona</th><th>Harga</th><th>Satuan</th><th>Keterangan</th><th>Diubah</th><th>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody id="hargaTableBody">
-                  <tr><td colspan="7"><div class="loading-spinner"><div class="spin"></div></div></td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- Info box -->
-          <div style="margin-top:16px; padding:14px 18px; background:rgba(99,102,241,0.06); border:1.5px solid rgba(99,102,241,0.15); border-radius:12px;">
-            <div style="font-size:13px; font-weight:600; color:var(--primary); margin-bottom:6px;">💡 Info Pengaturan Harga</div>
-            <ul style="font-size:12px; color:var(--text-secondary); line-height:1.8; margin:0; padding-left:16px;">
-              <li><b>Picker</b>: Harga berbeda per zona (AMBIENT, CHILLER, FREEZER) — satuan: <b>pcs</b></li>
-              <li><b>Sorter</b>: Harga berbeda per zona (AMBIENT, CHILLER, FREEZER) — satuan: <b>kontainer</b></li>
-              <li><b>Loader</b>: Harga tunggal untuk semua zona gabungan — satuan: <b>kontainer</b></li>
-              <li>Harga ini digunakan untuk menghitung <b>Total Nilai</b> di halaman Monitoring MPP</li>
-            </ul>
-          </div>
+      <!-- Daftar Ketentuan Harga -->
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">📋 Daftar Ketentuan Harga</div>
+          <button class="btn btn-outline" onclick="loadKetentuanHarga()">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Refresh
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Posisi</th><th>Zona</th><th>Harga per Satuan</th><th>Satuan</th><th>Keterangan</th><th>Terakhir Diubah</th><th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="hargaTableBody">
+              <tr><td colspan="7"><div class="loading-spinner"><div class="spin"></div></div></td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
-    </div>
+    </div><!-- end page-ketentuan-harga -->
+
 
     <!-- ===== SUBMISSIONS PAGE ===== -->
+
 
     <div id="page-submissions" class="page-section" style="display:none;">
       <!-- Pending submissions alert banner -->
@@ -663,6 +768,12 @@
               </select>
             </div>
           </div>
+          <div class="form-row" style="margin-top: 16px;">
+            <div class="form-group" style="width: 100%;">
+              <label for="newNomorHp">Nomor HP / WhatsApp (format: 08xx atau 628xx)</label>
+              <input type="text" id="newNomorHp" class="form-control" placeholder="Contoh: 081234567890">
+            </div>
+          </div>
           <div id="addUserError" style="display:none;padding:10px 14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#B91C1C;font-size:13px;margin-bottom:12px;"></div>
           <button class="btn btn-primary" id="btnAddUser" onclick="addUser()">
             <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
@@ -738,6 +849,119 @@
               <input type="password" id="newAdminPasswordConfirm" class="form-control" placeholder="Ulangi password">
             </div>
           </div>
+          <div class="form-group" style="margin-bottom:15px; width:100%;">
+            <label style="font-weight:600;margin-bottom:8px;display:block;">Hak Akses Halaman (Pilih yang diizinkan untuk Admin Baru):</label>
+            <div class="perm-grid">
+              <label class="perm-card">
+                <input type="checkbox" name="newAdminPages" value="dashboard" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+                <div class="perm-checkbox-indicator"></div>
+                <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg></span>
+                <span class="perm-card-info">
+                  <span class="perm-card-title">Dashboard MPP</span>
+                  <span class="perm-card-desc">Monitoring MPP &amp; data gaji</span>
+                </span>
+              </label>
+              <label class="perm-card">
+                <input type="checkbox" name="newAdminPages" value="submissions" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+                <div class="perm-checkbox-indicator"></div>
+                <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></span>
+                <span class="perm-card-info">
+                  <span class="perm-card-title">Submissions</span>
+                  <span class="perm-card-desc">Approval Picker &amp; Sorter</span>
+                </span>
+              </label>
+              <label class="perm-card">
+                <input type="checkbox" name="newAdminPages" value="loader" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+                <div class="perm-checkbox-indicator"></div>
+                <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg></span>
+                <span class="perm-card-info">
+                  <span class="perm-card-title">Entry Loader</span>
+                  <span class="perm-card-desc">Kelola kontainer Loader</span>
+                </span>
+              </label>
+              <label class="perm-card">
+                <input type="checkbox" name="newAdminPages" value="data-carian" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+                <div class="perm-checkbox-indicator"></div>
+                <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg></span>
+                <span class="perm-card-info">
+                  <span class="perm-card-title">Carian Harian</span>
+                  <span class="perm-card-desc">Kelola data carian toko</span>
+                </span>
+              </label>
+              <label class="perm-card">
+                <input type="checkbox" name="newAdminPages" value="rekap-toko" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+                <div class="perm-checkbox-indicator"></div>
+                <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg></span>
+                <span class="perm-card-info">
+                  <span class="perm-card-title">Rekap Harian</span>
+                  <span class="perm-card-desc">Laporan harian per toko</span>
+                </span>
+              </label>
+              <label class="perm-card">
+                <input type="checkbox" name="newAdminPages" value="status-carian" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+                <div class="perm-checkbox-indicator"></div>
+                <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></span>
+                <span class="perm-card-info">
+                  <span class="perm-card-title">Status Carian</span>
+                  <span class="perm-card-desc">Status input carian harian</span>
+                </span>
+              </label>
+              <label class="perm-card">
+                <input type="checkbox" name="newAdminPages" value="users" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+                <div class="perm-checkbox-indicator"></div>
+                <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg></span>
+                <span class="perm-card-info">
+                  <span class="perm-card-title">Manajemen User</span>
+                  <span class="perm-card-desc">Kelola akun operasional</span>
+                </span>
+              </label>
+              <label class="perm-card">
+                <input type="checkbox" name="newAdminPages" value="absensi" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+                <div class="perm-checkbox-indicator"></div>
+                <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></span>
+                <span class="perm-card-info">
+                  <span class="perm-card-title">Kehadiran Absensi</span>
+                  <span class="perm-card-desc">Kelola kehadiran absensi</span>
+                </span>
+              </label>
+              <label class="perm-card">
+                <input type="checkbox" name="newAdminPages" value="ketentuan-harga" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+                <div class="perm-checkbox-indicator"></div>
+                <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></span>
+                <span class="perm-card-info">
+                  <span class="perm-card-title">Ketentuan Harga</span>
+                  <span class="perm-card-desc">Atur tarif upah harian</span>
+                </span>
+              </label>
+              <label class="perm-card">
+                <input type="checkbox" name="newAdminPages" value="announcements" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+                <div class="perm-checkbox-indicator"></div>
+                <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg></span>
+                <span class="perm-card-info">
+                  <span class="perm-card-title">Pengumuman</span>
+                  <span class="perm-card-desc">Kirim info pengumuman</span>
+                </span>
+              </label>
+              <label class="perm-card">
+                <input type="checkbox" name="newAdminPages" value="export" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+                <div class="perm-checkbox-indicator"></div>
+                <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></span>
+                <span class="perm-card-info">
+                  <span class="perm-card-title">Export Excel/CSV</span>
+                  <span class="perm-card-desc">Unduh data &amp; excel</span>
+                </span>
+              </label>
+              <label class="perm-card">
+                <input type="checkbox" name="newAdminPages" value="gsheets" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+                <div class="perm-checkbox-indicator"></div>
+                <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M3 15h18M9 3v18"/></svg></span>
+                <span class="perm-card-info">
+                  <span class="perm-card-title">Google Sheets</span>
+                  <span class="perm-card-desc">Integrasi awan Sheets</span>
+                </span>
+              </label>
+            </div>
+          </div>
           <div id="addAdminError" style="display:none;padding:10px 14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#B91C1C;font-size:13px;margin-bottom:12px;"></div>
           <button class="btn btn-primary" id="btnAddAdmin" onclick="addAdminAccount()">
             <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
@@ -758,7 +982,7 @@
         <div class="table-wrap">
           <table>
             <thead>
-              <tr><th>No</th><th>Nama Lengkap</th><th>Username</th><th>Dibuat</th><th>Aksi</th></tr>
+              <tr><th>No</th><th>Nama Lengkap</th><th>Username</th><th>Hak Akses Halaman</th><th>Dibuat</th><th>Aksi</th></tr>
             </thead>
             <tbody id="adminAccountsTableBody">
               <tr><td colspan="5"><div class="loading-spinner"><div class="spin"></div></div></td></tr>
@@ -894,6 +1118,104 @@
         <div class="modal-footer" style="padding:16px 24px; display:flex; gap:12px;">
           <button onclick="closeAnnouncementModal()" class="btn btn-outline" style="flex:1;">Batal</button>
           <button onclick="saveAnnouncement()" class="btn btn-primary" style="flex:2;" id="annSaveBtn">Simpan Pengumuman</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== WELCOME PAGE (Halaman Sambutan untuk non-dashboard admin) ===== -->
+
+    <div id="page-welcome" class="page-section" style="display:none;">
+      <div style="max-width:760px; margin:0 auto; padding:20px 0;">
+        <div style="text-align:center; margin-bottom:40px;">
+          <div style="width:72px;height:72px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));border-radius:20px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;box-shadow:0 8px 24px rgba(var(--primary-rgb),0.35);">
+            <svg width="36" height="36" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          </div>
+          <h1 style="font-size:28px;font-weight:800;margin:0 0 8px;color:var(--text-primary);">Selamat Datang, <span id="welcomeAdminName" style="color:var(--primary);">Admin</span>!</h1>
+          <p style="color:var(--text-secondary);font-size:15px;margin:0;" id="welcomeDate"></p>
+        </div>
+
+        <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:24px;">
+          <p style="color:var(--text-secondary);font-size:14px;margin:0 0 16px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Menu yang Bisa Diakses</p>
+          <div id="welcomeMenuGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;"></div>
+        </div>
+        <div style="background:linear-gradient(135deg,rgba(var(--primary-rgb),0.08),rgba(var(--primary-rgb),0.04));border:1px solid rgba(var(--primary-rgb),0.2);border-radius:12px;padding:16px 20px;text-align:center;">
+          <p style="margin:0;color:var(--text-secondary);font-size:13px;">💡 Pilih menu dari sidebar kiri atau klik kartu di atas untuk mulai bekerja.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== STATUS INPUT CARIAN PAGE ===== -->
+
+    <div id="page-status-carian" class="page-section" style="display:none;">
+      <!-- Header -->
+      <div class="section-header" style="margin-bottom: 24px;">
+        <div>
+          <h2 class="section-title">Status Input Carian</h2>
+          <p class="section-subtitle" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;">
+            Pantau siapa yang sudah &amp; belum menginput data carian hari ini
+            <span id="sc-filter-badge" style="display:none; font-size:11px; padding:2px 8px; border-radius:12px; font-weight:600; line-height:1;"></span>
+          </p>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+          <input type="date" id="statusCarianDate" style="padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--input-bg);color:var(--text-primary);font-size:14px;font-weight:500;cursor:pointer;outline:none;" onchange="loadStatusCarian()">
+          <button class="btn btn-outline" onclick="loadStatusCarian()" style="display:flex;align-items:center;gap:8px;padding:10px 16px;font-weight:600;border-radius:10px;">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Refresh
+          </button>
+          <button class="btn" id="btnKirimWA" onclick="openWAModal()" style="background:linear-gradient(135deg,#25D366,#1EBEA5);border:none;box-shadow:0 4px 14px rgba(37,211,102,0.25);display:flex;align-items:center;gap:8px;padding:10px 18px;font-weight:700;border-radius:10px;color:white;cursor:pointer;transition:transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 16px rgba(37,211,102,0.35)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 14px rgba(37,211,102,0.25)'">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            Kirim Reminder WA
+          </button>
+        </div>
+      </div>
+
+      <!-- Summary cards -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px;">
+        <div class="stat-card" style="border-left:4px solid var(--success);padding:18px 20px;">
+          <div class="stat-label" style="font-weight:600;font-size:13px;color:var(--text-secondary);margin-bottom:6px;">Sudah Input</div>
+          <div class="stat-value" id="sc-sudah-count" style="color:var(--success);font-size:28px;font-weight:800;">-</div>
+        </div>
+        <div class="stat-card" style="border-left:4px solid var(--error);padding:18px 20px;">
+          <div class="stat-label" style="font-weight:600;font-size:13px;color:var(--text-secondary);margin-bottom:6px;">Belum Input</div>
+          <div class="stat-value" id="sc-belum-count" style="color:var(--error);font-size:28px;font-weight:800;">-</div>
+        </div>
+        <div class="stat-card" style="border-left:4px solid var(--primary);padding:18px 20px;">
+          <div class="stat-label" style="font-weight:600;font-size:13px;color:var(--text-secondary);margin-bottom:6px;">Total Picker/Sorter Aktif</div>
+          <div class="stat-value" id="sc-total-count" style="color:var(--primary);font-size:28px;font-weight:800;">-</div>
+        </div>
+      </div>
+
+      <!-- Split columns -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:24px;">
+
+        <!-- Sudah Input -->
+        <div class="table-card" style="border-top:3px solid var(--success);border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,0.02);overflow:hidden;">
+          <div style="display:flex;align-items:center;gap:12px;padding:18px 20px;border-bottom:1px solid var(--border);background:var(--bg-secondary);">
+            <div style="width:34px;height:34px;background:rgba(16,185,129,0.1);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="18" height="18" fill="none" stroke="#10B981" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <span style="font-weight:800;font-size:15px;color:var(--text-primary);">Sudah Input Hari Ini</span>
+          </div>
+          <!-- Search box -->
+          <div style="padding:12px 20px;border-bottom:1px solid var(--border);background:var(--card-bg);">
+            <input type="text" id="searchSudah" placeholder="Cari nama karyawan..." oninput="filterSudahBelum()" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text-primary);font-size:13px;outline:none;box-sizing:border-box;">
+          </div>
+          <div id="sc-sudah-list" style="padding:16px;max-height:550px;overflow-y:auto;min-height:120px;display:flex;flex-direction:column;gap:4px;"></div>
+        </div>
+
+        <!-- Belum Input -->
+        <div class="table-card" style="border-top:3px solid var(--error);border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,0.02);overflow:hidden;">
+          <div style="display:flex;align-items:center;gap:12px;padding:18px 20px;border-bottom:1px solid var(--border);background:var(--bg-secondary);">
+            <div style="width:34px;height:34px;background:rgba(239,68,68,0.1);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="18" height="18" fill="none" stroke="#EF4444" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <span style="font-weight:800;font-size:15px;color:var(--text-primary);">Belum Input Hari Ini</span>
+          </div>
+          <!-- Search box -->
+          <div style="padding:12px 20px;border-bottom:1px solid var(--border);background:var(--card-bg);">
+            <input type="text" id="searchBelum" placeholder="Cari nama karyawan..." oninput="filterSudahBelum()" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text-primary);font-size:13px;outline:none;box-sizing:border-box;">
+          </div>
+          <div id="sc-belum-list" style="padding:16px;max-height:550px;overflow-y:auto;min-height:120px;display:flex;flex-direction:column;gap:4px;"></div>
         </div>
       </div>
     </div>
@@ -1713,6 +2035,12 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
           </select>
         </div>
       </div>
+      <div class="form-row" style="margin-top: 16px;">
+        <div class="form-group" style="margin-bottom: 0; width: 100%;">
+          <label for="editNomorHp">Nomor HP / WhatsApp (format: 08xx atau 628xx)</label>
+          <input type="text" id="editNomorHp" class="form-control" placeholder="Contoh: 081234567890">
+        </div>
+      </div>
       <div id="editUserError" style="display:none;padding:10px 14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#B91C1C;font-size:13px;margin-top:12px;"></div>
     </div>
     <div class="modal-footer">
@@ -1784,7 +2112,7 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
   <div class="lightbox-caption" id="lightboxCaption">Bukti Foto</div>
 </div>
 
-<script src="/js/admin.js?v=1.3" defer></script>
+<script src="/js/admin.js?v=1.7" defer></script>
 
 <!-- ===== ABSENSI SETTINGS MODAL ===== -->
 <div class="modal-overlay" id="absensiSettingsModal">
@@ -1822,6 +2150,185 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
     </div>
     <div class="modal-footer">
       <button class="btn btn-primary" onclick="closeModal('absensiSettingsModal')">Tutup</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Modal Edit Hak Akses Admin -->
+<div class="modal-overlay" id="editPermissionsModal">
+  <div class="modal" style="max-width: 680px;">
+    <div class="modal-header">
+      <h3 class="modal-title" style="display:flex;align-items:center;gap:8px;">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        Edit Hak Akses Admin
+      </h3>
+      <button class="modal-close" onclick="closeModal('editPermissionsModal')">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" style="padding:20px 24px;">
+      <input type="hidden" id="editPermsAdminId">
+      <div style="margin-bottom:15px; font-size:14px;">
+        <strong>Admin:</strong> <span id="editPermsAdminName" style="color:var(--primary); font-weight:600;">-</span>
+      </div>
+      <div class="form-group" style="width:100%;">
+        <label style="font-weight:600;margin-bottom:8px;display:block;">Hak Akses Halaman:</label>
+        <div class="perm-grid">
+          <label class="perm-card">
+            <input type="checkbox" name="editAdminPages" value="dashboard" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+            <div class="perm-checkbox-indicator"></div>
+            <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg></span>
+            <span class="perm-card-info">
+              <span class="perm-card-title">Dashboard MPP</span>
+              <span class="perm-card-desc">Monitoring MPP &amp; data gaji</span>
+            </span>
+          </label>
+          <label class="perm-card">
+            <input type="checkbox" name="editAdminPages" value="submissions" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+            <div class="perm-checkbox-indicator"></div>
+            <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></span>
+            <span class="perm-card-info">
+              <span class="perm-card-title">Submissions</span>
+              <span class="perm-card-desc">Approval Picker &amp; Sorter</span>
+            </span>
+          </label>
+          <label class="perm-card">
+            <input type="checkbox" name="editAdminPages" value="loader" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+            <div class="perm-checkbox-indicator"></div>
+            <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg></span>
+            <span class="perm-card-info">
+              <span class="perm-card-title">Entry Loader</span>
+              <span class="perm-card-desc">Kelola kontainer Loader</span>
+            </span>
+          </label>
+          <label class="perm-card">
+            <input type="checkbox" name="editAdminPages" value="data-carian" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+            <div class="perm-checkbox-indicator"></div>
+            <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg></span>
+            <span class="perm-card-info">
+              <span class="perm-card-title">Carian Harian</span>
+              <span class="perm-card-desc">Kelola data carian toko</span>
+            </span>
+          </label>
+          <label class="perm-card">
+            <input type="checkbox" name="editAdminPages" value="rekap-toko" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+            <div class="perm-checkbox-indicator"></div>
+            <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg></span>
+            <span class="perm-card-info">
+              <span class="perm-card-title">Rekap Harian</span>
+              <span class="perm-card-desc">Laporan harian per toko</span>
+            </span>
+          </label>
+          <label class="perm-card">
+            <input type="checkbox" name="editAdminPages" value="status-carian" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+            <div class="perm-checkbox-indicator"></div>
+            <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></span>
+            <span class="perm-card-info">
+              <span class="perm-card-title">Status Carian</span>
+              <span class="perm-card-desc">Status input carian harian</span>
+            </span>
+          </label>
+          <label class="perm-card">
+            <input type="checkbox" name="editAdminPages" value="users" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+            <div class="perm-checkbox-indicator"></div>
+            <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg></span>
+            <span class="perm-card-info">
+              <span class="perm-card-title">Manajemen User</span>
+              <span class="perm-card-desc">Kelola akun operasional</span>
+            </span>
+          </label>
+          <label class="perm-card">
+            <input type="checkbox" name="editAdminPages" value="absensi" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+            <div class="perm-checkbox-indicator"></div>
+            <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></span>
+            <span class="perm-card-info">
+              <span class="perm-card-title">Kehadiran Absensi</span>
+              <span class="perm-card-desc">Kelola kehadiran absensi</span>
+            </span>
+          </label>
+          <label class="perm-card">
+            <input type="checkbox" name="editAdminPages" value="ketentuan-harga" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+            <div class="perm-checkbox-indicator"></div>
+            <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></span>
+            <span class="perm-card-info">
+              <span class="perm-card-title">Ketentuan Harga</span>
+              <span class="perm-card-desc">Atur tarif upah harian</span>
+            </span>
+          </label>
+          <label class="perm-card">
+            <input type="checkbox" name="editAdminPages" value="announcements" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+            <div class="perm-checkbox-indicator"></div>
+            <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg></span>
+            <span class="perm-card-info">
+              <span class="perm-card-title">Pengumuman</span>
+              <span class="perm-card-desc">Kirim info pengumuman</span>
+            </span>
+          </label>
+          <label class="perm-card">
+            <input type="checkbox" name="editAdminPages" value="export" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+            <div class="perm-checkbox-indicator"></div>
+            <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></span>
+            <span class="perm-card-info">
+              <span class="perm-card-title">Export Excel/CSV</span>
+              <span class="perm-card-desc">Unduh data &amp; excel</span>
+            </span>
+          </label>
+          <label class="perm-card">
+            <input type="checkbox" name="editAdminPages" value="gsheets" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+            <div class="perm-checkbox-indicator"></div>
+            <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M3 15h18M9 3v18"/></svg></span>
+            <span class="perm-card-info">
+              <span class="perm-card-title">Google Sheets</span>
+              <span class="perm-card-desc">Integrasi awan Sheets</span>
+            </span>
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" style="padding:16px 24px;display:flex;gap:12px;justify-content:flex-end;">
+      <button class="btn btn-outline" onclick="closeModal('editPermissionsModal')">Batal</button>
+      <button class="btn btn-primary" onclick="saveAdminPermissions()">Simpan Hak Akses</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: WA REMINDER ===== -->
+<div class="modal-overlay" id="waReminderModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <h3 class="modal-title" style="display:flex;align-items:center;gap:8px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Kirim Reminder WhatsApp
+      </h3>
+      <button class="modal-close" onclick="closeModal('waReminderModal')">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" style="padding:20px 24px;">
+      <div style="background:rgba(37,211,102,0.08);border:1px solid rgba(37,211,102,0.2);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--text-secondary);">
+        ℹ️ Pesan WA akan dikirim ke semua Picker/Sorter yang <strong>belum menginput</strong> hari ini dan sudah diisi nomor HPnya.
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label style="font-size:13px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:8px;">Penerima (<span id="waRecipientCount">0</span> orang):</label>
+        <div id="waRecipientList" style="max-height:150px;overflow-y:auto;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;padding:10px;font-size:13px;"></div>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label style="font-size:13px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:8px;">Pesan (kosongkan untuk pakai pesan default):</label>
+        <textarea id="waPesanCustom" rows="5" placeholder="Halo [nama]! Kamu belum input data carian hari ini..." style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--input-bg);color:var(--text-primary);font-size:14px;resize:vertical;box-sizing:border-box;font-family:inherit;"></textarea>
+        <p style="font-size:12px;color:var(--text-muted);margin:4px 0 0;">Kosongkan untuk pakai template default dengan nama penerima & tanggal otomatis.</p>
+      </div>
+
+      <div id="waResultBanner" style="display:none;padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:13px;font-weight:600;"></div>
+    </div>
+    <div class="modal-footer" style="padding:16px 24px;display:flex;gap:12px;justify-content:flex-end;">
+      <button class="btn btn-outline" onclick="closeModal('waReminderModal')">Batal</button>
+      <button class="btn" id="btnKirimWAConfirm" onclick="kirimReminderWA()" style="background:linear-gradient(135deg,#25D366,#128C7E);border:none;display:flex;align-items:center;gap:6px;color:white;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        Kirim Sekarang
+      </button>
     </div>
   </div>
 </div>

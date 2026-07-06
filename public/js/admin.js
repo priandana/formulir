@@ -47,30 +47,90 @@ function showOnscreenError(source, err) {
   let filteredSubmissions = [];
   let currentPage = 1;
   const PAGE_SIZE = 15;
+  let currentUser = { username: '', allowed_pages: [] };
   let currentView = 'dashboard';
 
   let allDataCarian = [];
   let filteredDataCarian = [];
   let importSelectedFile = null;
 
+  function applySidebarPermissions() {
+    const isSuperAdmin = currentUser.username && currentUser.username.toLowerCase() === 'admin';
+    const allowed = currentUser.allowed_pages || [];
+
+    // All pages that can be protected
+    const pages = [
+      'dashboard', 'submissions', 'loader', 'data-carian', 'rekap-toko',
+      'status-carian', 'users', 'absensi', 'ketentuan-harga', 'announcements',
+      'export', 'gsheets', 'login-settings', 'admin-accounts',
+      'audit-logs'
+    ];
+
+    pages.forEach(p => {
+      const nav = document.getElementById('nav-' + p);
+      if (nav) {
+        const hasAccess = isSuperAdmin || allowed.includes(p);
+        nav.style.display = hasAccess ? 'flex' : 'none';
+      }
+    });
+
+    // Submenu groups
+    document.querySelectorAll('.nav-group').forEach(group => {
+      const items = group.querySelectorAll('.nav-item');
+      let visibleCount = 0;
+      items.forEach(item => {
+        if (item.style.display !== 'none') visibleCount++;
+      });
+      group.style.display = visibleCount > 0 ? 'block' : 'none';
+    });
+    
+    // Settings group title hide if no access to sub-items
+    const settingsTitle = document.getElementById('nav-login-settings') ? document.getElementById('nav-login-settings').parentNode.previousElementSibling : null;
+    if (settingsTitle && settingsTitle.classList.contains('nav-section-title')) {
+      const showSettingsTitle = isSuperAdmin || allowed.includes('login-settings') || allowed.includes('admin-accounts') || allowed.includes('audit-logs');
+      settingsTitle.style.display = showSettingsTitle ? 'block' : 'none';
+    }
+  }
+
   // ============= INIT =============
   (async () => {
     const auth = await fetch('/api/check-auth').then(r => r.json());
     if (!auth.authenticated) { window.location.href = '/login'; return; }
     if (auth.role === 'operasional') { window.location.href = '/'; return; }
+    currentUser = {
+      username: auth.username,
+      allowed_pages: auth.allowed_pages || []
+    };
     document.getElementById('userName').textContent = auth.nama_lengkap || auth.username;
     document.getElementById('userAvatar').textContent = (auth.nama_lengkap || auth.username).charAt(0).toUpperCase();
+    applySidebarPermissions();
     // Set today's date as default for filters
     const today = new Date().toISOString().slice(0, 10);
     document.getElementById('dcDateFilter').value = today;
     document.getElementById('importTanggal').value = today;
     document.getElementById('acTanggal').value = today;
     document.getElementById('loaderDateFilter').value = today;
-    await loadData();
+    // Set date picker for Monitoring MPP
+    const mppPicker = document.getElementById('mppDatePicker');
+    if (mppPicker) mppPicker.value = today;
+    // Load core data (submissions)
+    try { await loadData(); } catch(e) { console.error('loadData init:', e); }
     initTheme();
     initRealtimeNotifications();
     initCustomSelects();
+    // Tampilkan dashboard atau halaman pertama yang diizinkan
+    const isSuperAdmin = currentUser.username && currentUser.username.toLowerCase() === 'admin';
+    const allowed = currentUser.allowed_pages || [];
+    if (isSuperAdmin || allowed.includes('dashboard')) {
+      showPage('dashboard');
+    } else if (allowed.length > 0) {
+      showPage(allowed[0]);
+    } else {
+      showPage('feature-guide');
+    }
   })();
+
+
 
   // ============= ANIMATION HELPERS =============
   function animateValue(id, end, duration = 800) {
@@ -109,6 +169,8 @@ function showOnscreenError(source, err) {
         fetch('/api/submissions/pending-count').then(r => r.json()).catch(() => ({ count: 0 }))
       ]);
       allSubmissions = Array.isArray(submissions) ? submissions : [];
+      // Normalize status: null/undefined → 'approved' agar konsisten
+      allSubmissions = allSubmissions.map(s => ({ ...s, status: s.status || 'approved' }));
       filteredSubmissions = [...allSubmissions];
 
       const total = stats && stats.total ? stats.total : 0;
@@ -147,7 +209,8 @@ function showOnscreenError(source, err) {
 
       renderRecentTable();
       populateFilterDropdowns();
-      renderAllTable();
+      // Re-apply filter aktif setelah data di-reload (bukan langsung renderAllTable)
+      filterTable();
     } catch(err) {
 
       console.error('loadData error:', err);
@@ -173,6 +236,7 @@ function showOnscreenError(source, err) {
   function renderRecentTable() {
     const recent = allSubmissions.slice(0, 10);
     const tbody = document.getElementById('recentTableBody');
+    if (!tbody) return; // Dashboard baru tidak punya recentTableBody
     if (!recent.length) {
       tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📋</div><h3>Belum ada data</h3><p>Data akan muncul setelah ada submission masuk</p></div></td></tr>`;
       return;
@@ -206,13 +270,16 @@ function showOnscreenError(source, err) {
     const page = filteredSubmissions.slice(start, end);
     const tbody = document.getElementById('allTableBody');
     if (!filteredSubmissions.length) {
-      tbody.innerHTML = `<tr><td colspan="12"><div class="empty-state"><div class="empty-icon">🔍</div><h3>Tidak ada data ditemukan</h3><p>Coba ubah kata kunci pencarian</p></div></td></tr>`;
+      const isFiltered = allSubmissions.length > 0;
+      tbody.innerHTML = isFiltered
+        ? `<tr><td colspan="12"><div class="empty-state"><div class="empty-icon">🔍</div><h3>Tidak ada data yang cocok</h3><p>Filter aktif tidak menemukan data. Coba ubah atau <a href="#" onclick="resetAllFilters(); return false;" style="color:var(--primary); text-decoration:underline;">reset filter</a>.</p></div></td></tr>`
+        : `<tr><td colspan="12"><div class="empty-state"><div class="empty-icon">📋</div><h3>Belum ada data submissions</h3><p>Data akan muncul setelah ada karyawan yang mengisi formulir</p></div></td></tr>`;
       updatePagination(0); return;
     }
     tbody.innerHTML = page.map((s, i) => {
       const batches = JSON.parse(s.batch_cluster || '[]');
       const batchPreview = batches.slice(0, 3).join(', ') + (batches.length > 3 ? ` +${batches.length - 3}` : '');
-      const status = s.status || 'approved';
+      const status = s.status || 'approved'; // sudah di-normalize di loadData, fallback untuk keamanan
       
       let statusBadge = '';
       if (status === 'pending') {
@@ -322,7 +389,8 @@ function showOnscreenError(source, err) {
         s.zona.toLowerCase().includes(q) ||
         s.tipe_lokasi.toLowerCase().includes(q);
       // Status
-      const matchStatus = statusVal === 'all' || (s.status || 'approved') === statusVal;
+      // s.status sudah di-normalize di loadData (null → 'approved'), cek langsung
+      const matchStatus = statusVal === 'all' || s.status === statusVal;
       // Posisi
       const matchPosisi = posisiVal === 'all' || s.posisi === posisiVal;
       // Tipe Lokasi
@@ -917,10 +985,24 @@ function showOnscreenError(source, err) {
 
   // ============= PAGE NAVIGATION =============
   function showPage(page) {
+    const isSuperAdmin = currentUser.username && currentUser.username.toLowerCase() === 'admin';
+    const allowed = currentUser.allowed_pages || [];
+    const isAllowed = isSuperAdmin || page === 'feature-guide' || allowed.includes(page);
+
+    if (!isAllowed) {
+      showToast('Akses Ditolak: Anda tidak memiliki hak akses untuk halaman ini.', 'error');
+      // Redirect ke halaman pertama yang diizinkan, atau feature-guide jika tidak ada
+      const fallback = allowed.length > 0 ? allowed[0] : 'feature-guide';
+      if (currentView !== fallback) {
+        showPage(fallback);
+      }
+      return;
+    }
+
     currentView = page;
     const sidebar = document.getElementById('sidebar');
     if (sidebar) sidebar.classList.remove('open');
-    ['dashboard','submissions','data-carian','rekap-toko','users','loader','absensi','export','gsheets','login-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga'].forEach(p => {
+    ['dashboard','submissions','data-carian','rekap-toko','status-carian','welcome','users','loader','absensi','export','gsheets','login-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga'].forEach(p => {
       const el = document.getElementById('page-' + p);
       if (el) el.style.display = p === page ? 'block' : 'none';
     });
@@ -930,6 +1012,8 @@ function showOnscreenError(source, err) {
       submissions: 'Data Submissions (Picker & Sorter)',
       'data-carian': 'Data Carian Harian',
       'rekap-toko': 'Rekap Harian Per Toko',
+      'status-carian': 'Status Input Carian Harian',
+      welcome: 'Selamat Datang',
       users: 'Manajemen User Operasional',
       loader: 'Hasil Entry Loader',
       export: 'Export Data',
@@ -944,11 +1028,22 @@ function showOnscreenError(source, err) {
     };
     document.getElementById('pageTitle').textContent = titles[page] || page;
 
-    ['dashboard','submissions','data-carian','rekap-toko','users','loader','absensi','export','gsheets','login-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga'].forEach(p => {
+    ['dashboard','submissions','data-carian','rekap-toko','status-carian','welcome','users','loader','absensi','export','gsheets','login-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga'].forEach(p => {
       const nav = document.getElementById('nav-' + p);
-      if (nav) nav.classList.toggle('active', p === page);
+      if (nav) {
+        const isActive = p === page;
+        nav.classList.toggle('active', isActive);
+        if (isActive) {
+          // Auto-open parent submenu group if active child is loaded
+          const group = nav.closest('.nav-group');
+          if (group && !group.classList.contains('open')) {
+            group.classList.add('open');
+          }
+        }
+      }
     });
 
+    if (page === 'submissions') loadData();
     if (page === 'data-carian') loadDataCarian();
     if (page === 'rekap-toko') loadRekapToko();
     if (page === 'users') loadUsers();
@@ -961,15 +1056,36 @@ function showOnscreenError(source, err) {
     if (page === 'announcements') loadAnnouncements();
     if (page === 'dashboard') loadMonitoringMPP();
     if (page === 'ketentuan-harga') loadKetentuanHarga();
+    if (page === 'status-carian') loadStatusCarian();
+    if (page === 'welcome') renderWelcomePage();
   }
+
+  // Toggle navigation collapsible group
+  function toggleNavGroup(header) {
+    const group = header.parentNode;
+    if (group) {
+      group.classList.toggle('open');
+    }
+  }
+  window.toggleNavGroup = toggleNavGroup;
+
+
 
   // ============= MODAL HELPERS =============
-  function closeModal(id) {
-    document.getElementById(id).classList.remove('visible');
+  function openModal(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('visible');
   }
+  window.openModal = openModal;
+
+  function closeModal(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('visible');
+  }
+  window.closeModal = closeModal;
 
   // Close modal on overlay click
-  ['detailModal', 'importModal', 'addCarianModal', 'editUserModal', 'confirmModal', 'changePasswordModal', 'absensiSettingsModal', 'announcementModal'].forEach(id => {
+  ['detailModal', 'importModal', 'addCarianModal', 'editUserModal', 'confirmModal', 'changePasswordModal', 'absensiSettingsModal', 'announcementModal', 'waReminderModal'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
       el.addEventListener('click', e => {
@@ -1075,7 +1191,7 @@ function showOnscreenError(source, err) {
               <button class="btn-icon btn-toggle-status ${isActive ? 'btn-deactivate' : 'btn-activate'}" onclick="toggleUserStatus('${u.id}', '${safeNama}', ${isActive})" title="${toggleTitle}">
                 ${toggleIcon}
               </button>
-              <button class="btn-icon btn-edit" onclick="openEditUserModal('${u.id}', '${safeNama}', '${safeUser}', '${safeNik}', '${u.posisi}', '${safeTipe}')" title="Edit user">
+              <button class="btn-icon btn-edit" onclick="openEditUserModal('${u.id}', '${safeNama}', '${safeUser}', '${safeNik}', '${u.posisi}', '${safeTipe}', '${(u.nomor_hp || '').replace(/'/g, "\\'")}')" title="Edit user">
                 <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
               </button>
               <button class="btn-icon btn-del" onclick="deleteUser('${u.id}', '${safeNama}')" title="Hapus user">
@@ -1093,11 +1209,12 @@ function showOnscreenError(source, err) {
     const nik = document.getElementById('newNik').value.trim();
     const posisi = document.getElementById('newPosisi').value;
     const tipe_karyawan = document.getElementById('newTipeKaryawan').value;
+    const nomor_hp = document.getElementById('newNomorHp').value.trim();
     const errEl = document.getElementById('addUserError');
     errEl.style.display = 'none';
 
     if (!nama_lengkap || !username || !nik || !posisi) {
-      errEl.textContent = 'Semua field (kecuali tipe karyawan) wajib diisi.';
+      errEl.textContent = 'Semua field (kecuali tipe karyawan dan nomor HP) wajib diisi.';
       errEl.style.display = 'block'; return;
     }
 
@@ -1108,7 +1225,7 @@ function showOnscreenError(source, err) {
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nama_lengkap, username, nik, posisi, tipe_karyawan })
+        body: JSON.stringify({ nama_lengkap, username, nik, posisi, tipe_karyawan, nomor_hp })
       }).then(r => r.json());
 
       if (res.success) {
@@ -1118,6 +1235,7 @@ function showOnscreenError(source, err) {
         document.getElementById('newNik').value = '';
         document.getElementById('newPosisi').value = '';
         document.getElementById('newTipeKaryawan').value = '';
+        document.getElementById('newNomorHp').value = '';
         await loadUsers();
       } else {
         errEl.textContent = res.error || 'Gagal membuat user.';
@@ -1173,13 +1291,14 @@ function showOnscreenError(source, err) {
     } catch(err) { showToast('Gagal menghubungi server.', 'error'); }
   }
 
-  function openEditUserModal(id, nama, username, nik, posisi, tipe_karyawan) {
+  function openEditUserModal(id, nama, username, nik, posisi, tipe_karyawan, nomor_hp) {
     document.getElementById('editUserId').value = id;
     document.getElementById('editNamaLengkap').value = nama;
     document.getElementById('editUsername').value = username;
     document.getElementById('editNik').value = nik;
     document.getElementById('editPosisi').value = posisi;
     document.getElementById('editTipeKaryawan').value = tipe_karyawan || '';
+    document.getElementById('editNomorHp').value = nomor_hp || '';
     document.getElementById('editUserError').style.display = 'none';
     document.getElementById('editUserModal').classList.add('visible');
   }
@@ -1191,11 +1310,12 @@ function showOnscreenError(source, err) {
     const nik = document.getElementById('editNik').value.trim();
     const posisi = document.getElementById('editPosisi').value;
     const tipe_karyawan = document.getElementById('editTipeKaryawan').value;
+    const nomor_hp = document.getElementById('editNomorHp').value.trim();
     const errEl = document.getElementById('editUserError');
     errEl.style.display = 'none';
 
     if (!nama_lengkap || !username || !nik || !posisi) {
-      errEl.textContent = 'Semua field (kecuali tipe karyawan) wajib diisi.';
+      errEl.textContent = 'Semua field (kecuali tipe karyawan dan nomor HP) wajib diisi.';
       errEl.style.display = 'block'; return;
     }
 
@@ -1206,7 +1326,7 @@ function showOnscreenError(source, err) {
       const res = await fetch(`/api/users/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nama_lengkap, username, nik, posisi, tipe_karyawan })
+        body: JSON.stringify({ nama_lengkap, username, nik, posisi, tipe_karyawan, nomor_hp })
       }).then(r => r.json());
 
       if (res.success) {
@@ -1231,35 +1351,80 @@ function showOnscreenError(source, err) {
   async function loadAdminAccounts() {
     const tbody = document.getElementById('adminAccountsTableBody');
     if (!tbody) return;
-    tbody.innerHTML = `<tr><td colspan="5"><div class="loading-spinner"><div class="spin"></div></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6"><div class="loading-spinner"><div class="spin"></div></div></td></tr>`;
     try {
       allAdminAccounts = await fetch('/api/admin-accounts').then(r => r.json());
       renderAdminAccountsTable();
     } catch(err) {
-      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">⚠️</div><h3>Gagal memuat data</h3></div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">⚠️</div><h3>Gagal memuat data</h3></div></td></tr>`;
     }
   }
 
   function renderAdminAccountsTable() {
     const tbody = document.getElementById('adminAccountsTableBody');
     if (!allAdminAccounts.length) {
-      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🛡️</div><h3>Belum ada akun admin lain</h3><p>Gunakan form di atas untuk menambah admin baru</p></div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🛡️</div><h3>Belum ada akun admin lain</h3><p>Gunakan form di atas untuk menambah admin baru</p></div></td></tr>`;
       return;
     }
+
+    const pageLabels = {
+      submissions: 'Submissions',
+      loader: 'Entry Loader',
+      'data-carian': 'Carian Harian',
+      'rekap-toko': 'Rekap Harian',
+      users: 'Manajemen User',
+      absensi: 'Absensi',
+      'ketentuan-harga': 'Harga',
+      announcements: 'Pengumuman',
+      export: 'Ekspor',
+      gsheets: 'GSheets'
+    };
+
     tbody.innerHTML = allAdminAccounts.map((a, i) => {
       const safeName = a.nama_lengkap.replace(/'/g, "\\'");
       const safeUser = a.username.replace(/'/g, "\\'");
+      
+      // Render permissions
+      let permsHTML = '';
+      if (a.username && a.username.toLowerCase() === 'admin') {
+        permsHTML = `<span style="background:rgba(108,60,225,0.08);color:var(--primary);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid rgba(108,60,225,0.15);">Super Admin (Semua)</span>`;
+      } else {
+        const pages = a.allowed_pages || [];
+        if (!pages.length) {
+          permsHTML = `<span style="background:rgba(239,68,68,0.06);color:#DC2626;font-size:11px;padding:2px 8px;border-radius:20px;">Tanpa Akses</span>`;
+        } else {
+          permsHTML = `<div style="display:flex;flex-wrap:wrap;gap:4px;">` + pages.map(p => {
+            const label = pageLabels[p] || p;
+            return `<span style="background:rgba(108,60,225,0.05);color:var(--primary);font-size:10px;font-weight:600;padding:1px 6px;border-radius:4px;border:1px solid rgba(108,60,225,0.08);">${label}</span>`;
+          }).join('') + `</div>`;
+        }
+      }
+
+      // Check if delete button should be visible
+      const deleteBtn = (!a.username || a.username.toLowerCase() !== 'admin') 
+        ? `<button class="btn-icon btn-del" onclick="deleteAdminAccount('${a.id}', '${safeName}', '${safeUser}')" title="Hapus akun admin">
+             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+           </button>`
+        : '';
+        
+      // Check if permissions edit button should be visible
+      const editPermsBtn = (!a.username || a.username.toLowerCase() !== 'admin')
+        ? `<button class="btn-icon" style="color:var(--primary);background:rgba(108,60,225,0.05);border:1px solid rgba(108,60,225,0.1);padding:4px;display:inline-flex;" onclick="openEditPermissionsModal('${a.id}', '${safeName}', '${(a.allowed_pages || []).join(',')}')" title="Edit Hak Akses">
+             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+           </button>`
+        : '';
+
       return `
         <tr style="animation-delay:${i*0.04}s">
           <td>${i+1}</td>
           <td class="text-main">${a.nama_lengkap}</td>
           <td><code style="background:rgba(108,60,225,0.06);padding:2px 8px;border-radius:5px;font-size:12px;">${a.username}</code></td>
+          <td>${permsHTML}</td>
           <td>${formatDate(a.created_at)}</td>
           <td>
             <div class="action-btns">
-              <button class="btn-icon btn-del" onclick="deleteAdminAccount('${a.id}', '${safeName}', '${safeUser}')" title="Hapus akun admin">
-                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
-              </button>
+              ${editPermsBtn}
+              ${deleteBtn}
             </div>
           </td>
         </tr>`;
@@ -1284,13 +1449,15 @@ function showOnscreenError(source, err) {
       errEl.textContent = 'Konfirmasi password tidak cocok.'; errEl.style.display = 'block'; return;
     }
 
+    const checkedPages = Array.from(document.querySelectorAll('input[name="newAdminPages"]:checked')).map(cb => cb.value);
+
     const btn = document.getElementById('btnAddAdmin');
     btn.disabled = true; btn.textContent = 'Menyimpan...';
     try {
       const res = await fetch('/api/admin-accounts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nama_lengkap, username, password })
+        body: JSON.stringify({ nama_lengkap, username, password, allowed_pages: checkedPages })
       }).then(r => r.json());
 
       if (res.success) {
@@ -1299,6 +1466,7 @@ function showOnscreenError(source, err) {
         document.getElementById('newAdminUsername').value = '';
         document.getElementById('newAdminPassword').value = '';
         document.getElementById('newAdminPasswordConfirm').value = '';
+        document.querySelectorAll('input[name="newAdminPages"]').forEach(cb => cb.checked = false);
         await loadAdminAccounts();
       } else {
         errEl.textContent = res.error || 'Gagal membuat akun admin.';
@@ -1312,6 +1480,56 @@ function showOnscreenError(source, err) {
       btn.innerHTML = `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Buat Akun Admin Baru`;
     }
   }
+
+  function openEditPermissionsModal(id, name, allowedPagesStr) {
+    document.getElementById('editPermsAdminId').value = id;
+    document.getElementById('editPermsAdminName').textContent = name;
+    
+    const allowedPages = allowedPagesStr ? allowedPagesStr.split(',') : [];
+    
+    document.querySelectorAll('input[name="editAdminPages"]').forEach(cb => {
+      cb.checked = allowedPages.includes(cb.value);
+      const card = cb.closest('.perm-card');
+      if (card) {
+        card.classList.toggle('checked', cb.checked);
+      }
+    });
+    
+    document.getElementById('editPermissionsModal').classList.add('visible');
+  }
+
+  async function saveAdminPermissions() {
+    const id = document.getElementById('editPermsAdminId').value;
+    const checkedPages = Array.from(document.querySelectorAll('input[name="editAdminPages"]:checked')).map(cb => cb.value);
+    
+    const btn = document.querySelector('#editPermissionsModal .btn-primary');
+    const origText = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Menyimpan...';
+
+    try {
+      const res = await fetch(`/api/admin-accounts/${id}/permissions`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ allowed_pages: checkedPages })
+      }).then(r => r.json());
+      
+      if (res.success) {
+        showToast('Hak akses admin berhasil diperbarui!', 'success');
+        closeModal('editPermissionsModal');
+        await loadAdminAccounts();
+      } else {
+        showToast(res.error || 'Gagal mengubah hak akses.', 'error');
+      }
+    } catch(err) {
+      showToast('Gagal menghubungi server.', 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = origText;
+    }
+  }
+
+  window.openEditPermissionsModal = openEditPermissionsModal;
+  window.saveAdminPermissions = saveAdminPermissions;
+
 
   async function deleteAdminAccount(id, nama, username) {
     const confirmed = await showConfirmModal({
@@ -2515,6 +2733,349 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
   window.filterLogs       = filterLogs;
   window.initCustomSelects = initCustomSelects;
   window.showPage         = showPage;
+  window.loadStatusCarian = loadStatusCarian;
+  window.openWAModal      = openWAModal;
+  window.kirimReminderWA  = kirimReminderWA;
+
+  // ============= WELCOME PAGE =============
+  const PAGE_MENU_META = {
+    dashboard:        { label: 'Dashboard MPP',         icon: '📊' },
+    submissions:      { label: 'Submissions',            icon: '📋' },
+    'data-carian':    { label: 'Carian Harian',          icon: '📈' },
+    'rekap-toko':     { label: 'Rekap Harian',           icon: '🏪' },
+    'status-carian':  { label: 'Status Input Carian',    icon: '✅' },
+    users:            { label: 'Manajemen User',         icon: '👥' },
+    absensi:          { label: 'Kehadiran Absensi',      icon: '📌' },
+    'ketentuan-harga':{ label: 'Ketentuan Harga',        icon: '💰' },
+    announcements:    { label: 'Pengumuman',             icon: '📢' },
+    export:           { label: 'Export Excel/CSV',       icon: '📥' },
+    gsheets:          { label: 'Google Sheets',          icon: '📊' },
+    'login-settings': { label: 'Tampilan Login',         icon: '🎨' },
+    'admin-accounts': { label: 'Akun Administrator',     icon: '🔐' },
+    'audit-logs':     { label: 'Log Aktivitas',          icon: '🕐' },
+    'feature-guide':  { label: 'Panduan Fitur',          icon: '📖' },
+  };
+
+  function renderWelcomePage() {
+    const nameEl = document.getElementById('welcomeAdminName');
+    const dateEl = document.getElementById('welcomeDate');
+    const gridEl = document.getElementById('welcomeMenuGrid');
+    if (!gridEl) return;
+
+    // Set name and date
+    if (nameEl) nameEl.textContent = currentUser.nama_lengkap || currentUser.username || 'Admin';
+    if (dateEl) {
+      const now = new Date();
+      dateEl.textContent = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    }
+
+    const isSuperAdmin = currentUser.username && currentUser.username.toLowerCase() === 'admin';
+    const allowed = isSuperAdmin
+      ? Object.keys(PAGE_MENU_META)
+      : (currentUser.allowed_pages || []);
+
+    gridEl.innerHTML = '';
+    allowed.forEach(page => {
+      const meta = PAGE_MENU_META[page];
+      if (!meta) return;
+      const card = document.createElement('div');
+      card.style.cssText = 'cursor:pointer;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;transition:all 0.2s;';
+      card.innerHTML = `<span style="font-size:24px;">${meta.icon}</span><span style="font-size:13px;font-weight:600;color:var(--text-primary);">${meta.label}</span>`;
+      card.onmouseover = () => { card.style.borderColor = 'var(--primary)'; card.style.transform = 'translateY(-2px)'; card.style.boxShadow = '0 4px 12px rgba(var(--primary-rgb),0.15)'; };
+      card.onmouseout  = () => { card.style.borderColor = 'var(--border)'; card.style.transform = ''; card.style.boxShadow = ''; };
+      card.onclick = () => showPage(page);
+      gridEl.appendChild(card);
+    });
+
+    if (allowed.length === 0) {
+      gridEl.innerHTML = '<p style="color:var(--text-muted);font-size:14px;grid-column:1/-1;text-align:center;padding:20px 0;">Belum ada halaman yang diberikan izin. Hubungi Super Admin.</p>';
+    }
+  }
+
+  // ============= STATUS CARIAN =============
+  let statusCarianData = { sudah: [], belum: [] };
+
+  async function loadStatusCarian() {
+    const datePicker = document.getElementById('statusCarianDate');
+    if (!datePicker.value) {
+      datePicker.value = new Date().toISOString().slice(0, 10);
+    }
+    const tanggal = datePicker.value;
+
+    // Reset search inputs
+    const searchSudah = document.getElementById('searchSudah');
+    const searchBelum = document.getElementById('searchBelum');
+    if (searchSudah) searchSudah.value = '';
+    if (searchBelum) searchBelum.value = '';
+
+    // Show loading state
+    document.getElementById('sc-sudah-list').innerHTML = '<p style="text-align:center;padding:30px;color:var(--text-muted);font-size:13px;">⏳ Memuat data...</p>';
+    document.getElementById('sc-belum-list').innerHTML = '<p style="text-align:center;padding:30px;color:var(--text-muted);font-size:13px;">⏳ Memuat data...</p>';
+
+    try {
+      const res = await fetch(`/api/status-carian?tanggal=${tanggal}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal memuat');
+
+      statusCarianData = data;
+
+      // Update summary
+      document.getElementById('sc-sudah-count').textContent = data.sudah.length;
+      document.getElementById('sc-belum-count').textContent = data.belum.length;
+      document.getElementById('sc-total-count').textContent = data.total_picker_sorter;
+
+      // Update filter badge
+      const badge = document.getElementById('sc-filter-badge');
+      if (badge) {
+        badge.style.display = 'inline-block';
+        if (data.is_filtered_by_absensi) {
+          badge.style.background = 'rgba(16,185,129,0.1)';
+          badge.style.color = '#10B981';
+          badge.style.border = '1px solid rgba(16,185,129,0.2)';
+          badge.textContent = 'Filtered by Absensi (Hadir)';
+        } else {
+          badge.style.background = 'rgba(107,114,128,0.1)';
+          badge.style.color = '#6B7280';
+          badge.style.border = '1px solid rgba(107,114,128,0.2)';
+          badge.textContent = 'All Active Employees (No Absensi)';
+        }
+      }
+
+      // Render sudah list
+      const sudahEl = document.getElementById('sc-sudah-list');
+      if (data.sudah.length === 0) {
+        sudahEl.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px;"><div style="font-size:32px;margin-bottom:8px;">📭</div>Belum ada karyawan yang menginput hari ini</div>';
+      } else {
+        sudahEl.innerHTML = data.sudah.map(u => {
+          const waktu = u.waktu_submit ? new Date(u.waktu_submit).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '—';
+          return `<div class="user-status-card" data-name="${u.nama}" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:12px;background:var(--card-bg);border:1px solid var(--border);margin-bottom:10px;box-shadow:0 2px 4px rgba(0,0,0,0.015);transition:all 0.2s;">
+            <div style="width:38px;height:38px;border-radius:50%;background:rgba(16,185,129,0.08);color:#10B981;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;border:1px solid rgba(16,185,129,0.15);flex-shrink:0;">
+              ${(u.nama || '?').charAt(0).toUpperCase()}
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:700;font-size:14px;color:var(--text-primary);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${u.nama}</div>
+              <span class="badge ${u.posisi === 'Picker' ? 'badge-picker' : 'badge-sorter'}">${u.posisi}</span>
+            </div>
+            <div style="flex-shrink:0;text-align:right;">
+              <span class="badge badge-status-active" style="background:rgba(16,185,129,0.06);color:#047857;border:1px solid rgba(16,185,129,0.15);font-size:11px;padding:3px 8px;">
+                <span class="status-dot" style="background:#10B981;width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:6px;"></span>
+                ${waktu}
+              </span>
+            </div>
+          </div>`;
+        }).join('');
+      }
+
+      // Render belum list
+      const belumEl = document.getElementById('sc-belum-list');
+      if (data.belum.length === 0) {
+        belumEl.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--success);font-size:13px;font-weight:600;"><div style="font-size:32px;margin-bottom:8px;">🎉</div>Hebat! Semua karyawan sudah input hari ini!</div>';
+      } else {
+        belumEl.innerHTML = data.belum.map(u => {
+          const noHpBadge = u.nomor_hp 
+            ? `<span style="font-size:11px;color:var(--text-secondary);background:var(--bg-secondary);padding:2px 6px;border-radius:4px;border:1px solid var(--border);">📱 ${u.nomor_hp}</span>` 
+            : `<span style="font-size:11px;color:var(--error);background:rgba(239,68,68,0.05);padding:2px 6px;border-radius:4px;border:1px solid rgba(239,68,68,0.15);">⚠️ Belum ada no. HP</span>`;
+          return `<div class="user-status-card" data-name="${u.nama}" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:12px;background:var(--card-bg);border:1px solid var(--border);margin-bottom:10px;box-shadow:0 2px 4px rgba(0,0,0,0.015);transition:all 0.2s;">
+            <div style="width:38px;height:38px;border-radius:50%;background:rgba(239,68,68,0.08);color:#EF4444;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;border:1px solid rgba(239,68,68,0.15);flex-shrink:0;">
+              ${(u.nama || '?').charAt(0).toUpperCase()}
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:700;font-size:14px;color:var(--text-primary);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${u.nama}</div>
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span class="badge ${u.posisi === 'Picker' ? 'badge-picker' : 'badge-sorter'}">${u.posisi}</span>
+                ${noHpBadge}
+              </div>
+            </div>
+            <div style="flex-shrink:0;text-align:right;">
+              <span class="badge badge-status-inactive" style="background:rgba(107,114,128,0.06);color:#4B5563;border:1px solid rgba(107,114,128,0.15);font-size:11px;padding:3px 8px;">
+                Belum Input
+              </span>
+            </div>
+          </div>`;
+        }).join('');
+      }
+
+      // Add hover card animation styles dynamically
+      document.querySelectorAll('.user-status-card').forEach(card => {
+        card.onmouseover = () => { card.style.borderColor = 'var(--primary)'; card.style.transform = 'translateY(-1px)'; card.style.boxShadow = '0 4px 8px rgba(0,0,0,0.04)'; };
+        card.onmouseout  = () => { card.style.borderColor = 'var(--border)'; card.style.transform = ''; card.style.boxShadow = '0 2px 4px rgba(0,0,0,0.015)'; };
+      });
+
+      // Update WA button
+      const btnWA = document.getElementById('btnKirimWA');
+      if (btnWA) {
+        const punya_hp = data.belum.filter(u => u.nomor_hp).length;
+        btnWA.title = `${punya_hp} dari ${data.belum.length} orang yang belum input punya nomor HP`;
+      }
+
+    } catch (err) {
+      console.error('loadStatusCarian error:', err);
+      document.getElementById('sc-sudah-list').innerHTML = `<p style="text-align:center;padding:20px;color:var(--error);font-size:13px;">Gagal memuat: ${err.message}</p>`;
+      document.getElementById('sc-belum-list').innerHTML = '';
+    }
+  }
+
+  // Live filter function for search boxes
+  function filterSudahBelum() {
+    const querySudah = document.getElementById('searchSudah')?.value?.toLowerCase() || '';
+    const queryBelum = document.getElementById('searchBelum')?.value?.toLowerCase() || '';
+
+    document.querySelectorAll('#sc-sudah-list .user-status-card').forEach(card => {
+      const name = card.getAttribute('data-name')?.toLowerCase() || '';
+      card.style.display = name.includes(querySudah) ? 'flex' : 'none';
+    });
+
+    document.querySelectorAll('#sc-belum-list .user-status-card').forEach(card => {
+      const name = card.getAttribute('data-name')?.toLowerCase() || '';
+      card.style.display = name.includes(queryBelum) ? 'flex' : 'none';
+    });
+  }
+  window.filterSudahBelum = filterSudahBelum;
+
+  // ============= WA REMINDER =============
+  function openWAModal() {
+    const belumDenganHP = statusCarianData.belum.filter(u => u.nomor_hp);
+    const countEl = document.getElementById('waRecipientCount');
+    const listEl  = document.getElementById('waRecipientList');
+    const resultEl = document.getElementById('waResultBanner');
+    const pesanEl = document.getElementById('waPesanCustom');
+    const selectAllCb = document.getElementById('waSelectAll');
+
+    if (resultEl) { resultEl.style.display = 'none'; resultEl.textContent = ''; }
+    if (pesanEl) pesanEl.value = '';
+    if (selectAllCb) selectAllCb.checked = belumDenganHP.length > 0;
+
+    if (listEl) {
+      if (belumDenganHP.length === 0) {
+        const total = statusCarianData.belum.length;
+        listEl.innerHTML = total === 0
+          ? '<span style="color:var(--success);font-weight:600;display:block;text-align:center;padding:20px;">🎉 Semua sudah menginput carian!</span>'
+          : `<span style="color:var(--error);font-weight:600;display:block;text-align:center;padding:20px;">⚠️ Ada ${total} orang belum input, tapi tidak ada yang memiliki nomor HP di database. Silakan isi dulu nomor HP operasional di Manajemen User.</span>`;
+      } else {
+        listEl.innerHTML = belumDenganHP.map((u, i) =>
+          `<label style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:10px;background:var(--card-bg);border:1px solid var(--border);cursor:pointer;margin:0;transition:border-color 0.2s;">
+            <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+              <input type="checkbox" name="waSelectedUser" value="${u.username}" data-phone="${u.nomor_hp}" data-name="${u.nama}" checked style="cursor:pointer;width:16px;height:16px;accent-color:var(--primary);" onchange="updateWASelectionCount()">
+              <div style="min-width:0;">
+                <div style="font-weight:700;color:var(--text-primary);font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${u.nama}</div>
+                <span class="badge ${u.posisi === 'Picker' ? 'badge-picker' : 'badge-sorter'}" style="font-size:10px;padding:1px 6px;">${u.posisi}</span>
+              </div>
+            </div>
+            <span style="font-family:monospace;color:var(--text-secondary);font-size:12px;flex-shrink:0;">${u.nomor_hp}</span>
+          </label>`
+        ).join('');
+
+        // Add visual feedback to checkboxes labels
+        document.querySelectorAll('#waRecipientList label').forEach(label => {
+          const cb = label.querySelector('input');
+          cb.addEventListener('change', () => {
+            label.style.borderColor = cb.checked ? 'var(--primary)' : 'var(--border)';
+            label.style.background = cb.checked ? 'rgba(var(--primary-rgb),0.02)' : 'var(--card-bg)';
+          });
+          // initial style
+          label.style.borderColor = cb.checked ? 'var(--primary)' : 'var(--border)';
+          label.style.background = cb.checked ? 'rgba(var(--primary-rgb),0.02)' : 'var(--card-bg)';
+        });
+      }
+    }
+
+    updateWASelectionCount();
+    openModal('waReminderModal');
+  }
+
+  function updateWASelectionCount() {
+    const checked = document.querySelectorAll('input[name="waSelectedUser"]:checked');
+    const total = document.querySelectorAll('input[name="waSelectedUser"]').length;
+    
+    const countEl = document.getElementById('waRecipientCount');
+    if (countEl) countEl.textContent = checked.length;
+    
+    const selectAllCb = document.getElementById('waSelectAll');
+    if (selectAllCb) {
+      selectAllCb.checked = checked.length === total && total > 0;
+      selectAllCb.indeterminate = checked.length > 0 && checked.length < total;
+    }
+
+    const btn = document.getElementById('btnKirimWAConfirm');
+    if (btn) btn.disabled = checked.length === 0;
+  }
+  window.updateWASelectionCount = updateWASelectionCount;
+
+  function toggleSelectAllWA(master) {
+    const checkboxes = document.querySelectorAll('input[name="waSelectedUser"]');
+    checkboxes.forEach(cb => {
+      cb.checked = master.checked;
+      const label = cb.closest('label');
+      if (label) {
+        label.style.borderColor = cb.checked ? 'var(--primary)' : 'var(--border)';
+        label.style.background = cb.checked ? 'rgba(var(--primary-rgb),0.02)' : 'var(--card-bg)';
+      }
+    });
+    updateWASelectionCount();
+  }
+  window.toggleSelectAllWA = toggleSelectAllWA;
+
+  async function kirimReminderWA() {
+    const checkedCheckboxes = document.querySelectorAll('input[name="waSelectedUser"]:checked');
+    const targets = Array.from(checkedCheckboxes).map(cb => ({
+      nomor_hp: cb.getAttribute('data-phone'),
+      nama: cb.getAttribute('data-name')
+    }));
+
+    if (targets.length === 0) {
+      showToast('Pilih minimal satu karyawan untuk dikirim reminder.', 'error');
+      return;
+    }
+
+    const tanggal = document.getElementById('statusCarianDate')?.value || new Date().toISOString().slice(0, 10);
+    const pesanCustom = document.getElementById('waPesanCustom')?.value?.trim() || '';
+
+    const btn = document.getElementById('btnKirimWAConfirm');
+    if (btn) { btn.disabled = true; btn.textContent = 'Mengirim...'; }
+
+    const resultEl = document.getElementById('waResultBanner');
+
+    try {
+      const res = await fetch('/api/send-wa-reminder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targets,
+          tanggal,
+          pesan_custom: pesanCustom || null
+        })
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || 'Gagal mengirim');
+
+      if (resultEl) {
+        resultEl.style.display = 'block';
+        resultEl.style.background = data.successCount > 0 ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)';
+        resultEl.style.border = data.successCount > 0 ? '1px solid rgba(34,197,94,0.3)' : '1px solid rgba(239,68,68,0.3)';
+        resultEl.style.color = data.successCount > 0 ? 'var(--success)' : 'var(--error)';
+        resultEl.textContent = `✅ ${data.successCount} berhasil dikirim, ❌ ${data.failCount} gagal.`;
+      }
+
+      showToast(`WA Reminder: ${data.successCount} berhasil, ${data.failCount} gagal`, data.successCount > 0 ? 'success' : 'error');
+
+    } catch (err) {
+      if (resultEl) {
+        resultEl.style.display = 'block';
+        resultEl.style.background = 'rgba(239,68,68,0.1)';
+        resultEl.style.border = '1px solid rgba(239,68,68,0.3)';
+        resultEl.style.color = 'var(--error)';
+        resultEl.textContent = `❌ Error: ${err.message}`;
+      }
+      showToast('Gagal mengirim WA: ' + err.message, 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg> Kirim Sekarang';
+      }
+    }
+  }
+
 
   // ===================== ANNOUNCEMENTS =====================
 
@@ -2661,14 +3222,74 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
 
   // ============= MONITORING MPP =============
 
+  // Helper: get local date as YYYY-MM-DD (avoids UTC timezone shift)
+  function getLocalDateString(date = new Date()) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  let allMPPData = []; // Cache data pencapaian untuk filter client-side
+
+  function renderMPPTable(list) {
+    const tbody = document.getElementById('mppPencapaianBody');
+    if (!tbody) return;
+    const posisiBadgeColor = { 'Picker': '#8b5cf6', 'Sorter': '#10b981', 'Loader': '#f59e0b' };
+    if (!list || list.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:32px; color:var(--text-secondary); font-size:13px;">
+        <div style="font-size:32px; margin-bottom:10px;">🔍</div>
+        Tidak ada data yang cocok dengan filter.</td></tr>`;
+      return;
+    }
+    let totalNilaiGrand = 0;
+    tbody.innerHTML = list.map(p => {
+      const color = posisiBadgeColor[p.posisi] || '#6b7280';
+      const hargaStr = p.harga_satuan !== null ? `Rp ${p.harga_satuan.toLocaleString('id-ID')}` : '<span style="color:var(--text-secondary); font-style:italic;">Belum diset</span>';
+      const nilaiStr = p.total_nilai !== null
+        ? `<b style="color:var(--success);">Rp ${p.total_nilai.toLocaleString('id-ID')}</b>`
+        : '<span style="color:var(--text-secondary); font-style:italic;">—</span>';
+      if (p.total_nilai) totalNilaiGrand += p.total_nilai;
+      return `<tr>
+        <td><b>${p.nama}</b></td>
+        <td><span class="badge" style="background:${color}20; color:${color}; font-size:11px; padding:3px 8px; border-radius:8px;">${p.posisi}</span></td>
+        <td style="font-size:12px;">${p.zona}</td>
+        <td style="font-weight:700;">${p.pencapaian.toLocaleString('id-ID')}</td>
+        <td style="font-size:12px; color:var(--text-secondary);">${p.satuan}</td>
+        <td>${hargaStr}</td>
+        <td>${nilaiStr}</td>
+      </tr>`;
+    }).join('');
+    tbody.innerHTML += `<tr style="background:rgba(99,102,241,0.06); font-weight:700; border-top:2px solid var(--border);">
+      <td colspan="6" style="text-align:right; padding-right:16px; font-size:13px;">TOTAL NILAI SELURUH PEKERJA</td>
+      <td style="color:var(--primary); font-size:14px;">Rp ${totalNilaiGrand.toLocaleString('id-ID')}</td>
+    </tr>`;
+  }
+
+  window.filterMPPTable = function() {
+    const q = (document.getElementById('mppSearchNama')?.value || '').toLowerCase().trim();
+    const posisi = document.getElementById('mppFilterPosisi')?.value || '';
+    const filtered = allMPPData.filter(p => {
+      const matchNama = !q || p.nama.toLowerCase().includes(q);
+      const matchPosisi = !posisi || p.posisi === posisi;
+      return matchNama && matchPosisi;
+    });
+    renderMPPTable(filtered);
+  };
+
   async function loadMonitoringMPP() {
     const picker = document.getElementById('mppDatePicker');
     if (!picker) return;
     if (!picker.value) {
-      const today = new Date();
-      picker.value = today.toISOString().split('T')[0];
+      picker.value = getLocalDateString();
     }
     const tanggal = picker.value;
+
+    // Reset filter saat ganti tanggal
+    const searchEl = document.getElementById('mppSearchNama');
+    const posisiEl = document.getElementById('mppFilterPosisi');
+    if (searchEl) searchEl.value = '';
+    if (posisiEl) posisiEl.value = '';
 
     // Reset stats to loading state
     ['mpp-all-picker','mpp-all-sorter','mpp-all-loader','mpp-all-total',
@@ -2698,36 +3319,14 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
       document.getElementById('mpp-today-loader').textContent  = data.mpp_today.loader;
       document.getElementById('mpp-today-total').textContent   = data.mpp_today.total;
 
-      // Render pencapaian table
-      const posisiBadgeColor = { 'Picker': '#8b5cf6', 'Sorter': '#10b981', 'Loader': '#f59e0b' };
-      if (!data.pencapaian || data.pencapaian.length === 0) {
+      // Simpan ke cache lalu render
+      allMPPData = data.pencapaian || [];
+      if (allMPPData.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:32px; color:var(--text-secondary); font-size:13px;">
           <div style="font-size:32px; margin-bottom:10px;">📋</div>
           Tidak ada data pencapaian untuk tanggal ini.</td></tr>`;
       } else {
-        let totalNilaiGrand = 0;
-        tbody.innerHTML = data.pencapaian.map(p => {
-          const color = posisiBadgeColor[p.posisi] || '#6b7280';
-          const hargaStr = p.harga_satuan !== null ? `Rp ${p.harga_satuan.toLocaleString('id-ID')}` : '<span style="color:var(--text-secondary); font-style:italic;">Belum diset</span>';
-          const nilaiStr = p.total_nilai !== null
-            ? `<b style="color:var(--success);">Rp ${p.total_nilai.toLocaleString('id-ID')}</b>`
-            : '<span style="color:var(--text-secondary); font-style:italic;">—</span>';
-          if (p.total_nilai) totalNilaiGrand += p.total_nilai;
-          return `<tr>
-            <td><b>${p.nama}</b></td>
-            <td><span class="badge" style="background:${color}20; color:${color}; font-size:11px; padding:3px 8px; border-radius:8px;">${p.posisi}</span></td>
-            <td style="font-size:12px;">${p.zona}</td>
-            <td style="font-weight:700;">${p.pencapaian.toLocaleString('id-ID')}</td>
-            <td style="font-size:12px; color:var(--text-secondary);">${p.satuan}</td>
-            <td>${hargaStr}</td>
-            <td>${nilaiStr}</td>
-          </tr>`;
-        }).join('');
-        // Add grand total row
-        tbody.innerHTML += `<tr style="background:rgba(99,102,241,0.06); font-weight:700; border-top:2px solid var(--border);">
-          <td colspan="6" style="text-align:right; padding-right:16px; font-size:13px;">TOTAL NILAI SELURUH PEKERJA</td>
-          <td style="color:var(--primary); font-size:14px;">Rp ${totalNilaiGrand.toLocaleString('id-ID')}</td>
-        </tr>`;
+        renderMPPTable(allMPPData);
       }
     } catch (err) {
       console.error('loadMonitoringMPP error:', err);
@@ -2741,7 +3340,7 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
   document.addEventListener('DOMContentLoaded', () => {
     const picker = document.getElementById('mppDatePicker');
     if (picker && !picker.value) {
-      picker.value = new Date().toISOString().split('T')[0];
+      picker.value = getLocalDateString(); // use local date to avoid UTC shift
     }
     loadMonitoringMPP();
   });
