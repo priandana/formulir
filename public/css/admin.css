@@ -1006,6 +1006,14 @@
       .detail-grid { grid-template-columns: 1fr; }
       .stats-grid { grid-template-columns: 1fr 1fr; }
       .form-row { grid-template-columns: 1fr; }
+
+      /* ---- TOPBAR MOBILE ---- */
+      .topbar { padding: 10px 12px; gap: 6px; flex-wrap: nowrap; }
+      .topbar > div:first-child { flex: 1; min-width: 0; overflow: hidden; }
+      .topbar h2 { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+      .topbar-actions { gap: 5px; flex-shrink: 0; }
+      #btnExportExcel span, #btnRefresh span { display: none; }
+      #btnExportExcel, #btnRefresh { padding: 8px 10px; min-width: unset; }
     }
 }
 
