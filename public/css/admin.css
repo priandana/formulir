@@ -1016,29 +1016,40 @@
 
   /* --- Topbar --- */
   .topbar {
-    padding: 12px 14px;
-    gap: 8px;
+    padding: 12px 14px !important;
+    gap: 8px !important;
+    flex-wrap: nowrap !important;
   }
-  .topbar h2 {
-    font-size: 14px;
-    font-weight: 700;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 130px;
-  }
-  .topbar-actions { gap: 6px; }
 
-  /* Sembunyikan teks di tombol Export & Refresh, tampilkan icon saja */
-  #btnExportExcel span,
-  #btnRefresh span,
-  .topbar-actions .btn:not(.btn-icon) > svg + * {
-    display: none;
+  /* Container kiri (hamburger + judul) */
+  .topbar > div:first-child {
+    flex: 1;
+    min-width: 0; /* penting untuk ellipsis bekerja */
+    overflow: hidden;
   }
-  .topbar-actions .btn-success,
-  .topbar-actions .btn-outline:not(.btn-icon) {
-    padding: 8px 10px;
-    min-width: unset;
+
+  .topbar h2 {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+  }
+  .topbar-actions {
+    gap: 5px !important;
+    flex-shrink: 0; /* tombol tidak menyusut */
+  }
+
+  /* Sembunyikan TEKS di tombol Export & Refresh — icon saja */
+  #btnExportExcel span,
+  #btnRefresh span {
+    display: none !important;
+  }
+  #btnExportExcel,
+  #btnRefresh {
+    padding: 8px 10px !important;
+    min-width: unset !important;
   }
 
   /* --- Page content padding --- */
