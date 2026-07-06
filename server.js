@@ -335,7 +335,8 @@ app.post('/api/login', async (req, res) => {
         username: user.username,
         nama_lengkap: user.nama_lengkap || user.username,
         posisi: null,
-        role: 'admin'
+        role: 'admin',
+        allowed_pages: user.allowed_pages || []
       };
     }
 
@@ -395,7 +396,8 @@ app.get('/api/check-auth', (req, res) => {
         username: decoded.username,
         nama_lengkap: decoded.nama_lengkap || decoded.username,
         role: decoded.role || 'admin',
-        posisi: decoded.posisi || null
+        posisi: decoded.posisi || null,
+        allowed_pages: decoded.allowed_pages || []
       });
     } catch (err) {
       // Token invalid or expired
@@ -420,6 +422,51 @@ const requireAdmin = (req, res, next) => {
   }
 };
 
+// Middleware: super admin only (username = 'admin' case-insensitive)
+const requireSuperAdmin = (req, res, next) => {
+  const token = req.cookies.token;
+  if (!token) return res.status(401).json({ error: 'Unauthorized.' });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin' || !decoded.username || decoded.username.toLowerCase() !== 'admin') {
+      return res.status(403).json({ error: 'Akses ditolak. Hanya untuk Super Admin.' });
+    }
+    req.user = decoded;
+    next();
+  } catch (err) {
+    res.status(401).json({ error: 'Sesi tidak valid.' });
+  }
+};
+
+// Middleware: check custom admin permissions
+const requirePermission = (page) => {
+  return (req, res, next) => {
+    const token = req.cookies.token;
+    if (!token) return res.status(401).json({ error: 'Unauthorized.' });
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      if (decoded.role !== 'admin') return res.status(403).json({ error: 'Akses ditolak.' });
+      
+      // Super Admin (username 'admin' case-insensitive) has access to all pages
+      if (decoded.username && decoded.username.toLowerCase() === 'admin') {
+        req.user = decoded;
+        return next();
+      }
+
+      // Check allowed pages
+      const allowed = Array.isArray(decoded.allowed_pages) ? decoded.allowed_pages : [];
+      if (!allowed.includes(page)) {
+        return res.status(403).json({ error: `Akses ditolak. Anda tidak memiliki izin untuk halaman: ${page}` });
+      }
+
+      req.user = decoded;
+      next();
+    } catch (err) {
+      res.status(401).json({ error: 'Sesi tidak valid.' });
+    }
+  };
+};
+
 // Polling endpoint untuk admin notifications (menggantikan SSE)
 // Admin frontend fetch endpoint ini setiap 15 detik - AMAN untuk serverless
 app.get('/api/admin/updates-poll', requireAdmin, (req, res) => {
@@ -432,7 +479,7 @@ app.get('/api/admin/updates-poll', requireAdmin, (req, res) => {
 });
 
 // GET /api/audit-logs
-app.get('/api/audit-logs', requireAdmin, async (req, res) => {
+app.get('/api/audit-logs', requireSuperAdmin, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
@@ -446,7 +493,7 @@ app.get('/api/audit-logs', requireAdmin, async (req, res) => {
 });
 
 // GET /api/submissions
-app.get('/api/submissions', requireAuth, async (req, res) => {
+app.get('/api/submissions', requirePermission('submissions'), async (req, res) => {
   try {
     const submissions = await db.getAllSubmissions();
     res.json(submissions);
@@ -456,8 +503,8 @@ app.get('/api/submissions', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/settings/login — Simpan setting halaman login (admin only)
-app.post('/api/settings/login', requireAuth, requireAdmin, async (req, res) => {
+// POST /api/settings/login — Simpan setting halaman login (Super Admin only)
+app.post('/api/settings/login', requireSuperAdmin, async (req, res) => {
   try {
     const saved = await db.saveLoginSettings(req.body);
     await db.insertAuditLog(req.user.username, 'UPDATE_SETTINGS', 'Mengubah pengaturan visual halaman login');
@@ -482,7 +529,7 @@ app.get('/api/settings/absensi', async (req, res) => {
 });
 
 // PUT /api/settings/absensi — Simpan pengaturan absensi (admin only)
-app.put('/api/settings/absensi', requireAdmin, async (req, res) => {
+app.put('/api/settings/absensi', requirePermission('absensi'), async (req, res) => {
   try {
     const { absensi_required, absensi_visible_to_user } = req.body;
     const saved = await db.saveAbsensiSettings({
@@ -499,7 +546,7 @@ app.put('/api/settings/absensi', requireAdmin, async (req, res) => {
 });
 
 // GET /api/absensi/tanggal-list — Daftar tanggal punya absensi (admin only)
-app.get('/api/absensi/tanggal-list', requireAdmin, async (req, res) => {
+app.get('/api/absensi/tanggal-list', requirePermission('absensi'), async (req, res) => {
   try {
     const dates = await db.getAbsensiTanggalList();
     res.json(dates);
@@ -550,7 +597,7 @@ app.get('/api/absensi/hadir-hari-ini', async (req, res) => {
 });
 
 // GET /api/absensi?tanggal=YYYY-MM-DD — Rekap absensi per tanggal (admin only)
-app.get('/api/absensi', requireAdmin, async (req, res) => {
+app.get('/api/absensi', requirePermission('absensi'), async (req, res) => {
   try {
     const tanggal = req.query.tanggal;
     if (!tanggal) return res.status(400).json({ error: 'Parameter tanggal diperlukan.' });
@@ -563,7 +610,7 @@ app.get('/api/absensi', requireAdmin, async (req, res) => {
 });
 
 // POST /api/absensi — Tambah user ke absensi (admin only)
-app.post('/api/absensi', requireAdmin, async (req, res) => {
+app.post('/api/absensi', requirePermission('absensi'), async (req, res) => {
   try {
     const { tanggal, user_id } = req.body;
     if (!tanggal || !user_id) return res.status(400).json({ error: 'tanggal dan user_id diperlukan.' });
@@ -579,7 +626,7 @@ app.post('/api/absensi', requireAdmin, async (req, res) => {
 });
 
 // DELETE /api/absensi/:id — Hapus user dari absensi (admin only)
-app.delete('/api/absensi/:id', requireAdmin, async (req, res) => {
+app.delete('/api/absensi/:id', requirePermission('absensi'), async (req, res) => {
   try {
     const { id } = req.params;
     await db.removeAbsensi(id);
@@ -592,6 +639,18 @@ app.delete('/api/absensi/:id', requireAdmin, async (req, res) => {
   }
 });
 
+
+// GET /api/submissions/pending-count — Jumlah submission pending (untuk badge admin)
+// HARUS SEBELUM /api/submissions/:id agar tidak dianggap sebagai :id
+app.get('/api/submissions/pending-count', requireAuth, async (req, res) => {
+  try {
+    const count = await db.getPendingCount();
+    res.json({ count });
+  } catch (err) {
+    console.error('Pending count error:', err);
+    res.status(500).json({ error: 'Gagal mengambil data.' });
+  }
+});
 
 // GET /api/submissions/:id
 app.get('/api/submissions/:id', requireAuth, async (req, res) => {
@@ -607,7 +666,7 @@ app.get('/api/submissions/:id', requireAuth, async (req, res) => {
 });
 
 // DELETE /api/submissions/:id
-app.delete('/api/submissions/:id', requireAuth, async (req, res) => {
+app.delete('/api/submissions/:id', requirePermission('submissions'), async (req, res) => {
   try {
     const sub = await db.getSubmissionById(req.params.id);
     const date = sub ? sub.tanggal_carian : null;
@@ -648,19 +707,8 @@ app.get('/api/stats', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/submissions/pending-count — Jumlah submission pending (untuk badge admin)
-app.get('/api/submissions/pending-count', requireAuth, async (req, res) => {
-  try {
-    const count = await db.getPendingCount();
-    res.json({ count });
-  } catch (err) {
-    console.error('Pending count error:', err);
-    res.status(500).json({ error: 'Gagal mengambil data.' });
-  }
-});
-
 // PUT /api/submissions/:id/status — Admin approve atau reject submission pending
-app.put('/api/submissions/:id/status', requireAdmin, async (req, res) => {
+app.put('/api/submissions/:id/status', requirePermission('submissions'), async (req, res) => {
   try {
     const { status } = req.body;
     if (!['approved', 'rejected', 'pending'].includes(status)) {
@@ -1948,7 +1996,7 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
           };
         } else {
           loaderGroups[key].total_output += r.total_output || 0;
-          loaderGroups[key].jumlah_toko += r.jumlah_toko || 0;
+          loaderGroups[key].jumlah_toko = Math.max(loaderGroups[key].jumlah_toko, r.jumlah_toko || 0);
           loaderGroups[key].zonaSet.add(r.zona);
         }
       } else {
@@ -2150,7 +2198,7 @@ app.post('/api/data-carian/push-sheets', requireAuth, async (req, res) => {
 // ==================== USER MANAGEMENT ROUTES (Admin only) ====================
 
 // GET /api/users — List semua user operasional
-app.get('/api/users', requireAdmin, async (req, res) => {
+app.get('/api/users', requirePermission('users'), async (req, res) => {
   try {
     const users = await db.getAllOperationalUsers();
     res.json(users);
@@ -2161,9 +2209,9 @@ app.get('/api/users', requireAdmin, async (req, res) => {
 });
 
 // POST /api/users — Buat user operasional baru
-app.post('/api/users', requireAdmin, async (req, res) => {
+app.post('/api/users', requirePermission('users'), async (req, res) => {
   try {
-    const { username, nama_lengkap, nik, posisi, tipe_karyawan } = req.body;
+    const { username, nama_lengkap, nik, posisi, tipe_karyawan, nomor_hp } = req.body;
     if (!username || !nama_lengkap || !nik || !posisi) {
       return res.status(400).json({ error: 'Semua field (username, nama lengkap, NIK, posisi) wajib diisi.' });
     }
@@ -2178,9 +2226,10 @@ app.post('/api/users', requireAdmin, async (req, res) => {
       nama_lengkap: nama_lengkap.trim(),
       nik: nik.trim(),
       posisi,
-      tipe_karyawan: tipe_karyawan || null
+      tipe_karyawan: tipe_karyawan || null,
+      nomor_hp: nomor_hp ? nomor_hp.trim() : null
     });
-    await db.insertAuditLog(req.user.username, 'CREATE_USER', `Membuat user operasional baru: ${username} (${posisi}, ${tipe_karyawan || 'Belum Ditentukan'})`);
+    await db.insertAuditLog(req.user.username, 'CREATE_USER', `Membuat user operasional baru: ${username} (${posisi}, ${tipe_karyawan || 'Belum Ditentukan'}, HP: ${nomor_hp || '-'})`);
     res.json({ success: true, data: user });
   } catch (err) {
     console.error('Create user error:', err);
@@ -2190,7 +2239,7 @@ app.post('/api/users', requireAdmin, async (req, res) => {
 });
 
 // DELETE /api/users/:id — Hapus user operasional
-app.delete('/api/users/:id', requireAdmin, async (req, res) => {
+app.delete('/api/users/:id', requirePermission('users'), async (req, res) => {
   try {
     const targetUser = await db.getUserById(req.params.id);
     await db.deleteUser(req.params.id);
@@ -2205,7 +2254,7 @@ app.delete('/api/users/:id', requireAdmin, async (req, res) => {
 });
 
 // PATCH /api/users/:id/toggle-status — Aktifkan/Nonaktifkan user operasional
-app.patch('/api/users/:id/toggle-status', requireAdmin, async (req, res) => {
+app.patch('/api/users/:id/toggle-status', requirePermission('users'), async (req, res) => {
   try {
     const updated = await db.toggleUserStatus(req.params.id);
     const statusLabel = updated.is_active === false ? 'dinonaktifkan' : 'diaktifkan';
@@ -2218,9 +2267,9 @@ app.patch('/api/users/:id/toggle-status', requireAdmin, async (req, res) => {
 });
 
 // PUT /api/users/:id — Edit user operasional
-app.put('/api/users/:id', requireAdmin, async (req, res) => {
+app.put('/api/users/:id', requirePermission('users'), async (req, res) => {
   try {
-    const { username, nama_lengkap, nik, posisi, tipe_karyawan } = req.body;
+    const { username, nama_lengkap, nik, posisi, tipe_karyawan, nomor_hp } = req.body;
     if (!username || !nama_lengkap || !nik || !posisi) {
       return res.status(400).json({ error: 'Semua field (username, nama lengkap, NIK, posisi) wajib diisi.' });
     }
@@ -2235,9 +2284,10 @@ app.put('/api/users/:id', requireAdmin, async (req, res) => {
       nama_lengkap: nama_lengkap.trim(),
       nik: nik.trim(),
       posisi,
-      tipe_karyawan: tipe_karyawan || null
+      tipe_karyawan: tipe_karyawan || null,
+      nomor_hp: nomor_hp ? nomor_hp.trim() : null
     });
-    await db.insertAuditLog(req.user.username, 'UPDATE_USER', `Mengubah data user operasional: ${username} (${posisi}, ${tipe_karyawan || 'Belum Ditentukan'})`);
+    await db.insertAuditLog(req.user.username, 'UPDATE_USER', `Mengubah data user operasional: ${username} (${posisi}, ${tipe_karyawan || 'Belum Ditentukan'}, HP: ${nomor_hp || '-'})`);
     res.json({ success: true, data: user });
   } catch (err) {
     console.error('Update user error:', err);
@@ -2246,10 +2296,161 @@ app.put('/api/users/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// ==================== STATUS CARIAN & WA REMINDER ====================
+
+// GET /api/status-carian?tanggal=YYYY-MM-DD
+// Ambil daftar user yang sudah & belum input carian/submissions hari ini
+app.get('/api/status-carian', requirePermission('status-carian'), async (req, res) => {
+  try {
+    const tanggal = req.query.tanggal || new Date().toISOString().slice(0, 10);
+
+    // Ambil daftar absensi untuk tanggal tersebut
+    const absensiHariIni = await db.getAbsensiByTanggal(tanggal);
+    const hadirUserIds = new Set(absensiHariIni.map(a => a.user_id));
+    const isFilteredByAbsensi = hadirUserIds.size > 0;
+
+    // Ambil semua user operasional yang aktif (Picker & Sorter)
+    const allUsers = await db.getAllOperationalUsers();
+    const pickerSorter = allUsers.filter(u => {
+      const isActive = u.is_active !== false;
+      const isPickerSorter = u.posisi === 'Picker' || u.posisi === 'Sorter';
+      if (!isActive || !isPickerSorter) return false;
+      
+      // Jika ada absensi hari ini, filter hanya yang Hadir
+      if (isFilteredByAbsensi) {
+        return hadirUserIds.has(u.id);
+      }
+      return true;
+    });
+
+    // Ambil submissions untuk tanggal tersebut
+    const allSubmissions = await db.getAllSubmissions();
+    const submissionsHariIni = allSubmissions.filter(s => s.tanggal_carian === tanggal);
+
+    // Siapa yang sudah submit (berdasarkan username match)
+    const sudahSubmit = new Set(submissionsHariIni.map(s => s.username?.toLowerCase()));
+
+    const sudah = [];
+    const belum = [];
+
+    pickerSorter.forEach(u => {
+      const waktuSubmit = submissionsHariIni
+        .filter(s => s.username?.toLowerCase() === u.username?.toLowerCase())
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+
+      if (sudahSubmit.has(u.username?.toLowerCase())) {
+        sudah.push({
+          id: u.id,
+          nama: u.nama_lengkap || u.username,
+          username: u.username,
+          posisi: u.posisi,
+          nomor_hp: u.nomor_hp || null,
+          waktu_submit: waktuSubmit?.created_at || null
+        });
+      } else {
+        belum.push({
+          id: u.id,
+          nama: u.nama_lengkap || u.username,
+          username: u.username,
+          posisi: u.posisi,
+          nomor_hp: u.nomor_hp || null
+        });
+      }
+    });
+
+    res.json({ tanggal, sudah, belum, total_picker_sorter: pickerSorter.length, is_filtered_by_absensi: isFilteredByAbsensi });
+  } catch (err) {
+    console.error('Status carian error:', err);
+    res.status(500).json({ error: 'Gagal memuat status carian.' });
+  }
+});
+
+// POST /api/send-wa-reminder — Kirim notif WA via Fonnte ke yang belum input
+app.post('/api/send-wa-reminder', requirePermission('status-carian'), async (req, res) => {
+  const FONNTE_TOKEN = process.env.FONNTE_TOKEN;
+  if (!FONNTE_TOKEN || FONNTE_TOKEN === 'ISI_TOKEN_FONNTE_ANDA_DI_SINI') {
+    return res.status(503).json({ error: 'FONNTE_TOKEN belum dikonfigurasi. Silakan isi token Fonnte di environment variables.' });
+  }
+
+  try {
+    const { targets, tanggal, pesan_custom } = req.body;
+    // targets: array of { nomor_hp, nama }
+    if (!targets || !Array.isArray(targets) || targets.length === 0) {
+      return res.status(400).json({ error: 'Tidak ada target penerima notifikasi.' });
+    }
+
+    const tanggalFormatted = tanggal
+      ? new Date(tanggal).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+      : new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+    const results = [];
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const target of targets) {
+      if (!target.nomor_hp) {
+        results.push({ nama: target.nama, status: 'skip', reason: 'Nomor HP tidak tersedia' });
+        failCount++;
+        continue;
+      }
+
+      // Format nomor HP (pastikan pakai format internasional)
+      let nomor = target.nomor_hp.replace(/\D/g, ''); // hapus non-digit
+      if (nomor.startsWith('0')) nomor = '62' + nomor.slice(1); // 08xx → 628xx
+      if (!nomor.startsWith('62')) nomor = '62' + nomor;
+
+      const pesan = pesan_custom ||
+        `Halo ${target.nama}! 👋\n\nKami ingatkan bahwa kamu *belum menginput data carian* untuk tanggal *${tanggalFormatted}*.\n\nMohon segera lakukan input sebelum hari ini berakhir ya.\n\nTerima kasih! 🙏\n- Tim SS08`;
+
+      try {
+        const response = await fetch('https://api.fonnte.com/send', {
+          method: 'POST',
+          headers: {
+            'Authorization': FONNTE_TOKEN,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            target: nomor,
+            message: pesan,
+            countryCode: '62'
+          })
+        });
+
+        const data = await response.json();
+        if (data.status) {
+          results.push({ nama: target.nama, nomor, status: 'success' });
+          successCount++;
+        } else {
+          results.push({ nama: target.nama, nomor, status: 'failed', reason: data.reason || 'Unknown error' });
+          failCount++;
+        }
+      } catch (fetchErr) {
+        results.push({ nama: target.nama, nomor, status: 'failed', reason: fetchErr.message });
+        failCount++;
+      }
+
+      // Delay kecil antar pesan agar tidak rate-limited
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    await db.insertAuditLog(
+      req.user.username,
+      'SEND_WA_REMINDER',
+      `Kirim reminder WA tanggal ${tanggal}: ${successCount} berhasil, ${failCount} gagal`
+    );
+
+    res.json({ success: true, successCount, failCount, results });
+  } catch (err) {
+    console.error('Send WA reminder error:', err);
+    res.status(500).json({ error: 'Gagal mengirim notifikasi WA.' });
+  }
+});
+
 // ==================== ADMIN ACCOUNT MANAGEMENT ROUTES ====================
 
-// GET /api/admin-accounts — List semua akun admin
-app.get('/api/admin-accounts', requireAdmin, async (req, res) => {
+
+// GET /api/admin-accounts — List semua akun admin (Super Admin only)
+app.get('/api/admin-accounts', requireSuperAdmin, async (req, res) => {
   try {
     const admins = await db.getAllAdminUsers();
     res.json(admins);
@@ -2259,17 +2460,22 @@ app.get('/api/admin-accounts', requireAdmin, async (req, res) => {
   }
 });
 
-// POST /api/admin-accounts — Buat akun admin baru
-app.post('/api/admin-accounts', requireAdmin, async (req, res) => {
+// POST /api/admin-accounts — Buat akun admin baru (Super Admin only)
+app.post('/api/admin-accounts', requireSuperAdmin, async (req, res) => {
   try {
-    const { username, nama_lengkap, password } = req.body;
+    const { username, nama_lengkap, password, allowed_pages } = req.body;
     if (!username || !nama_lengkap || !password) {
       return res.status(400).json({ error: 'Username, nama lengkap, dan password wajib diisi.' });
     }
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password minimal 6 karakter.' });
     }
-    const admin = await db.createAdminUser({ username: username.trim(), nama_lengkap: nama_lengkap.trim(), password });
+    const admin = await db.createAdminUser({ 
+      username: username.trim(), 
+      nama_lengkap: nama_lengkap.trim(), 
+      password,
+      allowed_pages: allowed_pages || []
+    });
     await db.insertAuditLog(req.user.username, 'CREATE_ADMIN', `Membuat akun admin baru: ${username}`);
     res.json({ success: true, data: admin });
   } catch (err) {
@@ -2279,8 +2485,27 @@ app.post('/api/admin-accounts', requireAdmin, async (req, res) => {
   }
 });
 
-// DELETE /api/admin-accounts/:id — Hapus akun admin (tidak bisa hapus diri sendiri)
-app.delete('/api/admin-accounts/:id', requireAdmin, async (req, res) => {
+// PUT /api/admin-accounts/:id/permissions — Update izin akses admin (Super Admin only)
+app.put('/api/admin-accounts/:id/permissions', requireSuperAdmin, async (req, res) => {
+  try {
+    const { allowed_pages } = req.body;
+    if (!Array.isArray(allowed_pages)) {
+      return res.status(400).json({ error: 'allowed_pages harus berupa array.' });
+    }
+    const targetAdmin = await db.getUserById(req.params.id);
+    if (!targetAdmin) return res.status(404).json({ error: 'Akun admin tidak ditemukan.' });
+    
+    await db.updateAdminPermissions(req.params.id, allowed_pages);
+    await db.insertAuditLog(req.user.username, 'UPDATE_ADMIN_PERMISSIONS', `Mengubah hak akses admin: ${targetAdmin.username} menjadi [${allowed_pages.join(', ')}]`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Update admin permissions error:', err);
+    res.status(500).json({ error: 'Gagal mengupdate hak akses admin.' });
+  }
+});
+
+// DELETE /api/admin-accounts/:id — Hapus akun admin (Super Admin only)
+app.delete('/api/admin-accounts/:id', requireSuperAdmin, async (req, res) => {
   try {
     const decoded = jwt.verify(req.cookies.token, JWT_SECRET);
     if (decoded.userId === req.params.id) {
@@ -2610,7 +2835,7 @@ app.post('/api/loader-entries', requireAuth, (req, res, next) => {
 });
 
 // DELETE /api/loader-entries/:id — Hapus entry loader
-app.delete('/api/loader-entries/:id', requireAdmin, async (req, res) => {
+app.delete('/api/loader-entries/:id', requirePermission('loader'), async (req, res) => {
   try {
     const entry = await db.getLoaderEntryById(req.params.id);
     const date = entry ? entry.tanggal_carian : null;
@@ -2644,7 +2869,7 @@ app.delete('/api/loader-entries/:id', requireAdmin, async (req, res) => {
 });
 
 // GET /api/export-loader — Export loader entries ke Excel
-app.get('/api/export-loader', requireAdmin, async (req, res) => {
+app.get('/api/export-loader', requirePermission('loader'), async (req, res) => {
   try {
     const { tanggal_carian } = req.query;
     const entries = await db.getAllLoaderEntries(tanggal_carian || null);
