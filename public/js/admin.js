@@ -163,12 +163,23 @@ function showOnscreenError(source, err) {
 
   async function loadData() {
     try {
-      const [submissions, stats, pendingCountRes] = await Promise.all([
+      // Fetch data paralel: semua submissions (top-1000) + SEMUA pending (tanpa batas)
+      const [submissions, stats, pendingCountRes, pendingSubmissions] = await Promise.all([
         fetch('/api/submissions').then(r => r.json()),
         fetch('/api/stats').then(r => r.json()),
-        fetch('/api/submissions/pending-count').then(r => r.json()).catch(() => ({ count: 0 }))
+        fetch('/api/submissions/pending-count').then(r => r.json()).catch(() => ({ count: 0 })),
+        fetch('/api/submissions?status=pending').then(r => r.json()).catch(() => [])
       ]);
       allSubmissions = Array.isArray(submissions) ? submissions : [];
+      // Merge pending submissions yang mungkin tidak ada di top-1000
+      if (Array.isArray(pendingSubmissions) && pendingSubmissions.length > 0) {
+        const existingIds = new Set(allSubmissions.map(s => s.id));
+        for (const ps of pendingSubmissions) {
+          if (!existingIds.has(ps.id)) {
+            allSubmissions.push(ps);
+          }
+        }
+      }
       // Normalize status: null/undefined → 'approved' agar konsisten
       allSubmissions = allSubmissions.map(s => ({ ...s, status: s.status || 'approved' }));
       filteredSubmissions = [...allSubmissions];
@@ -382,12 +393,12 @@ function showOnscreenError(source, err) {
     const dateTo    = document.getElementById('filterDateTo')?.value || '';
 
     filteredSubmissions = allSubmissions.filter(s => {
-      // Search
+      // Search — null-safe agar tidak crash jika field kosong
       const matchSearch = !q ||
-        s.nama.toLowerCase().includes(q) ||
-        s.posisi.toLowerCase().includes(q) ||
-        s.zona.toLowerCase().includes(q) ||
-        s.tipe_lokasi.toLowerCase().includes(q);
+        (s.nama || '').toLowerCase().includes(q) ||
+        (s.posisi || '').toLowerCase().includes(q) ||
+        (s.zona || '').toLowerCase().includes(q) ||
+        (s.tipe_lokasi || '').toLowerCase().includes(q);
       // Status
       // s.status sudah di-normalize di loadData (null → 'approved'), cek langsung
       const matchStatus = statusVal === 'all' || s.status === statusVal;
@@ -3230,27 +3241,97 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
     return `${y}-${m}-${d}`;
   }
 
-  let allMPPData = []; // Cache data pencapaian untuk filter client-side
+  // Helper: format tanggal YYYY-MM-DD → DD/MM/YYYY
+  function fmtTgl(tgl) {
+    if (!tgl) return '';
+    const [y, m, d] = tgl.split('-');
+    return `${d}/${m}/${y}`;
+  }
 
-  function renderMPPTable(list) {
+  let allMPPData  = []; // Cache data pencapaian untuk filter client-side
+  let mppIsRange  = false; // Apakah mode range atau single date
+
+  // Helper: format Rupiah — desimal otomatis jika bukan bilangan bulat
+  function fmtRp(val) {
+    if (val === null || val === undefined) return null;
+    const isDecimal = !Number.isInteger(val);
+    return val.toLocaleString('id-ID', {
+      minimumFractionDigits: isDecimal ? 2 : 0,
+      maximumFractionDigits: 2
+    });
+  }
+
+  // Toggle expand detail harian pada satu baris
+  window.toggleMPPDetail = function(rowKey) {
+    const btn = document.querySelector(`.mpp-expand-btn[data-key="${rowKey}"]`);
+    const detailRows = document.querySelectorAll(`.mpp-detail-row[data-key="${rowKey}"]`);
+    if (!detailRows.length) return;
+
+    const isOpen = detailRows[0].style.display !== 'none';
+    if (isOpen) {
+      // Tutup
+      detailRows.forEach(r => {
+        r.classList.remove('is-animating');
+        r.style.display = 'none';
+      });
+      if (btn) { btn.textContent = '▼'; btn.classList.remove('expanded'); }
+    } else {
+      // Buka dengan animasi
+      detailRows.forEach(r => {
+        r.style.display = '';
+        // Reset animasi agar bisa re-trigger setiap kali dibuka
+        r.classList.remove('is-animating');
+        void r.offsetWidth; // force reflow
+        r.classList.add('is-animating');
+      });
+      if (btn) { btn.textContent = '▲'; btn.classList.add('expanded'); }
+    }
+  };
+
+  function renderMPPTable(list, isRange) {
     const tbody = document.getElementById('mppPencapaianBody');
     if (!tbody) return;
+
+    // Tampilkan/sembunyikan kolom expand
+    const expandHead = document.getElementById('mppExpandColHead');
+    if (expandHead) expandHead.style.display = isRange ? '' : 'none';
+
     const posisiBadgeColor = { 'Picker': '#8b5cf6', 'Sorter': '#10b981', 'Loader': '#f59e0b' };
+
     if (!list || list.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:32px; color:var(--text-secondary); font-size:13px;">
+      tbody.innerHTML = `<tr><td colspan="${isRange ? 8 : 7}" style="text-align:center; padding:32px; color:var(--text-secondary); font-size:13px;">
         <div style="font-size:32px; margin-bottom:10px;">🔍</div>
         Tidak ada data yang cocok dengan filter.</td></tr>`;
       return;
     }
+
     let totalNilaiGrand = 0;
-    tbody.innerHTML = list.map(p => {
-      const color = posisiBadgeColor[p.posisi] || '#6b7280';
-      const hargaStr = p.harga_satuan !== null ? `Rp ${p.harga_satuan.toLocaleString('id-ID')}` : '<span style="color:var(--text-secondary); font-style:italic;">Belum diset</span>';
+    let html = '';
+
+    list.forEach((p, i) => {
+      const color    = posisiBadgeColor[p.posisi] || '#6b7280';
+      const hargaStr = p.harga_satuan !== null
+        ? `Rp ${fmtRp(p.harga_satuan)}`
+        : '<span style="color:var(--text-secondary); font-style:italic;">Belum diset</span>';
       const nilaiStr = p.total_nilai !== null
-        ? `<b style="color:var(--success);">Rp ${p.total_nilai.toLocaleString('id-ID')}</b>`
+        ? `<b style="color:var(--success);">Rp ${fmtRp(p.total_nilai)}</b>`
         : '<span style="color:var(--text-secondary); font-style:italic;">—</span>';
       if (p.total_nilai) totalNilaiGrand += p.total_nilai;
-      return `<tr>
+
+      // Key unik per baris berdasarkan nama+posisi+zona
+      const rowKey = encodeURIComponent(`${p.nama}|${p.posisi}|${p.zona}`);
+
+      // Kolom expand hanya ada saat mode range DAN pekerja punya detail harian
+      const hasDetail = isRange && p.detail_harian && p.detail_harian.length >= 1;
+      const expandCell = isRange
+        ? `<td class="mpp-expand-col">${hasDetail
+            ? `<button class="mpp-expand-btn" data-key="${rowKey}" onclick="toggleMPPDetail('${rowKey}')" title="Lihat detail per tanggal">▼</button>`
+            : ''}</td>`
+        : '';
+
+      // Baris utama
+      html += `<tr class="mpp-main-row">
+        ${expandCell}
         <td><b>${p.nama}</b></td>
         <td><span class="badge" style="background:${color}20; color:${color}; font-size:11px; padding:3px 8px; border-radius:8px;">${p.posisi}</span></td>
         <td style="font-size:12px;">${p.zona}</td>
@@ -3259,83 +3340,147 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
         <td>${hargaStr}</td>
         <td>${nilaiStr}</td>
       </tr>`;
-    }).join('');
-    tbody.innerHTML += `<tr style="background:rgba(99,102,241,0.06); font-weight:700; border-top:2px solid var(--border);">
-      <td colspan="6" style="text-align:right; padding-right:16px; font-size:13px;">TOTAL NILAI SELURUH PEKERJA</td>
-      <td style="color:var(--primary); font-size:14px;">Rp ${totalNilaiGrand.toLocaleString('id-ID')}</td>
+
+      // Pre-render baris detail (hidden) langsung setelah baris utama
+      if (hasDetail) {
+        p.detail_harian.forEach(dh => {
+          const dNilaiStr = dh.total_nilai !== null
+            ? `<span class="mpp-detail-nilai">Rp ${fmtRp(dh.total_nilai)}</span>`
+            : '<span style="color:var(--text-secondary);">—</span>';
+          html += `<tr class="mpp-detail-row" data-key="${rowKey}" style="display:none;">
+            <td colspan="${isRange ? 8 : 7}">
+              <div class="mpp-detail-inner">
+                <span class="mpp-detail-date-badge">📅 ${fmtTgl(dh.tanggal)}</span>
+                <span class="mpp-detail-val">${dh.pencapaian.toLocaleString('id-ID')} <span style="font-size:10px;font-weight:500;color:var(--text-secondary);">${p.satuan}</span></span>
+                ${dNilaiStr}
+              </div>
+            </td>
+          </tr>`;
+        });
+      }
+    });
+
+    // Baris total
+    const colspanTotal = isRange ? 7 : 6;
+    html += `<tr style="background:rgba(99,102,241,0.06); font-weight:700; border-top:2px solid var(--border);">
+      <td colspan="${colspanTotal}" style="text-align:right; padding-right:16px; font-size:13px;">TOTAL NILAI SELURUH PEKERJA</td>
+      <td style="color:var(--primary); font-size:14px;">Rp ${fmtRp(totalNilaiGrand)}</td>
     </tr>`;
+
+    tbody.innerHTML = html;
   }
 
   window.filterMPPTable = function() {
-    const q = (document.getElementById('mppSearchNama')?.value || '').toLowerCase().trim();
+    const q      = (document.getElementById('mppSearchNama')?.value || '').toLowerCase().trim();
     const posisi = document.getElementById('mppFilterPosisi')?.value || '';
     const filtered = allMPPData.filter(p => {
-      const matchNama = !q || p.nama.toLowerCase().includes(q);
+      const matchNama  = !q      || p.nama.toLowerCase().includes(q);
       const matchPosisi = !posisi || p.posisi === posisi;
       return matchNama && matchPosisi;
     });
-    renderMPPTable(filtered);
+    renderMPPTable(filtered, mppIsRange);
   };
 
   async function loadMonitoringMPP() {
-    const picker = document.getElementById('mppDatePicker');
-    if (!picker) return;
-    if (!picker.value) {
-      picker.value = getLocalDateString();
-    }
-    const tanggal = picker.value;
+    const fromEl = document.getElementById('mppDateFrom');
+    const toEl   = document.getElementById('mppDateTo');
+    if (!fromEl || !toEl) return;
 
-    // Reset filter saat ganti tanggal
+    // Default: hari ini untuk keduanya
+    const today = getLocalDateString();
+    if (!fromEl.value) fromEl.value = today;
+    if (!toEl.value)   toEl.value   = fromEl.value;
+
+    // Pastikan "Sampai" tidak lebih awal dari "Dari"
+    if (toEl.value < fromEl.value) toEl.value = fromEl.value;
+
+    const tanggalMulai = fromEl.value;
+    const tanggalAkhir = toEl.value;
+    const isRange = tanggalMulai !== tanggalAkhir;
+    mppIsRange = isRange;
+
+    // Update label MPP Today / MPP Periode
+    const labelEl    = document.getElementById('mppTodayLabel');
+    const labelSubEl = document.getElementById('mppTodayLabelSub');
+    const totalLabel = document.getElementById('mpp-today-total-label');
+    const heroDesc   = document.getElementById('mppHeroDesc');
+    const subIds     = ['mpp-today-sub-picker', 'mpp-today-sub-sorter', 'mpp-today-sub-loader', 'mpp-today-sub-total'];
+
+    if (isRange) {
+      if (labelEl)    labelEl.childNodes[0].textContent = 'MPP PERIODE ';
+      if (labelSubEl) labelSubEl.textContent = `— Rata-rata Hadir (${fmtTgl(tanggalMulai)} – ${fmtTgl(tanggalAkhir)})`;
+      if (totalLabel) totalLabel.textContent = 'TOTAL MPP PERIODE';
+      if (heroDesc)   heroDesc.textContent   = 'MPP All = total user operasional aktif · MPP Periode = rata-rata kehadiran harian dalam rentang tanggal dipilih';
+      subIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = 'Rata-rata/hari';
+      });
+    } else {
+      if (labelEl)    labelEl.childNodes[0].textContent = 'MPP TODAY ';
+      if (labelSubEl) labelSubEl.textContent = '— Hadir Sesuai Absensi';
+      if (totalLabel) totalLabel.textContent = 'TOTAL MPP TODAY';
+      if (heroDesc)   heroDesc.textContent   = 'MPP All = total user operasional aktif \u00a0·\u00a0 MPP Today = hadir sesuai absensi pada tanggal dipilih';
+      subIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = id.includes('total') ? 'Semua posisi' : 'Hadir hari ini';
+      });
+    }
+
+    // Reset filter
     const searchEl = document.getElementById('mppSearchNama');
     const posisiEl = document.getElementById('mppFilterPosisi');
     if (searchEl) searchEl.value = '';
     if (posisiEl) posisiEl.value = '';
 
-    // Reset stats to loading state
+    // Reset stats ke loading state
     ['mpp-all-picker','mpp-all-sorter','mpp-all-loader','mpp-all-total',
      'mpp-today-picker','mpp-today-sorter','mpp-today-loader','mpp-today-total'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.textContent = '—';
     });
-    const tbody = document.getElementById('mppPencapaianBody');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="7"><div class="loading-spinner"><div class="spin"></div></div></td></tr>';
+    const tbody    = document.getElementById('mppPencapaianBody');
+    const colCount = isRange ? 8 : 7;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="${colCount}"><div class="loading-spinner"><div class="spin"></div></div></td></tr>`;
     const errBanner = document.getElementById('mppErrorBanner');
     if (errBanner) errBanner.style.display = 'none';
 
     try {
-      const res = await fetch(`/api/monitoring-mpp?tanggal=${tanggal}`);
+      const res  = await fetch(`/api/monitoring-mpp?tanggalMulai=${tanggalMulai}&tanggalAkhir=${tanggalAkhir}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal memuat data.');
 
       // Update MPP All cards
-      document.getElementById('mpp-all-picker').textContent  = data.mpp_all.picker;
-      document.getElementById('mpp-all-sorter').textContent  = data.mpp_all.sorter;
-      document.getElementById('mpp-all-loader').textContent  = data.mpp_all.loader;
-      document.getElementById('mpp-all-total').textContent   = data.mpp_all.total;
+      document.getElementById('mpp-all-picker').textContent = data.mpp_all.picker;
+      document.getElementById('mpp-all-sorter').textContent = data.mpp_all.sorter;
+      document.getElementById('mpp-all-loader').textContent = data.mpp_all.loader;
+      document.getElementById('mpp-all-total').textContent  = data.mpp_all.total;
 
-      // Update MPP Today cards
-      document.getElementById('mpp-today-picker').textContent  = data.mpp_today.picker;
-      document.getElementById('mpp-today-sorter').textContent  = data.mpp_today.sorter;
-      document.getElementById('mpp-today-loader').textContent  = data.mpp_today.loader;
-      document.getElementById('mpp-today-total').textContent   = data.mpp_today.total;
+      // Update MPP Today / Periode cards
+      document.getElementById('mpp-today-picker').textContent = data.mpp_today.picker;
+      document.getElementById('mpp-today-sorter').textContent = data.mpp_today.sorter;
+      document.getElementById('mpp-today-loader').textContent = data.mpp_today.loader;
+      document.getElementById('mpp-today-total').textContent  = data.mpp_today.total;
 
       // Simpan ke cache lalu render
       allMPPData = data.pencapaian || [];
       if (allMPPData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:32px; color:var(--text-secondary); font-size:13px;">
-          <div style="font-size:32px; margin-bottom:10px;">📋</div>
-          Tidak ada data pencapaian untuk tanggal ini.</td></tr>`;
+        const msg = isRange
+          ? `Tidak ada data pencapaian untuk periode <b>${fmtTgl(tanggalMulai)}</b> – <b>${fmtTgl(tanggalAkhir)}</b>.`
+          : `Tidak ada data pencapaian untuk tanggal <b>${fmtTgl(tanggalMulai)}</b>.`;
+        tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center; padding:32px; color:var(--text-secondary); font-size:13px;">
+          <div style="font-size:32px; margin-bottom:10px;">📋</div>${msg}</td></tr>`;
       } else {
-        renderMPPTable(allMPPData);
+        renderMPPTable(allMPPData, isRange);
       }
     } catch (err) {
       console.error('loadMonitoringMPP error:', err);
-      if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:var(--error);">Gagal memuat data Monitoring MPP.</td></tr>';
+      if (tbody) tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center; padding:20px; color:var(--error);">Gagal memuat data Monitoring MPP.</td></tr>`;
       if (errBanner) { errBanner.textContent = err.message; errBanner.style.display = 'block'; }
     }
   }
   window.loadMonitoringMPP = loadMonitoringMPP;
   // loadMonitoringMPP dipanggil via showPage('dashboard') — tidak perlu DOMContentLoaded terpisah
+
 
   // ============= KETENTUAN HARGA =============
 
@@ -3389,7 +3534,7 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
         return `<tr>
           <td><span class="badge" style="background:${color}20; color:${color}; font-size:11px; padding:3px 8px; border-radius:8px;">${h.posisi}</span></td>
           <td style="font-size:12px;">${h.zona}</td>
-          <td style="font-weight:700; color:var(--success);">Rp ${(h.harga || 0).toLocaleString('id-ID')}</td>
+          <td style="font-weight:700; color:var(--success);">Rp ${(h.harga || 0).toLocaleString('id-ID', { minimumFractionDigits: Number.isInteger(h.harga) ? 0 : 2, maximumFractionDigits: 2 })}</td>
           <td><span style="font-size:11px; color:var(--text-secondary);">${h.satuan}</span></td>
           <td style="font-size:12px; color:var(--text-secondary); max-width:160px;">${h.keterangan || '—'}</td>
           <td style="font-size:11px; color:var(--text-secondary);">${updatedAt}</td>
@@ -3427,13 +3572,13 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
         res = await fetch(`/api/ketentuan-harga/${editId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ harga: parseInt(harga), keterangan })
+          body: JSON.stringify({ harga: parseFloat(harga), keterangan })
         });
       } else {
         res = await fetch('/api/ketentuan-harga', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ posisi, zona, harga: parseInt(harga), keterangan })
+          body: JSON.stringify({ posisi, zona, harga: parseFloat(harga), keterangan })
         });
       }
       const result = await res.json();

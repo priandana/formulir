@@ -236,12 +236,22 @@ module.exports = {
     }
   },
 
-  async getAllSubmissions() {
+  async getAllSubmissions(filters = {}) {
     if (isSupabaseEnabled) {
-      const { data, error } = await supabase
+      let query = supabase
         .from('submissions')
         .select('*')
         .order('created_at', { ascending: false });
+
+      if (filters.status) {
+        query = query.eq('status', filters.status);
+        // Jika filter status diberikan (misal pending), ambil semua tanpa batas 1000 baris
+      } else {
+        // Tanpa filter, batasi 1000 baris (default Supabase PostgREST)
+        query = query.limit(1000);
+      }
+
+      const { data, error } = await query;
       if (error) {
         console.error('Supabase getAllSubmissions error:', error);
         throw error;
@@ -252,7 +262,11 @@ module.exports = {
       }));
     } else {
       const db = load();
-      return [...db.submissions].sort((a, b) =>
+      let subs = [...db.submissions];
+      if (filters.status) {
+        subs = subs.filter(s => s.status === filters.status);
+      }
+      return subs.sort((a, b) =>
         new Date(b.created_at) - new Date(a.created_at)
       );
     }
@@ -2081,7 +2095,7 @@ module.exports = {
     if (isSupabaseEnabled) {
       const { data, error } = await supabase
         .from('ketentuan_harga')
-        .insert([{ posisi, zona, harga: parseInt(harga) || 0, satuan, keterangan: keterangan || null }])
+        .insert([{ posisi, zona, harga: parseFloat(harga) || 0, satuan, keterangan: keterangan || null }])
         .select()
         .single();
       if (error) { console.error('Supabase insertKetentuanHarga error:', error); throw error; }
@@ -2091,7 +2105,7 @@ module.exports = {
       if (!db.ketentuan_harga) db.ketentuan_harga = [];
       const existing = db.ketentuan_harga.find(h => h.posisi === posisi && h.zona === zona);
       if (existing) throw new Error('Harga untuk kombinasi posisi dan zona ini sudah ada.');
-      const record = { id: uuidv4(), posisi, zona, harga: parseInt(harga) || 0, satuan, keterangan: keterangan || null, created_at: now, updated_at: now };
+      const record = { id: uuidv4(), posisi, zona, harga: parseFloat(harga) || 0, satuan, keterangan: keterangan || null, created_at: now, updated_at: now };
       db.ketentuan_harga.push(record);
       save(db);
       return record;
@@ -2103,7 +2117,7 @@ module.exports = {
     if (isSupabaseEnabled) {
       const { data, error } = await supabase
         .from('ketentuan_harga')
-        .update({ harga: parseInt(harga) || 0, keterangan: keterangan || null, updated_at: now })
+        .update({ harga: parseFloat(harga) || 0, keterangan: keterangan || null, updated_at: now })
         .eq('id', id)
         .select()
         .single();
@@ -2114,7 +2128,7 @@ module.exports = {
       if (!db.ketentuan_harga) db.ketentuan_harga = [];
       const idx = db.ketentuan_harga.findIndex(h => h.id === id);
       if (idx === -1) throw new Error('Ketentuan harga tidak ditemukan.');
-      db.ketentuan_harga[idx] = { ...db.ketentuan_harga[idx], harga: parseInt(harga) || 0, keterangan: keterangan || null, updated_at: now };
+      db.ketentuan_harga[idx] = { ...db.ketentuan_harga[idx], harga: parseFloat(harga) || 0, keterangan: keterangan || null, updated_at: now };
       save(db);
       return db.ketentuan_harga[idx];
     }
@@ -2138,13 +2152,33 @@ module.exports = {
 
   // ============= MONITORING MPP =============
 
-  async getMonitoringMPP(tanggal) {
+  async getMonitoringMPP(tanggalMulai, tanggalAkhir) {
+    // Backward compat: if only tanggalMulai given, use it for both
+    if (!tanggalAkhir) tanggalAkhir = tanggalMulai;
+    const isRange = tanggalMulai !== tanggalAkhir;
+
     // MPP All: user aktif per posisi
     let mppAll = { picker: 0, sorter: 0, loader: 0 };
-    // MPP Today: hadir hari ini per posisi
-    let mppToday = { picker: 0, sorter: 0, loader: 0 };
+    // MPP Today/Periode: hadir per posisi
+    let mppToday = { picker: 0, sorter: 0, loader: 0, hari_count: 0 };
     // Pencapaian per pekerja
     let pencapaianList = [];
+
+    // Helper: generate array of date strings between two dates (inclusive)
+    const getDateRange = (start, end) => {
+      const dates = [];
+      const cur = new Date(start + 'T00:00:00');
+      const last = new Date(end + 'T00:00:00');
+      while (cur <= last) {
+        const y = cur.getFullYear();
+        const m = String(cur.getMonth() + 1).padStart(2, '0');
+        const d = String(cur.getDate()).padStart(2, '0');
+        dates.push(`${y}-${m}-${d}`);
+        cur.setDate(cur.getDate() + 1);
+      }
+      return dates;
+    };
+    const dateRange = getDateRange(tanggalMulai, tanggalAkhir);
 
     if (isSupabaseEnabled) {
       // MPP All
@@ -2160,29 +2194,70 @@ module.exports = {
         else if (pos === 'loader') mppAll.loader++;
       });
 
-      // MPP Today (from absensi table)
+      // MPP Today/Periode (from absensi table)
       const { data: absensiData } = await supabase
         .from('absensi')
-        .select('user_id')
-        .eq('tanggal', tanggal);
-      const hadirUserIds = new Set((absensiData || []).map(a => a.user_id));
-      if (hadirUserIds.size > 0) {
-        const { data: hadirUsers } = await supabase
-          .from('users')
-          .select('id, posisi')
-          .in('id', Array.from(hadirUserIds));
-        (hadirUsers || []).forEach(u => {
-          const pos = (u.posisi || '').toLowerCase();
-          if (pos === 'picker') mppToday.picker++;
-          else if (pos === 'sorter') mppToday.sorter++;
-          else if (pos === 'loader') mppToday.loader++;
+        .select('user_id, tanggal')
+        .gte('tanggal', tanggalMulai)
+        .lte('tanggal', tanggalAkhir);
+
+      if (!isRange) {
+        // Single date: exact count
+        const hadirUserIds = new Set((absensiData || []).map(a => a.user_id));
+        if (hadirUserIds.size > 0) {
+          const { data: hadirUsers } = await supabase
+            .from('users')
+            .select('id, posisi')
+            .in('id', Array.from(hadirUserIds));
+          (hadirUsers || []).forEach(u => {
+            const pos = (u.posisi || '').toLowerCase();
+            if (pos === 'picker') mppToday.picker++;
+            else if (pos === 'sorter') mppToday.sorter++;
+            else if (pos === 'loader') mppToday.loader++;
+          });
+        }
+        mppToday.hari_count = 1;
+      } else {
+        // Range: compute per-day count then average
+        const absensiByDate = {};
+        (absensiData || []).forEach(a => {
+          if (!absensiByDate[a.tanggal]) absensiByDate[a.tanggal] = new Set();
+          absensiByDate[a.tanggal].add(a.user_id);
         });
+        const allHadirIds = new Set((absensiData || []).map(a => a.user_id));
+        let userPosisiMap = {};
+        if (allHadirIds.size > 0) {
+          const { data: hadirUsers } = await supabase
+            .from('users')
+            .select('id, posisi')
+            .in('id', Array.from(allHadirIds));
+          (hadirUsers || []).forEach(u => { userPosisiMap[u.id] = (u.posisi || '').toLowerCase(); });
+        }
+        let totPicker = 0, totSorter = 0, totLoader = 0, daysWithData = 0;
+        dateRange.forEach(d => {
+          const ids = absensiByDate[d];
+          if (!ids || ids.size === 0) return;
+          daysWithData++;
+          ids.forEach(uid => {
+            const pos = userPosisiMap[uid] || '';
+            if (pos === 'picker') totPicker++;
+            else if (pos === 'sorter') totSorter++;
+            else if (pos === 'loader') totLoader++;
+          });
+        });
+        const div = daysWithData || 1;
+        mppToday.picker = Math.round(totPicker / div);
+        mppToday.sorter = Math.round(totSorter / div);
+        mppToday.loader = Math.round(totLoader / div);
+        mppToday.hari_count = daysWithData;
       }
 
-      // Pencapaian: Picker & Sorter dari submissions (approved)
+      // Pencapaian: Picker & Sorter dari submissions (approved) — range query
       const [{ data: subData }, { data: loaderData }, { data: hargaData }] = await Promise.all([
-        supabase.from('submissions').select('nama, posisi, zona, jumlah_output').eq('tanggal_carian', tanggal).eq('status', 'approved'),
-        supabase.from('loader_entries').select('nama, jumlah_kontainer').eq('tanggal_carian', tanggal),
+        supabase.from('submissions').select('nama, posisi, zona, jumlah_output, tanggal_carian')
+          .gte('tanggal_carian', tanggalMulai).lte('tanggal_carian', tanggalAkhir).eq('status', 'approved'),
+        supabase.from('loader_entries').select('nama, jumlah_kontainer, tanggal_carian')
+          .gte('tanggal_carian', tanggalMulai).lte('tanggal_carian', tanggalAkhir),
         supabase.from('ketentuan_harga').select('*')
       ]);
 
@@ -2198,40 +2273,62 @@ module.exports = {
         return zona; // fallback: pakai apa adanya (misal sudah AMBIENT/CHILLER/FREEZER)
       };
 
-      // Aggregasi submission per nama+posisi+zona
+      // Aggregasi submission per nama+posisi+zona (total + detail harian)
       const submissionAgg = {};
       (subData || []).forEach(s => {
         const key = `${s.nama}|${s.posisi}|${s.zona}`;
-        if (!submissionAgg[key]) submissionAgg[key] = { nama: s.nama, posisi: s.posisi, zona: s.zona, total: 0 };
+        if (!submissionAgg[key]) submissionAgg[key] = { nama: s.nama, posisi: s.posisi, zona: s.zona, total: 0, harian: {} };
         submissionAgg[key].total += parseInt(s.jumlah_output) || 0;
+        const tgl = s.tanggal_carian;
+        if (!submissionAgg[key].harian[tgl]) submissionAgg[key].harian[tgl] = 0;
+        submissionAgg[key].harian[tgl] += parseInt(s.jumlah_output) || 0;
       });
       Object.values(submissionAgg).forEach(agg => {
         // Coba lookup langsung dulu, kalau tidak ketemu coba dengan mapping kategori
         const hargaKey = `${agg.posisi}|${agg.zona}`;
         const hargaKeyKategori = `${agg.posisi}|${zonaToKategori(agg.zona)}`;
         const h = hargaMap[hargaKey] || hargaMap[hargaKeyKategori] || null;
+        const detail_harian = Object.entries(agg.harian)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([tanggal, pencapaian]) => ({
+            tanggal,
+            pencapaian,
+            total_nilai: h ? pencapaian * h.harga : null
+          }));
         pencapaianList.push({
           nama: agg.nama, posisi: agg.posisi, zona: agg.zona,
           pencapaian: agg.total, satuan: h ? h.satuan : (agg.posisi === 'Picker' ? 'pcs' : 'kontainer'),
           harga_satuan: h ? h.harga : null,
-          total_nilai: h ? agg.total * h.harga : null
+          total_nilai: h ? agg.total * h.harga : null,
+          detail_harian
         });
       });
 
-      // Aggregasi loader per nama
+      // Aggregasi loader per nama (total + detail harian)
       const loaderAgg = {};
       (loaderData || []).forEach(l => {
         const key = l.nama;
-        if (!loaderAgg[key]) loaderAgg[key] = { nama: l.nama, total: 0 };
+        if (!loaderAgg[key]) loaderAgg[key] = { nama: l.nama, total: 0, harian: {} };
         loaderAgg[key].total += parseInt(l.jumlah_kontainer) || 0;
+        const tgl = l.tanggal_carian;
+        if (!loaderAgg[key].harian[tgl]) loaderAgg[key].harian[tgl] = 0;
+        loaderAgg[key].harian[tgl] += parseInt(l.jumlah_kontainer) || 0;
       });
       const loaderHarga = hargaMap['Loader|AMBIENT, CHILLER, FREEZER'] || hargaMap['Loader|LOADER'] || null;
       Object.values(loaderAgg).forEach(agg => {
+        const detail_harian = Object.entries(agg.harian)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([tanggal, pencapaian]) => ({
+            tanggal,
+            pencapaian,
+            total_nilai: loaderHarga ? pencapaian * loaderHarga.harga : null
+          }));
         pencapaianList.push({
           nama: agg.nama, posisi: 'Loader', zona: 'AMBIENT, CHILLER, FREEZER',
           pencapaian: agg.total, satuan: loaderHarga ? loaderHarga.satuan : 'kontainer',
           harga_satuan: loaderHarga ? loaderHarga.harga : null,
-          total_nilai: loaderHarga ? agg.total * loaderHarga.harga : null
+          total_nilai: loaderHarga ? agg.total * loaderHarga.harga : null,
+          detail_harian
         });
       });
 
@@ -2246,14 +2343,43 @@ module.exports = {
         else if (pos === 'loader') mppAll.loader++;
       });
 
-      const absensi = (db.absensi || []).filter(a => a.tanggal === tanggal);
-      const hadirIds = new Set(absensi.map(a => a.user_id));
-      users.filter(u => hadirIds.has(u.id)).forEach(u => {
-        const pos = (u.posisi || '').toLowerCase();
-        if (pos === 'picker') mppToday.picker++;
-        else if (pos === 'sorter') mppToday.sorter++;
-        else if (pos === 'loader') mppToday.loader++;
-      });
+      const absensiAll = (db.absensi || []).filter(a => a.tanggal >= tanggalMulai && a.tanggal <= tanggalAkhir);
+
+      if (!isRange) {
+        const hadirIds = new Set(absensiAll.map(a => a.user_id));
+        users.filter(u => hadirIds.has(u.id)).forEach(u => {
+          const pos = (u.posisi || '').toLowerCase();
+          if (pos === 'picker') mppToday.picker++;
+          else if (pos === 'sorter') mppToday.sorter++;
+          else if (pos === 'loader') mppToday.loader++;
+        });
+        mppToday.hari_count = 1;
+      } else {
+        const absensiByDate = {};
+        absensiAll.forEach(a => {
+          if (!absensiByDate[a.tanggal]) absensiByDate[a.tanggal] = new Set();
+          absensiByDate[a.tanggal].add(a.user_id);
+        });
+        const userPosisiMap = {};
+        users.forEach(u => { userPosisiMap[u.id] = (u.posisi || '').toLowerCase(); });
+        let totPicker = 0, totSorter = 0, totLoader = 0, daysWithData = 0;
+        dateRange.forEach(d => {
+          const ids = absensiByDate[d];
+          if (!ids || ids.size === 0) return;
+          daysWithData++;
+          ids.forEach(uid => {
+            const pos = userPosisiMap[uid] || '';
+            if (pos === 'picker') totPicker++;
+            else if (pos === 'sorter') totSorter++;
+            else if (pos === 'loader') totLoader++;
+          });
+        });
+        const div = daysWithData || 1;
+        mppToday.picker = Math.round(totPicker / div);
+        mppToday.sorter = Math.round(totSorter / div);
+        mppToday.loader = Math.round(totLoader / div);
+        mppToday.hari_count = daysWithData;
+      }
 
       const hargaList = db.ketentuan_harga || [];
       const hargaMap = {};
@@ -2268,39 +2394,65 @@ module.exports = {
         return zona;
       };
 
-      const submissions = (db.submissions || []).filter(s => s.tanggal_carian === tanggal && s.status === 'approved');
+      const submissions = (db.submissions || []).filter(s =>
+        s.tanggal_carian >= tanggalMulai && s.tanggal_carian <= tanggalAkhir && s.status === 'approved'
+      );
       const submissionAgg = {};
       submissions.forEach(s => {
         const key = `${s.nama}|${s.posisi}|${s.zona}`;
-        if (!submissionAgg[key]) submissionAgg[key] = { nama: s.nama, posisi: s.posisi, zona: s.zona, total: 0 };
+        if (!submissionAgg[key]) submissionAgg[key] = { nama: s.nama, posisi: s.posisi, zona: s.zona, total: 0, harian: {} };
         submissionAgg[key].total += parseInt(s.jumlah_output) || 0;
+        const tgl = s.tanggal_carian;
+        if (!submissionAgg[key].harian[tgl]) submissionAgg[key].harian[tgl] = 0;
+        submissionAgg[key].harian[tgl] += parseInt(s.jumlah_output) || 0;
       });
       Object.values(submissionAgg).forEach(agg => {
         const hargaKey = `${agg.posisi}|${agg.zona}`;
         const hargaKeyKategori = `${agg.posisi}|${zonaToKategori(agg.zona)}`;
         const h = hargaMap[hargaKey] || hargaMap[hargaKeyKategori] || null;
+        const detail_harian = Object.entries(agg.harian)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([tanggal, pencapaian]) => ({
+            tanggal,
+            pencapaian,
+            total_nilai: h ? pencapaian * h.harga : null
+          }));
         pencapaianList.push({
           nama: agg.nama, posisi: agg.posisi, zona: agg.zona,
           pencapaian: agg.total, satuan: h ? h.satuan : (agg.posisi === 'Picker' ? 'pcs' : 'kontainer'),
           harga_satuan: h ? h.harga : null,
-          total_nilai: h ? agg.total * h.harga : null
+          total_nilai: h ? agg.total * h.harga : null,
+          detail_harian
         });
       });
 
-      const loaderEntries = (db.loader_entries || []).filter(l => l.tanggal_carian === tanggal);
+      const loaderEntries = (db.loader_entries || []).filter(l =>
+        l.tanggal_carian >= tanggalMulai && l.tanggal_carian <= tanggalAkhir
+      );
       const loaderAgg = {};
       loaderEntries.forEach(l => {
         const key = l.nama;
-        if (!loaderAgg[key]) loaderAgg[key] = { nama: l.nama, total: 0 };
+        if (!loaderAgg[key]) loaderAgg[key] = { nama: l.nama, total: 0, harian: {} };
         loaderAgg[key].total += parseInt(l.jumlah_kontainer) || 0;
+        const tgl = l.tanggal_carian;
+        if (!loaderAgg[key].harian[tgl]) loaderAgg[key].harian[tgl] = 0;
+        loaderAgg[key].harian[tgl] += parseInt(l.jumlah_kontainer) || 0;
       });
       const loaderHarga = hargaMap['Loader|AMBIENT, CHILLER, FREEZER'] || hargaMap['Loader|LOADER'] || null;
       Object.values(loaderAgg).forEach(agg => {
+        const detail_harian = Object.entries(agg.harian)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([tanggal, pencapaian]) => ({
+            tanggal,
+            pencapaian,
+            total_nilai: loaderHarga ? pencapaian * loaderHarga.harga : null
+          }));
         pencapaianList.push({
           nama: agg.nama, posisi: 'Loader', zona: 'AMBIENT, CHILLER, FREEZER',
           pencapaian: agg.total, satuan: loaderHarga ? loaderHarga.satuan : 'kontainer',
           harga_satuan: loaderHarga ? loaderHarga.harga : null,
-          total_nilai: loaderHarga ? agg.total * loaderHarga.harga : null
+          total_nilai: loaderHarga ? agg.total * loaderHarga.harga : null,
+          detail_harian
         });
       });
     }
@@ -2310,7 +2462,10 @@ module.exports = {
     return {
       mpp_all: { ...mppAll, total: mppAll.picker + mppAll.sorter + mppAll.loader },
       mpp_today: { ...mppToday, total: mppToday.picker + mppToday.sorter + mppToday.loader },
-      pencapaian: pencapaianList
+      pencapaian: pencapaianList,
+      is_range: isRange,
+      tanggal_mulai: tanggalMulai,
+      tanggal_akhir: tanggalAkhir
     };
   }
 };

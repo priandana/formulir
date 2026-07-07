@@ -495,7 +495,12 @@ app.get('/api/audit-logs', requireSuperAdmin, async (req, res) => {
 // GET /api/submissions
 app.get('/api/submissions', requirePermission('submissions'), async (req, res) => {
   try {
-    const submissions = await db.getAllSubmissions();
+    const { status } = req.query;
+    const filters = {};
+    if (status && ['pending', 'approved', 'rejected'].includes(status)) {
+      filters.status = status;
+    }
+    const submissions = await db.getAllSubmissions(filters);
     res.json(submissions);
   } catch (err) {
     console.error('Fetch submissions error:', err);
@@ -3057,7 +3062,7 @@ app.post('/api/ketentuan-harga', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Posisi tidak valid.' });
     }
     const finalSatuan = posisi === 'Picker' ? 'pcs' : 'kontainer';
-    const record = await db.insertKetentuanHarga({ posisi, zona, harga: parseInt(harga), satuan: finalSatuan, keterangan });
+    const record = await db.insertKetentuanHarga({ posisi, zona, harga: parseFloat(harga), satuan: finalSatuan, keterangan });
     res.json({ success: true, data: record });
   } catch (err) {
     console.error('POST ketentuan-harga error:', err);
@@ -3075,7 +3080,7 @@ app.put('/api/ketentuan-harga/:id', requireAuth, async (req, res) => {
     if (harga === undefined || harga === null || harga === '') {
       return res.status(400).json({ error: 'Harga wajib diisi.' });
     }
-    const record = await db.updateKetentuanHarga(req.params.id, { harga: parseInt(harga), keterangan });
+    const record = await db.updateKetentuanHarga(req.params.id, { harga: parseFloat(harga), keterangan });
     res.json({ success: true, data: record });
   } catch (err) {
     console.error('PUT ketentuan-harga error:', err);
@@ -3096,11 +3101,17 @@ app.delete('/api/ketentuan-harga/:id', requireAuth, async (req, res) => {
 
 // ============= MONITORING MPP API =============
 
-// GET /api/monitoring-mpp?tanggal=YYYY-MM-DD
+// GET /api/monitoring-mpp?tanggalMulai=YYYY-MM-DD&tanggalAkhir=YYYY-MM-DD
+// Backward compat: juga menerima ?tanggal=YYYY-MM-DD (single date)
 app.get('/api/monitoring-mpp', requireAuth, async (req, res) => {
   try {
-    const tanggal = req.query.tanggal || new Date().toISOString().split('T')[0];
-    const data = await db.getMonitoringMPP(tanggal);
+    const today = new Date().toISOString().split('T')[0];
+    // Support both old ?tanggal= and new ?tanggalMulai= / ?tanggalAkhir=
+    let tanggalMulai = req.query.tanggalMulai || req.query.tanggal || today;
+    let tanggalAkhir  = req.query.tanggalAkhir  || tanggalMulai;
+    // Validasi: pastikan akhir >= mulai
+    if (tanggalAkhir < tanggalMulai) tanggalAkhir = tanggalMulai;
+    const data = await db.getMonitoringMPP(tanggalMulai, tanggalAkhir);
     res.json(data);
   } catch (err) {
     console.error('GET monitoring-mpp error:', err);
