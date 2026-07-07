@@ -3102,7 +3102,7 @@ app.delete('/api/ketentuan-harga/:id', requireAuth, async (req, res) => {
 // ============= REKAP PENDAPATAN API =============
 
 // GET /api/rekap-pendapatan?bulan=YYYY-MM  ATAU  ?tanggalMulai=YYYY-MM-DD&tanggalAkhir=YYYY-MM-DD
-app.get('/api/rekap-pendapatan', requireAuth, async (req, res) => {
+app.get('/api/rekap-pendapatan', requirePermission('rekap-pendapatan'), async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
     let tanggalMulai, tanggalAkhir;
