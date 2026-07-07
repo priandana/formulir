@@ -3128,6 +3128,297 @@ app.get('/api/rekap-pendapatan', requirePermission('rekap-pendapatan'), async (r
   }
 });
 
+// GET /api/rekap-pendapatan/export - Export rekap pendapatan ke Excel (.xlsx) dengan styling premium
+app.get('/api/rekap-pendapatan/export', requirePermission('rekap-pendapatan'), async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    let tanggalMulai, tanggalAkhir;
+
+    if (req.query.bulan) {
+      const [y, m] = req.query.bulan.split('-').map(Number);
+      const firstDay = new Date(y, m - 1, 1);
+      const lastDay  = new Date(y, m, 0);
+      tanggalMulai = firstDay.toISOString().split('T')[0];
+      tanggalAkhir = lastDay.toISOString().split('T')[0];
+    } else {
+      tanggalMulai = req.query.tanggalMulai || today;
+      tanggalAkhir  = req.query.tanggalAkhir  || tanggalMulai;
+    }
+    if (tanggalAkhir < tanggalMulai) tanggalAkhir = tanggalMulai;
+
+    let data = await db.getRekapPendapatan(tanggalMulai, tanggalAkhir);
+    let pekerja = data.pekerja || [];
+
+    // Terapkan filter posisi & search
+    const { posisi, search } = req.query;
+    if (posisi) {
+      pekerja = pekerja.filter(p => p.posisi === posisi);
+    }
+    if (search) {
+      const q = search.toLowerCase().trim();
+      pekerja = pekerja.filter(p => p.nama.toLowerCase().includes(q));
+    }
+
+    // Hitung ulang total untuk data yang diekspor
+    const filteredGrandTotal = pekerja.reduce((sum, p) => sum + (p.total_nilai || 0), 0);
+    const totalPicker = pekerja.filter(p => p.posisi === 'Picker').reduce((sum, p) => sum + (p.total_nilai || 0), 0);
+    const totalSorter = pekerja.filter(p => p.posisi === 'Sorter').reduce((sum, p) => sum + (p.total_nilai || 0), 0);
+    const totalLoader = pekerja.filter(p => p.posisi === 'Loader').reduce((sum, p) => sum + (p.total_nilai || 0), 0);
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Formulir Pencapaian Kerja SS08';
+    workbook.created = new Date();
+
+    const sheet = workbook.addWorksheet('Rekap Pendapatan', {
+      views: [{ state: 'frozen', ySplit: 7 }] // Freeze 7 baris teratas
+    });
+
+    sheet.views[0].showGridLines = true;
+
+    // 1. Title Block
+    sheet.mergeCells('A1:F1');
+    const titleRow = sheet.getRow(1);
+    titleRow.height = 30;
+    const titleCell = titleRow.getCell(1);
+    titleCell.value = 'LAPORAN REKAP PENDAPATAN PEKERJA';
+    titleCell.font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF1E3A8A' } };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
+
+    sheet.mergeCells('A2:F2');
+    const periodRow = sheet.getRow(2);
+    periodRow.height = 20;
+    const periodCell = periodRow.getCell(1);
+    const fmtTgl = (tgl) => {
+      if (!tgl) return '';
+      const [y, m, d] = tgl.split('-');
+      return `${d}/${m}/${y}`;
+    };
+    periodCell.value = req.query.bulan 
+      ? `Bulan: ${new Date(tanggalMulai).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}`
+      : `Periode: ${fmtTgl(tanggalMulai)} s/d ${fmtTgl(tanggalAkhir)}`;
+    periodCell.font = { name: 'Calibri', size: 11, italic: true, color: { argb: 'FF4B5563' } };
+    periodCell.alignment = { vertical: 'middle', horizontal: 'left' };
+
+    // 2. Summary KPI Cards (A4:F5)
+    sheet.mergeCells('A4:B5');
+    const gtCell = sheet.getCell('A4');
+    gtCell.value = `GRAND TOTAL PENDAPATAN\nRp ${Math.round(filteredGrandTotal).toLocaleString('id-ID')}`;
+    gtCell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+    gtCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6D28D9' } };
+    gtCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    gtCell.border = {
+      top: { style: 'thin', color: { argb: 'FF4C1D95' } },
+      left: { style: 'thin', color: { argb: 'FF4C1D95' } },
+      bottom: { style: 'thin', color: { argb: 'FF4C1D95' } },
+      right: { style: 'thin', color: { argb: 'FF4C1D95' } }
+    };
+
+    const pickerCell = sheet.getCell('C4');
+    pickerCell.value = `Total Picker\nRp ${Math.round(totalPicker).toLocaleString('id-ID')}`;
+    pickerCell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF1E40AF' } };
+    pickerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } };
+    pickerCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    pickerCell.border = {
+      top: { style: 'thin', color: { argb: 'FF93C5FD' } },
+      left: { style: 'thin', color: { argb: 'FF93C5FD' } },
+      bottom: { style: 'thin', color: { argb: 'FF93C5FD' } },
+      right: { style: 'thin', color: { argb: 'FF93C5FD' } }
+    };
+
+    const sorterCell = sheet.getCell('D4');
+    sorterCell.value = `Total Sorter\nRp ${Math.round(totalSorter).toLocaleString('id-ID')}`;
+    sorterCell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF065F46' } };
+    sorterCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+    sorterCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    sorterCell.border = {
+      top: { style: 'thin', color: { argb: 'FF6EE7B7' } },
+      left: { style: 'thin', color: { argb: 'FF6EE7B7' } },
+      bottom: { style: 'thin', color: { argb: 'FF6EE7B7' } },
+      right: { style: 'thin', color: { argb: 'FF6EE7B7' } }
+    };
+
+    const loaderCell = sheet.getCell('E4');
+    loaderCell.value = `Total Loader\nRp ${Math.round(totalLoader).toLocaleString('id-ID')}`;
+    loaderCell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF92400E' } };
+    loaderCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE68A' } };
+    loaderCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    loaderCell.border = {
+      top: { style: 'thin', color: { argb: 'FCD34D' } },
+      left: { style: 'thin', color: { argb: 'FCD34D' } },
+      bottom: { style: 'thin', color: { argb: 'FCD34D' } },
+      right: { style: 'thin', color: { argb: 'FCD34D' } }
+    };
+
+    const countCell = sheet.getCell('F4');
+    countCell.value = `Total Pekerja\n${pekerja.length} Orang`;
+    countCell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF374151' } };
+    countCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
+    countCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    countCell.border = {
+      top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+      left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+      bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+      right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
+    };
+
+    sheet.getRow(4).height = 25;
+    sheet.getRow(5).height = 20;
+
+    // 3. Table Headers definition (Row 7)
+    sheet.columns = [
+      { header: 'No',                key: 'no',         width: 8  },
+      { header: 'Nama Pekerja',      key: 'nama',       width: 32 },
+      { header: 'Posisi',            key: 'posisi',     width: 16 },
+      { header: 'Total Pencapaian',  key: 'output',     width: 20 },
+      { header: 'Total Nilai (Rp)',  key: 'nilai',      width: 22 },
+      { header: '% Dari Grand Total',key: 'persen',     width: 20 },
+    ];
+
+    const headerRow = sheet.getRow(7);
+    headerRow.height = 26;
+    headerRow.eachCell(cell => {
+      cell.fill = {
+        type: 'pattern', pattern: 'solid',
+        fgColor: { argb: 'FF4F46E5' }
+      };
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Calibri' };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FF312E81' } },
+        bottom: { style: 'medium', color: { argb: 'FF312E81' } },
+        left: { style: 'thin', color: { argb: 'FF312E81' } },
+        right: { style: 'thin', color: { argb: 'FF312E81' } }
+      };
+    });
+
+    // Special header colors for numbers
+    const colOutput = sheet.getColumn('output');
+    headerRow.getCell(colOutput.number).fill = {
+      type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0D6E3F' }
+    };
+    const colNilai = sheet.getColumn('nilai');
+    headerRow.getCell(colNilai.number).fill = {
+      type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF059669' }
+    };
+
+    // 4. Data rows
+    pekerja.forEach((p, index) => {
+      const pct = filteredGrandTotal > 0 ? (p.total_nilai / filteredGrandTotal) : 0;
+      const addedRow = sheet.addRow({
+        no: index + 1,
+        nama: p.nama || '',
+        posisi: p.posisi || '',
+        output: p.total_pencapaian || 0,
+        nilai: p.total_nilai || 0,
+        persen: pct
+      });
+
+      addedRow.height = 20;
+
+      addedRow.getCell('no').alignment = { horizontal: 'center', vertical: 'middle' };
+      addedRow.getCell('nama').alignment = { horizontal: 'left', vertical: 'middle' };
+      addedRow.getCell('posisi').alignment = { horizontal: 'center', vertical: 'middle' };
+      addedRow.getCell('output').alignment = { horizontal: 'right', vertical: 'middle' };
+      addedRow.getCell('nilai').alignment = { horizontal: 'right', vertical: 'middle' };
+      addedRow.getCell('persen').alignment = { horizontal: 'right', vertical: 'middle' };
+
+      addedRow.getCell('output').numFmt = '#,##0';
+      addedRow.getCell('nilai').numFmt = 'Rp#,##0';
+      addedRow.getCell('persen').numFmt = '0.0%';
+
+      const isEven = index % 2 === 0;
+      const bgHex = isEven ? 'FFFFFFFF' : 'FFF9FAFB';
+
+      addedRow.eachCell(cell => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgHex } };
+        cell.font = { name: 'Calibri', size: 10 };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+          bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+          left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+          right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
+        };
+      });
+
+      // Special styling for top 3 in rank column
+      if (index === 0) {
+        addedRow.getCell('no').value = '🥇 1';
+        addedRow.getCell('no').font = { bold: true };
+      } else if (index === 1) {
+        addedRow.getCell('no').value = '🥈 2';
+        addedRow.getCell('no').font = { bold: true };
+      } else if (index === 2) {
+        addedRow.getCell('no').value = '🥉 3';
+        addedRow.getCell('no').font = { bold: true };
+      }
+    });
+
+    // 5. Footer Row
+    const footerRow = sheet.addRow({
+      no: '',
+      nama: 'GRAND TOTAL',
+      posisi: '',
+      output: pekerja.reduce((sum, p) => sum + (p.total_pencapaian || 0), 0),
+      nilai: filteredGrandTotal,
+      persen: 1.0
+    });
+
+    footerRow.height = 24;
+    footerRow.getCell('nama').font = { bold: true, name: 'Calibri', size: 11 };
+    footerRow.getCell('output').font = { bold: true, name: 'Calibri', size: 11 };
+    footerRow.getCell('nilai').font = { bold: true, name: 'Calibri', size: 11, color: { argb: 'FF10B981' } };
+    footerRow.getCell('persen').font = { bold: true, name: 'Calibri', size: 11 };
+
+    footerRow.getCell('output').numFmt = '#,##0';
+    footerRow.getCell('nilai').numFmt = 'Rp#,##0';
+    footerRow.getCell('persen').numFmt = '0.0%';
+
+    footerRow.getCell('nama').alignment = { horizontal: 'left', vertical: 'middle' };
+    footerRow.getCell('output').alignment = { horizontal: 'right', vertical: 'middle' };
+    footerRow.getCell('nilai').alignment = { horizontal: 'right', vertical: 'middle' };
+    footerRow.getCell('persen').alignment = { horizontal: 'right', vertical: 'middle' };
+
+    footerRow.eachCell(cell => {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FF9CA3AF' } },
+        bottom: { style: 'double', color: { argb: 'FF111827' } },
+        left: { style: 'thin', color: { argb: 'FF9CA3AF' } },
+        right: { style: 'thin', color: { argb: 'FF9CA3AF' } }
+      };
+    });
+
+    // Auto filter
+    sheet.autoFilter = {
+      from: { row: 7, column: 1 },
+      to:   { row: 7, column: sheet.columns.length }
+    };
+
+    // Auto width
+    sheet.columns.forEach(col => {
+      let maxLen = 0;
+      col.eachCell({ includeEmpty: false }, cell => {
+        if (cell.row < 7) return; // skip header card rows
+        const valStr = cell.value ? String(cell.value) : '';
+        if (valStr.length > maxLen) maxLen = valStr.length;
+      });
+      col.width = Math.max(maxLen + 4, col.width || 12);
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const filterSuffix = posisi ? `-${posisi.toLowerCase()}` : '';
+    const filename = `rekap-pendapatan${filterSuffix}-${dateStr}.xlsx`;
+
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buffer);
+  } catch (err) {
+    console.error('Export Rekap Pendapatan Excel error:', err);
+    res.status(500).send('Gagal mengekspor rekap pendapatan.');
+  }
+});
+
 // ============= MONITORING MPP API =============
 
 // GET /api/monitoring-mpp?tanggalMulai=YYYY-MM-DD&tanggalAkhir=YYYY-MM-DD

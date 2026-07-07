@@ -3760,29 +3760,20 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
     if (mode === 'bulan') {
       const bulan = document.getElementById('rpBulanInput')?.value;
       if (!bulan) return;
-      url = `/api/rekap-pendapatan?bulan=${bulan}&format=excel`;
+      url = `/api/rekap-pendapatan/export?bulan=${bulan}`;
     } else {
       const dari   = document.getElementById('rpTanggalMulai')?.value;
       const sampai = document.getElementById('rpTanggalAkhir')?.value;
       if (!dari || !sampai) return;
-      url = `/api/rekap-pendapatan?tanggalMulai=${dari}&tanggalAkhir=${sampai}&format=excel`;
+      url = `/api/rekap-pendapatan/export?tanggalMulai=${dari}&tanggalAkhir=${sampai}`;
     }
-    // Buat CSV sebagai fallback (server tidak perlu diubah)
-    const rows = [['No','Nama','Posisi','Total Pencapaian','Total Nilai (Rp)','% dari Grand Total']];
-    rpFiltered.forEach((p, i) => {
-      const pct = rpGrandTotal > 0 ? ((p.total_nilai/rpGrandTotal)*100).toFixed(2) : '0.00';
-      rows.push([i+1, p.nama, p.posisi, p.total_pencapaian||0, Math.round(p.total_nilai||0), pct]);
-    });
-    rows.push([]);
-    rows.push(['Grand Total','','', rpFiltered.reduce((s,p)=>s+(p.total_pencapaian||0),0), Math.round(rpGrandTotal),'100%']);
 
-    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `rekap-pendapatan-${Date.now()}.csv`;
-    a.click();
-    showToast('File rekap berhasil diunduh!', 'success');
+    const posisi = document.getElementById('rpFilterPosisi')?.value || '';
+    const search = document.getElementById('rpSearchInput')?.value || '';
+    if (posisi) url += `&posisi=${encodeURIComponent(posisi)}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+
+    window.location.href = url;
   }
   window.exportRekapPendapatanExcel = exportRekapPendapatanExcel;
 
