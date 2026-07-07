@@ -61,7 +61,7 @@ function showOnscreenError(source, err) {
     // All pages that can be protected
     const pages = [
       'dashboard', 'submissions', 'loader', 'data-carian', 'rekap-toko',
-      'status-carian', 'users', 'absensi', 'ketentuan-harga', 'announcements',
+      'status-carian', 'users', 'absensi', 'ketentuan-harga', 'rekap-pendapatan', 'announcements',
       'export', 'gsheets', 'login-settings', 'admin-accounts',
       'audit-logs'
     ];
@@ -1013,7 +1013,7 @@ function showOnscreenError(source, err) {
     currentView = page;
     const sidebar = document.getElementById('sidebar');
     if (sidebar) sidebar.classList.remove('open');
-    ['dashboard','submissions','data-carian','rekap-toko','status-carian','welcome','users','loader','absensi','export','gsheets','login-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga'].forEach(p => {
+    ['dashboard','submissions','data-carian','rekap-toko','status-carian','welcome','users','loader','absensi','export','gsheets','login-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga','rekap-pendapatan'].forEach(p => {
       const el = document.getElementById('page-' + p);
       if (el) el.style.display = p === page ? 'block' : 'none';
     });
@@ -1035,7 +1035,8 @@ function showOnscreenError(source, err) {
       'feature-guide': 'Panduan Fitur Baru',
       'absensi': 'Manajemen Absensi',
       'announcements': 'Manajemen Pengumuman',
-      'ketentuan-harga': 'Ketentuan Harga'
+      'ketentuan-harga': 'Ketentuan Harga',
+      'rekap-pendapatan': 'Rekap Pendapatan Pekerja'
     };
     document.getElementById('pageTitle').textContent = titles[page] || page;
 
@@ -1067,6 +1068,7 @@ function showOnscreenError(source, err) {
     if (page === 'announcements') loadAnnouncements();
     if (page === 'dashboard') loadMonitoringMPP();
     if (page === 'ketentuan-harga') loadKetentuanHarga();
+    if (page === 'rekap-pendapatan') loadRekapPendapatan();
     if (page === 'status-carian') loadStatusCarian();
     if (page === 'welcome') renderWelcomePage();
   }
@@ -2757,8 +2759,9 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
     'status-carian':  { label: 'Status Input Carian',    icon: '✅' },
     users:            { label: 'Manajemen User',         icon: '👥' },
     absensi:          { label: 'Kehadiran Absensi',      icon: '📌' },
-    'ketentuan-harga':{ label: 'Ketentuan Harga',        icon: '💰' },
-    announcements:    { label: 'Pengumuman',             icon: '📢' },
+    'ketentuan-harga':  { label: 'Ketentuan Harga',        icon: '💰' },
+    'rekap-pendapatan': { label: 'Rekap Pendapatan',        icon: '🏆' },
+    announcements:      { label: 'Pengumuman',             icon: '📢' },
     export:           { label: 'Export Excel/CSV',       icon: '📥' },
     gsheets:          { label: 'Google Sheets',          icon: '📊' },
     'login-settings': { label: 'Tampilan Login',         icon: '🎨' },
@@ -3481,6 +3484,321 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
   window.loadMonitoringMPP = loadMonitoringMPP;
   // loadMonitoringMPP dipanggil via showPage('dashboard') — tidak perlu DOMContentLoaded terpisah
 
+
+  // ============= REKAP PENDAPATAN =============
+
+  let rpAllData = [];      // raw data from API (all pekerja)
+  let rpFiltered = [];     // after client filter
+  let rpGrandTotal = 0;
+
+  const RP_POSISI_COLOR = {
+    Picker: { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
+    Sorter: { bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0' },
+    Loader: { bg: '#fffbeb', text: '#b45309', border: '#fde68a' },
+  };
+
+  function rpFmt(val) {
+    if (val === null || val === undefined) return '—';
+    return 'Rp ' + Math.round(val).toLocaleString('id-ID');
+  }
+
+  function onRpModeChange() {
+    const mode = document.getElementById('rpModePicker')?.value;
+    const bulanWrap  = document.getElementById('rpBulanWrap');
+    const customWrap = document.getElementById('rpCustomWrap');
+    if (!bulanWrap || !customWrap) return;
+    if (mode === 'bulan') {
+      bulanWrap.style.display  = 'flex';
+      customWrap.style.display = 'none';
+    } else {
+      bulanWrap.style.display  = 'none';
+      customWrap.style.display = 'flex';
+    }
+    loadRekapPendapatan();
+  }
+  window.onRpModeChange = onRpModeChange;
+
+  async function loadRekapPendapatan() {
+    const mode = document.getElementById('rpModePicker')?.value || 'bulan';
+    let url;
+    let periodeLabel;
+
+    if (mode === 'bulan') {
+      const bulan = document.getElementById('rpBulanInput')?.value;
+      if (!bulan) return;
+      url = `/api/rekap-pendapatan?bulan=${bulan}`;
+      const [y, m] = bulan.split('-');
+      periodeLabel = new Date(y, m - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+    } else {
+      const dari  = document.getElementById('rpTanggalMulai')?.value;
+      const sampai = document.getElementById('rpTanggalAkhir')?.value;
+      if (!dari || !sampai) return;
+      url = `/api/rekap-pendapatan?tanggalMulai=${dari}&tanggalAkhir=${sampai}`;
+      periodeLabel = `${dari} s/d ${sampai}`;
+    }
+
+    // Loading state
+    const tbody = document.getElementById('rpTableBody');
+    const podium = document.getElementById('rpPodium');
+    const leaderList = document.getElementById('rpLeaderList');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:40px;"><div class="loading-spinner"><div class="spin"></div></div></td></tr>`;
+    if (podium) podium.innerHTML = `<div style="text-align:center; color:var(--text-muted); font-size:13px; padding:40px 0; width:100%;">⏳ Memuat leaderboard...</div>`;
+    if (leaderList) leaderList.innerHTML = '';
+    ['rpGrandTotal','rpTotalPicker','rpTotalSorter','rpTotalLoader','rpTotalPekerja'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.textContent = '—'; el.style.opacity = '0.5'; }
+    });
+
+    try {
+      const res  = await fetch(url);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal memuat data.');
+
+      rpAllData    = data.pekerja || [];
+      rpGrandTotal = data.grand_total || 0;
+      rpFiltered   = [...rpAllData];
+
+      // Update summary cards dengan animasi count-up
+      const animNum = (id, val, prefix = 'Rp ', suffix = '') => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.style.opacity = '1';
+        const end = Math.round(val);
+        const dur = 900;
+        const start = performance.now();
+        const tick = (now) => {
+          const p = Math.min((now - start) / dur, 1);
+          const ease = 1 - Math.pow(1 - p, 3);
+          const cur = Math.round(end * ease);
+          el.textContent = prefix + cur.toLocaleString('id-ID') + suffix;
+          if (p < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      };
+
+      animNum('rpGrandTotal', rpGrandTotal);
+      animNum('rpTotalPicker', data.total_by_posisi?.picker || 0);
+      animNum('rpTotalSorter', data.total_by_posisi?.sorter || 0);
+      animNum('rpTotalLoader', data.total_by_posisi?.loader || 0);
+      const pekerjaEl = document.getElementById('rpTotalPekerja');
+      if (pekerjaEl) { pekerjaEl.style.opacity = '1'; pekerjaEl.textContent = rpAllData.length; }
+
+      const periodeEl = document.getElementById('rpPeriodeLabel');
+      if (periodeEl) periodeEl.textContent = periodeLabel;
+
+      // Render leaderboard
+      rpRenderLeaderboard(data.leaderboard || []);
+
+      // Render table
+      rpRenderTable();
+
+    } catch (err) {
+      console.error('loadRekapPendapatan error:', err);
+      if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:40px; color:var(--error);">⚠️ Gagal memuat data: ${err.message}</td></tr>`;
+      showToast('Gagal memuat rekap pendapatan.', 'error');
+    }
+  }
+  window.loadRekapPendapatan = loadRekapPendapatan;
+
+  function rpRenderLeaderboard(leaderboard) {
+    const podiumEl    = document.getElementById('rpPodium');
+    const leaderListEl = document.getElementById('rpLeaderList');
+    if (!podiumEl) return;
+
+    if (!leaderboard || leaderboard.length === 0) {
+      podiumEl.innerHTML = `<div style="text-align:center; color:var(--text-muted); font-size:13px; padding:40px 0; width:100%;">Tidak ada data untuk periode ini.</div>`;
+      if (leaderListEl) leaderListEl.innerHTML = '';
+      return;
+    }
+
+    const top3 = leaderboard.slice(0, 3);
+    // Reorder: 2nd, 1st, 3rd for podium display
+    const order = [top3[1], top3[0], top3[2]].filter(Boolean);
+    const podiumConfig = [
+      { rank: 2, medal: '🥈', height: '130px', bg: 'linear-gradient(180deg,#94a3b8,#64748b)', label: '2nd', delay: '0.2s' },
+      { rank: 1, medal: '🥇', height: '170px', bg: 'linear-gradient(180deg,#fbbf24,#d97706)', label: '1st', delay: '0s' },
+      { rank: 3, medal: '🥉', height: '100px', bg: 'linear-gradient(180deg,#cd7c4a,#a05c2e)', label: '3rd', delay: '0.3s' },
+    ];
+
+    podiumEl.innerHTML = order.map((p, i) => {
+      if (!p) return '';
+      const cfg = podiumConfig[i];
+      const posColor = RP_POSISI_COLOR[p.posisi] || { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0' };
+      const pct = rpGrandTotal > 0 ? ((p.total_nilai / rpGrandTotal) * 100).toFixed(1) : 0;
+      return `
+        <div style="display:flex; flex-direction:column; align-items:center; flex:1; max-width:220px; animation:fadeInUp 0.5s ${cfg.delay} both;">
+          <div style="font-size:13px; font-weight:700; color:var(--text-primary); text-align:center; margin-bottom:6px; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${p.nama}">${p.nama}</div>
+          <div style="background:${posColor.bg}; color:${posColor.text}; border:1px solid ${posColor.border}; font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; margin-bottom:8px;">${p.posisi}</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">${rpFmt(p.total_nilai)}</div>
+          <div style="width:100%; height:${cfg.height}; background:${cfg.bg}; border-radius:12px 12px 0 0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; box-shadow:0 4px 20px rgba(0,0,0,0.15); position:relative;">
+            <div style="font-size:28px;">${cfg.medal}</div>
+            <div style="font-size:16px; font-weight:800; color:#fff;">${cfg.label}</div>
+            <div style="font-size:10px; color:rgba(255,255,255,0.8);">${pct}% dari total</div>
+          </div>
+        </div>`;
+    }).join('');
+
+    // Rank 4–10 list
+    if (leaderListEl) {
+      const rest = leaderboard.slice(3);
+      if (rest.length === 0) { leaderListEl.innerHTML = ''; return; }
+      leaderListEl.innerHTML = rest.map((p, i) => {
+        const rank = i + 4;
+        const pct = rpGrandTotal > 0 ? ((p.total_nilai / rpGrandTotal) * 100).toFixed(1) : 0;
+        const posColor = RP_POSISI_COLOR[p.posisi] || { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0' };
+        return `
+          <div style="display:flex; align-items:center; gap:14px; padding:12px 16px; background:var(--card-bg); border:1px solid var(--card-border); border-radius:12px; animation:fadeInUp 0.4s ${(i * 0.05).toFixed(2)}s both; transition:transform 0.15s,box-shadow 0.15s;" onmouseover="this.style.transform='translateX(4px)';this.style.boxShadow='0 4px 16px rgba(0,0,0,0.08)'" onmouseout="this.style.transform='translateX(0)';this.style.boxShadow='none'">
+            <div style="width:32px; height:32px; border-radius:50%; background:var(--sidebar-bg); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; color:var(--text-muted); flex-shrink:0;">${rank}</div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:13px; font-weight:600; color:var(--text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.nama}</div>
+              <div style="display:flex; align-items:center; gap:8px; margin-top:3px;">
+                <span style="background:${posColor.bg}; color:${posColor.text}; font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px;">${p.posisi}</span>
+                <span style="font-size:11px; color:var(--text-muted);">${pct}% dari total</span>
+              </div>
+            </div>
+            <div style="text-align:right; flex-shrink:0;">
+              <div style="font-size:13px; font-weight:700; color:var(--success);">${rpFmt(p.total_nilai)}</div>
+              <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${p.total_pencapaian?.toLocaleString('id-ID') || '—'} unit</div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+  }
+
+  function rpRenderTable() {
+    const tbody = document.getElementById('rpTableBody');
+    const infoEl = document.getElementById('rpTableInfo');
+    if (!tbody) return;
+
+    if (rpFiltered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:40px; color:var(--text-muted);">
+        <div style="font-size:32px; margin-bottom:8px;">🔍</div>
+        Tidak ada data yang cocok dengan filter.
+      </td></tr>`;
+      if (infoEl) infoEl.textContent = '0 pekerja';
+      return;
+    }
+
+    if (infoEl) infoEl.textContent = `${rpFiltered.length} pekerja`;
+
+    tbody.innerHTML = rpFiltered.map((p, i) => {
+      const pct = rpGrandTotal > 0 ? ((p.total_nilai / rpGrandTotal) * 100) : 0;
+      const pctBar = Math.min(pct, 100).toFixed(1);
+      const posColor = RP_POSISI_COLOR[p.posisi] || { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0' };
+      const zonaRows = (p.zona_detail || []).map(z => `
+        <tr style="background:var(--sidebar-bg);">
+          <td></td>
+          <td colspan="2" style="font-size:11px; color:var(--text-muted); padding-left:36px;">↳ ${z.zona}</td>
+          <td style="text-align:right; font-size:11px; color:var(--text-muted);">${(z.pencapaian||0).toLocaleString('id-ID')} ${z.satuan||''}</td>
+          <td style="text-align:right; font-size:11px; color:var(--text-muted);">${rpFmt(z.nilai)}</td>
+          <td colspan="2"></td>
+        </tr>`).join('');
+
+      return `
+        <tr style="animation:fadeInUp 0.3s ${Math.min(i * 0.03, 0.3).toFixed(2)}s both; cursor:pointer;" onclick="rpToggleDetail(this)" onmouseover="this.style.background='var(--sidebar-bg)'" onmouseout="this.style.background=''">
+          <td style="text-align:center; font-weight:700; color:var(--text-muted);">${i + 1}</td>
+          <td>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div style="width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,${posColor.text}22,${posColor.text}44); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:${posColor.text}; flex-shrink:0;">${(p.nama||'?').charAt(0).toUpperCase()}</div>
+              <div style="font-size:13px; font-weight:600; color:var(--text-primary);">${p.nama}</div>
+            </div>
+          </td>
+          <td><span style="background:${posColor.bg}; color:${posColor.text}; border:1px solid ${posColor.border}; font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px;">${p.posisi}</span></td>
+          <td style="text-align:right; font-size:13px; font-weight:600;">${(p.total_pencapaian||0).toLocaleString('id-ID')}</td>
+          <td style="text-align:right; font-size:13px; font-weight:700; color:var(--success);">${rpFmt(p.total_nilai)}</td>
+          <td>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <div style="flex:1; height:7px; background:var(--card-border); border-radius:10px; overflow:hidden;">
+                <div style="height:100%; width:0%; background:linear-gradient(90deg,#7c3aed,#4f46e5); border-radius:10px; transition:width 1s ease; animation:rpBarGrow_${i} 1s 0.5s forwards;" data-width="${pctBar}%"></div>
+              </div>
+              <span style="font-size:11px; color:var(--text-muted); white-space:nowrap;">${pct.toFixed(1)}%</span>
+            </div>
+          </td>
+          <td style="text-align:center;">
+            <svg width="14" height="14" fill="none" stroke="var(--text-muted)" stroke-width="2" viewBox="0 0 24 24" class="rp-chevron" style="transition:transform 0.2s;"><path d="M19 9l-7 7-7-7"/></svg>
+          </td>
+        </tr>
+        <tr class="rp-detail-row" style="display:none;">
+          ${zonaRows ? `<td colspan="7" style="padding:0;">${zonaRows ? `<table style="width:100%;">${zonaRows}</table>` : ''}</td>` : `<td colspan="7" style="text-align:center; color:var(--text-muted); font-size:12px; padding:10px;">Tidak ada detail zona.</td>`}
+        </tr>`;
+    }).join('');
+
+    // Animate progress bars
+    requestAnimationFrame(() => {
+      tbody.querySelectorAll('[data-width]').forEach(bar => {
+        setTimeout(() => { bar.style.width = bar.dataset.width; }, 100);
+      });
+    });
+  }
+
+  function rpToggleDetail(row) {
+    const next = row.nextElementSibling;
+    const chevron = row.querySelector('.rp-chevron');
+    if (!next || !next.classList.contains('rp-detail-row')) return;
+    const isOpen = next.style.display !== 'none';
+    next.style.display = isOpen ? 'none' : 'table-row';
+    if (chevron) chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+  }
+  window.rpToggleDetail = rpToggleDetail;
+
+  function rpApplyFilter() {
+    const q      = (document.getElementById('rpSearchInput')?.value || '').toLowerCase().trim();
+    const posisi = document.getElementById('rpFilterPosisi')?.value || '';
+    rpFiltered = rpAllData.filter(p => {
+      const matchQ = !q || (p.nama||'').toLowerCase().includes(q);
+      const matchP = !posisi || p.posisi === posisi;
+      return matchQ && matchP;
+    });
+    rpRenderTable();
+  }
+  window.rpApplyFilter = rpApplyFilter;
+
+  async function exportRekapPendapatanExcel() {
+    if (!rpFiltered.length) { showToast('Tidak ada data untuk diekspor.', 'warning'); return; }
+    const mode = document.getElementById('rpModePicker')?.value || 'bulan';
+    let url;
+    if (mode === 'bulan') {
+      const bulan = document.getElementById('rpBulanInput')?.value;
+      if (!bulan) return;
+      url = `/api/rekap-pendapatan?bulan=${bulan}&format=excel`;
+    } else {
+      const dari   = document.getElementById('rpTanggalMulai')?.value;
+      const sampai = document.getElementById('rpTanggalAkhir')?.value;
+      if (!dari || !sampai) return;
+      url = `/api/rekap-pendapatan?tanggalMulai=${dari}&tanggalAkhir=${sampai}&format=excel`;
+    }
+    // Buat CSV sebagai fallback (server tidak perlu diubah)
+    const rows = [['No','Nama','Posisi','Total Pencapaian','Total Nilai (Rp)','% dari Grand Total']];
+    rpFiltered.forEach((p, i) => {
+      const pct = rpGrandTotal > 0 ? ((p.total_nilai/rpGrandTotal)*100).toFixed(2) : '0.00';
+      rows.push([i+1, p.nama, p.posisi, p.total_pencapaian||0, Math.round(p.total_nilai||0), pct]);
+    });
+    rows.push([]);
+    rows.push(['Grand Total','','', rpFiltered.reduce((s,p)=>s+(p.total_pencapaian||0),0), Math.round(rpGrandTotal),'100%']);
+
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `rekap-pendapatan-${Date.now()}.csv`;
+    a.click();
+    showToast('File rekap berhasil diunduh!', 'success');
+  }
+  window.exportRekapPendapatanExcel = exportRekapPendapatanExcel;
+
+  // Init: set default bulan ke bulan ini
+  (function initRpDefaults() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const bulanEl = document.getElementById('rpBulanInput');
+    if (bulanEl && !bulanEl.value) bulanEl.value = `${y}-${m}`;
+    const todayStr = now.toISOString().slice(0, 10);
+    const mulaiEl  = document.getElementById('rpTanggalMulai');
+    const akhirEl  = document.getElementById('rpTanggalAkhir');
+    if (mulaiEl && !mulaiEl.value) mulaiEl.value = `${y}-${m}-01`;
+    if (akhirEl && !akhirEl.value) akhirEl.value = todayStr;
+  })();
 
   // ============= KETENTUAN HARGA =============
 

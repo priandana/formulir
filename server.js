@@ -3099,6 +3099,35 @@ app.delete('/api/ketentuan-harga/:id', requireAuth, async (req, res) => {
   }
 });
 
+// ============= REKAP PENDAPATAN API =============
+
+// GET /api/rekap-pendapatan?bulan=YYYY-MM  ATAU  ?tanggalMulai=YYYY-MM-DD&tanggalAkhir=YYYY-MM-DD
+app.get('/api/rekap-pendapatan', requireAuth, async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    let tanggalMulai, tanggalAkhir;
+
+    if (req.query.bulan) {
+      // Dari bulan: misal 2026-07 → 2026-07-01 s/d 2026-07-31
+      const [y, m] = req.query.bulan.split('-').map(Number);
+      const firstDay = new Date(y, m - 1, 1);
+      const lastDay  = new Date(y, m, 0);
+      tanggalMulai = firstDay.toISOString().split('T')[0];
+      tanggalAkhir = lastDay.toISOString().split('T')[0];
+    } else {
+      tanggalMulai = req.query.tanggalMulai || today;
+      tanggalAkhir  = req.query.tanggalAkhir  || tanggalMulai;
+    }
+    if (tanggalAkhir < tanggalMulai) tanggalAkhir = tanggalMulai;
+
+    const data = await db.getRekapPendapatan(tanggalMulai, tanggalAkhir);
+    res.json({ ...data, tanggalMulai, tanggalAkhir });
+  } catch (err) {
+    console.error('GET rekap-pendapatan error:', err);
+    res.status(500).json({ error: 'Gagal memuat data rekap pendapatan.' });
+  }
+});
+
 // ============= MONITORING MPP API =============
 
 // GET /api/monitoring-mpp?tanggalMulai=YYYY-MM-DD&tanggalAkhir=YYYY-MM-DD

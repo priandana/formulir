@@ -97,6 +97,11 @@
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           Ketentuan Harga
         </a>
+        <a class="nav-item" id="nav-rekap-pendapatan" onclick="showPage('rekap-pendapatan')">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
+          Rekap Pendapatan
+        </a>
+
         <a class="nav-item" id="nav-announcements" onclick="showPage('announcements')">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
           Pengumuman info
@@ -203,13 +208,26 @@
         <div class="dashboard-hero-left">
           <div class="dashboard-hero-badge">📊 Live Monitoring</div>
           <h1 class="dashboard-hero-title">Monitoring MPP</h1>
-          <p class="dashboard-hero-desc">MPP All = total user operasional aktif &nbsp;·&nbsp; MPP Today = hadir sesuai absensi pada tanggal dipilih</p>
+          <p class="dashboard-hero-desc" id="mppHeroDesc">MPP All = total user operasional aktif &nbsp;·&nbsp; MPP Today = hadir sesuai absensi pada tanggal dipilih</p>
         </div>
-        <div class="dashboard-date-picker-wrap">
-          <div class="dashboard-date-label">Pilih Tanggal</div>
-          <div class="dashboard-date-input-row">
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            <input type="date" id="mppDatePicker" class="dashboard-date-input" onchange="loadMonitoringMPP()">
+        <div class="dashboard-date-picker-wrap mpp-range-picker-wrap">
+          <div class="dashboard-date-label">📅 Pilih Periode</div>
+          <div class="mpp-range-inputs">
+            <div class="mpp-range-field">
+              <span class="mpp-range-field-label">Dari</span>
+              <div class="dashboard-date-input-row">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <input type="date" id="mppDateFrom" class="dashboard-date-input" onchange="loadMonitoringMPP()">
+              </div>
+            </div>
+            <div class="mpp-range-arrow">→</div>
+            <div class="mpp-range-field">
+              <span class="mpp-range-field-label">Sampai</span>
+              <div class="dashboard-date-input-row">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <input type="date" id="mppDateTo" class="dashboard-date-input" onchange="loadMonitoringMPP()">
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -248,35 +266,35 @@
       </div>
 
       <!-- MPP TODAY -->
-      <div class="dashboard-section-label">MPP TODAY <span>— Hadir Sesuai Absensi</span></div>
+      <div class="dashboard-section-label" id="mppTodayLabel">MPP TODAY <span id="mppTodayLabelSub">— Hadir Sesuai Absensi</span></div>
       <div class="stats-grid" style="margin-bottom:32px;">
         <div class="stat-card-today" style="--today-color:#6366f1; --today-bg:rgba(99,102,241,0.08);">
           <div class="stat-today-accent"></div>
           <div class="stat-today-icon" style="background:rgba(99,102,241,0.1); color:#6366f1;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></div>
           <div class="stat-card-v2-label" style="color:#6366f1;">PICKER</div>
           <div class="stat-today-value" id="mpp-today-picker">—</div>
-          <div class="stat-card-v2-sub">Hadir hari ini</div>
+          <div class="stat-card-v2-sub" id="mpp-today-sub-picker">Hadir hari ini</div>
         </div>
         <div class="stat-card-today" style="--today-color:#10b981; --today-bg:rgba(16,185,129,0.08);">
           <div class="stat-today-accent"></div>
           <div class="stat-today-icon" style="background:rgba(16,185,129,0.1); color:#10b981;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></div>
           <div class="stat-card-v2-label" style="color:#10b981;">SORTER</div>
           <div class="stat-today-value" id="mpp-today-sorter">—</div>
-          <div class="stat-card-v2-sub">Hadir hari ini</div>
+          <div class="stat-card-v2-sub" id="mpp-today-sub-sorter">Hadir hari ini</div>
         </div>
         <div class="stat-card-today" style="--today-color:#f59e0b; --today-bg:rgba(245,158,11,0.08);">
           <div class="stat-today-accent"></div>
           <div class="stat-today-icon" style="background:rgba(245,158,11,0.1); color:#f59e0b;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></div>
           <div class="stat-card-v2-label" style="color:#f59e0b;">LOADER</div>
           <div class="stat-today-value" id="mpp-today-loader">—</div>
-          <div class="stat-card-v2-sub">Hadir hari ini</div>
+          <div class="stat-card-v2-sub" id="mpp-today-sub-loader">Hadir hari ini</div>
         </div>
         <div class="stat-card-today" style="--today-color:#ec4899; --today-bg:rgba(236,72,153,0.08);">
           <div class="stat-today-accent"></div>
           <div class="stat-today-icon" style="background:rgba(236,72,153,0.1); color:#ec4899;"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
-          <div class="stat-card-v2-label" style="color:#ec4899;">TOTAL MPP TODAY</div>
+          <div class="stat-card-v2-label" id="mpp-today-total-label" style="color:#ec4899;">TOTAL MPP TODAY</div>
           <div class="stat-today-value" id="mpp-today-total">—</div>
-          <div class="stat-card-v2-sub">Semua posisi</div>
+          <div class="stat-card-v2-sub" id="mpp-today-sub-total">Semua posisi</div>
         </div>
       </div>
 
@@ -303,12 +321,13 @@
         <div class="table-wrap">
           <table id="mppPencapaianTable">
             <thead>
-              <tr>
+              <tr id="mppTableHead">
+                <th class="mpp-expand-col" id="mppExpandColHead" style="display:none;"></th>
                 <th>Nama</th><th>Posisi</th><th>Zona</th><th>Pencapaian</th><th>Satuan</th><th>Harga Satuan</th><th>Total Nilai</th>
               </tr>
             </thead>
             <tbody id="mppPencapaianBody">
-              <tr><td colspan="7"><div class="loading-spinner"><div class="spin"></div></div></td></tr>
+              <tr><td colspan="8"><div class="loading-spinner"><div class="spin"></div></div></td></tr>
             </tbody>
           </table>
         </div>
@@ -391,7 +410,7 @@
             <div class="form-row" style="margin-bottom:16px;">
               <div class="form-group">
                 <label for="hargaNominal">Harga per Satuan (Rp) <span class="req">*</span></label>
-                <input type="number" id="hargaNominal" class="form-control" placeholder="Contoh: 150" min="0" required>
+                <input type="number" id="hargaNominal" class="form-control" placeholder="Contoh: 408 atau 4.08" min="0" step="0.01" required>
               </div>
               <div class="form-group">
                 <label for="hargaKeterangan">Keterangan</label>
@@ -442,7 +461,128 @@
     </div><!-- end page-ketentuan-harga -->
 
 
+    <!-- ===== REKAP PENDAPATAN PAGE ===== -->
+    <div id="page-rekap-pendapatan" class="page-section" style="display:none;">
+
+      <!-- Header Filter Bar -->
+      <div class="rp-filter-bar" style="display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:24px; padding:16px 20px; background:var(--card-bg); border:1px solid var(--card-border); border-radius:16px;">
+        <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:180px;">
+          <svg width="16" height="16" fill="none" stroke="var(--text-muted)" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          <select id="rpModePicker" onchange="onRpModeChange()" style="border:none; background:transparent; font-size:13px; font-weight:600; color:var(--text-primary); cursor:pointer; outline:none;">
+            <option value="bulan">Per Bulan</option>
+            <option value="custom">Rentang Tanggal</option>
+          </select>
+        </div>
+        <div id="rpBulanWrap" style="display:flex; align-items:center; gap:8px;">
+          <label style="font-size:12px; color:var(--text-muted); white-space:nowrap;">Bulan:</label>
+          <input type="month" id="rpBulanInput" style="padding:6px 10px; border:1px solid var(--card-border); border-radius:8px; background:var(--card-bg); color:var(--text-primary); font-size:13px; cursor:pointer;" onchange="loadRekapPendapatan()">
+        </div>
+        <div id="rpCustomWrap" style="display:none; align-items:center; gap:8px; flex-wrap:wrap;">
+          <label style="font-size:12px; color:var(--text-muted);">Dari:</label>
+          <input type="date" id="rpTanggalMulai" style="padding:6px 10px; border:1px solid var(--card-border); border-radius:8px; background:var(--card-bg); color:var(--text-primary); font-size:13px;" onchange="loadRekapPendapatan()">
+          <label style="font-size:12px; color:var(--text-muted);">s/d:</label>
+          <input type="date" id="rpTanggalAkhir" style="padding:6px 10px; border:1px solid var(--card-border); border-radius:8px; background:var(--card-bg); color:var(--text-primary); font-size:13px;" onchange="loadRekapPendapatan()">
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; margin-left:auto;">
+          <select id="rpFilterPosisi" onchange="rpApplyFilter()" style="padding:6px 10px; border:1px solid var(--card-border); border-radius:8px; background:var(--card-bg); color:var(--text-primary); font-size:12px;">
+            <option value="">Semua Posisi</option>
+            <option value="Picker">Picker</option>
+            <option value="Sorter">Sorter</option>
+            <option value="Loader">Loader</option>
+          </select>
+          <div style="position:relative;">
+            <svg width="14" height="14" fill="none" stroke="var(--text-muted)" stroke-width="2" viewBox="0 0 24 24" style="position:absolute; left:8px; top:50%; transform:translateY(-50%);"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" id="rpSearchInput" placeholder="Cari nama..." oninput="rpApplyFilter()" style="padding:6px 10px 6px 28px; border:1px solid var(--card-border); border-radius:8px; background:var(--card-bg); color:var(--text-primary); font-size:12px; width:160px;">
+          </div>
+          <button onclick="exportRekapPendapatanExcel()" style="display:flex; align-items:center; gap:6px; padding:7px 14px; background:linear-gradient(135deg,#16a34a,#15803d); color:#fff; border:none; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Export Excel
+          </button>
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:16px; margin-bottom:28px;">
+        <div class="rp-card rp-card-grand" style="padding:20px; border-radius:16px; background:linear-gradient(135deg,#7c3aed,#4f46e5); color:#fff; position:relative; overflow:hidden; animation:fadeInUp 0.4s;">
+          <div style="position:absolute; right:-10px; top:-10px; width:80px; height:80px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
+          <div style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; opacity:0.8; margin-bottom:6px;">💰 Grand Total</div>
+          <div id="rpGrandTotal" style="font-size:22px; font-weight:800;">—</div>
+          <div id="rpPeriodeLabel" style="font-size:10px; opacity:0.7; margin-top:4px;">—</div>
+        </div>
+        <div style="padding:20px; border-radius:16px; background:linear-gradient(135deg,#0284c7,#0369a1); color:#fff; position:relative; overflow:hidden; animation:fadeInUp 0.5s;">
+          <div style="position:absolute; right:-10px; top:-10px; width:80px; height:80px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
+          <div style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; opacity:0.8; margin-bottom:6px;">🔵 Total Picker</div>
+          <div id="rpTotalPicker" style="font-size:22px; font-weight:800;">—</div>
+        </div>
+        <div style="padding:20px; border-radius:16px; background:linear-gradient(135deg,#059669,#047857); color:#fff; position:relative; overflow:hidden; animation:fadeInUp 0.6s;">
+          <div style="position:absolute; right:-10px; top:-10px; width:80px; height:80px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
+          <div style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; opacity:0.8; margin-bottom:6px;">🟢 Total Sorter</div>
+          <div id="rpTotalSorter" style="font-size:22px; font-weight:800;">—</div>
+        </div>
+        <div style="padding:20px; border-radius:16px; background:linear-gradient(135deg,#d97706,#b45309); color:#fff; position:relative; overflow:hidden; animation:fadeInUp 0.7s;">
+          <div style="position:absolute; right:-10px; top:-10px; width:80px; height:80px; background:rgba(255,255,255,0.08); border-radius:50%;"></div>
+          <div style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; opacity:0.8; margin-bottom:6px;">🟡 Total Loader</div>
+          <div id="rpTotalLoader" style="font-size:22px; font-weight:800;">—</div>
+        </div>
+        <div style="padding:20px; border-radius:16px; background:var(--card-bg); border:1px solid var(--card-border); animation:fadeInUp 0.8s;">
+          <div style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); margin-bottom:6px;">👥 Total Pekerja</div>
+          <div id="rpTotalPekerja" style="font-size:28px; font-weight:800; color:var(--text-primary);">—</div>
+        </div>
+      </div>
+
+      <!-- 🏆 LEADERBOARD -->
+      <div id="rpLeaderboardSection" style="margin-bottom:28px;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
+          <div style="font-size:22px;">🏆</div>
+          <div>
+            <div style="font-size:15px; font-weight:700; color:var(--text-primary);">Leaderboard Pendapatan</div>
+            <div style="font-size:12px; color:var(--text-muted);">Top 10 pekerja dengan pendapatan tertinggi</div>
+          </div>
+        </div>
+
+        <!-- Podium Top 3 -->
+        <div id="rpPodium" style="display:flex; align-items:flex-end; justify-content:center; gap:12px; margin-bottom:24px; min-height:200px;">
+          <div style="text-align:center; color:var(--text-muted); font-size:13px; padding:40px 0; width:100%;">Memuat data...</div>
+        </div>
+
+        <!-- Rank 4-10 List -->
+        <div id="rpLeaderList" style="display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+
+      <!-- Full Table -->
+      <div class="table-card" style="animation:fadeInUp 0.5s;">
+        <div class="table-header">
+          <div class="table-title">Rincian Per Pekerja</div>
+          <div id="rpTableInfo" style="font-size:12px; color:var(--text-muted);"></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:40px; text-align:center;">#</th>
+                <th>Nama</th>
+                <th>Posisi</th>
+                <th style="text-align:right;">Total Pencapaian</th>
+                <th style="text-align:right;">Total Nilai</th>
+                <th style="min-width:160px;">Porsi dari Total</th>
+                <th style="text-align:center;">Detail</th>
+              </tr>
+            </thead>
+            <tbody id="rpTableBody">
+              <tr><td colspan="7" style="text-align:center; padding:40px; color:var(--text-muted);">
+                <div style="font-size:32px; margin-bottom:10px;">💰</div>
+                Pilih periode untuk melihat data pendapatan.
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- end page-rekap-pendapatan -->
+
+
     <!-- ===== SUBMISSIONS PAGE ===== -->
+
 
 
     <div id="page-submissions" class="page-section" style="display:none;">

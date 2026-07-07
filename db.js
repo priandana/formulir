@@ -2150,6 +2150,109 @@ module.exports = {
     }
   },
 
+  // ============= REKAP PENDAPATAN =============
+
+  async getRekapPendapatan(tanggalMulai, tanggalAkhir) {
+    if (!tanggalAkhir) tanggalAkhir = tanggalMulai;
+
+    // Helper: zona code → kategori harga
+    const zonaToKategori = (zona) => {
+      const z = String(zona || '').trim().toUpperCase();
+      if (z.startsWith('F')) return 'FREEZER';
+      if (z.startsWith('R')) return 'CHILLER';
+      if (z.startsWith('T')) return 'AMBIENT';
+      return zona;
+    };
+
+    let result = { pekerja: [], grand_total: 0, total_by_posisi: { picker: 0, sorter: 0, loader: 0 }, leaderboard: [] };
+
+    if (isSupabaseEnabled) {
+      const [{ data: subData }, { data: loaderData }, { data: hargaData }] = await Promise.all([
+        supabase.from('submissions')
+          .select('nama, posisi, zona, jumlah_output, tanggal_carian')
+          .gte('tanggal_carian', tanggalMulai)
+          .lte('tanggal_carian', tanggalAkhir)
+          .eq('status', 'approved'),
+        supabase.from('loader_entries')
+          .select('nama, jumlah_kontainer, tanggal_carian')
+          .gte('tanggal_carian', tanggalMulai)
+          .lte('tanggal_carian', tanggalAkhir),
+        supabase.from('ketentuan_harga').select('*')
+      ]);
+
+      const hargaMap = {};
+      (hargaData || []).forEach(h => { hargaMap[`${h.posisi}|${h.zona}`] = h; });
+
+      // Aggregate Picker & Sorter per nama+posisi (cross-zona)
+      const subAgg = {};
+      (subData || []).forEach(s => {
+        const key = `${s.nama}|${s.posisi}`;
+        if (!subAgg[key]) subAgg[key] = { nama: s.nama, posisi: s.posisi, total_pencapaian: 0, total_nilai: 0, zona_detail: {} };
+        const hargaKey  = `${s.posisi}|${s.zona}`;
+        const hargaKeyK = `${s.posisi}|${zonaToKategori(s.zona)}`;
+        const h = hargaMap[hargaKey] || hargaMap[hargaKeyK] || null;
+        const jml = parseInt(s.jumlah_output) || 0;
+        const nilai = h ? jml * h.harga : 0;
+        subAgg[key].total_pencapaian += jml;
+        subAgg[key].total_nilai      += nilai;
+        const zk = s.zona || 'UNKNOWN';
+        if (!subAgg[key].zona_detail[zk]) subAgg[key].zona_detail[zk] = { pencapaian: 0, nilai: 0, satuan: h ? h.satuan : '-', harga_satuan: h ? h.harga : null };
+        subAgg[key].zona_detail[zk].pencapaian += jml;
+        subAgg[key].zona_detail[zk].nilai      += nilai;
+      });
+
+      // Aggregate Loader per nama
+      const loaderAgg = {};
+      (loaderData || []).forEach(l => {
+        const key = l.nama;
+        if (!loaderAgg[key]) loaderAgg[key] = { nama: l.nama, posisi: 'Loader', total_pencapaian: 0, total_nilai: 0, zona_detail: {} };
+        const loaderH = hargaMap['Loader|AMBIENT, CHILLER, FREEZER'] || hargaMap['Loader|LOADER'] || null;
+        const jml = parseInt(l.jumlah_kontainer) || 0;
+        const nilai = loaderH ? jml * loaderH.harga : 0;
+        loaderAgg[key].total_pencapaian += jml;
+        loaderAgg[key].total_nilai      += nilai;
+        const zk = 'ALL ZONA';
+        if (!loaderAgg[key].zona_detail[zk]) loaderAgg[key].zona_detail[zk] = { pencapaian: 0, nilai: 0, satuan: loaderH ? loaderH.satuan : 'kontainer', harga_satuan: loaderH ? loaderH.harga : null };
+        loaderAgg[key].zona_detail[zk].pencapaian += jml;
+        loaderAgg[key].zona_detail[zk].nilai      += nilai;
+      });
+
+      // Merge all into pekerja list
+      const pekerjaMap = {};
+      [...Object.values(subAgg), ...Object.values(loaderAgg)].forEach(p => {
+        const key = `${p.nama}|${p.posisi}`;
+        if (!pekerjaMap[key]) {
+          pekerjaMap[key] = {
+            nama: p.nama,
+            posisi: p.posisi,
+            total_pencapaian: 0,
+            total_nilai: 0,
+            zona_detail: []
+          };
+        }
+        pekerjaMap[key].total_pencapaian += p.total_pencapaian;
+        pekerjaMap[key].total_nilai      += p.total_nilai;
+        Object.entries(p.zona_detail).forEach(([zona, d]) => {
+          pekerjaMap[key].zona_detail.push({ zona, ...d });
+        });
+      });
+
+      result.pekerja = Object.values(pekerjaMap).sort((a, b) => b.total_nilai - a.total_nilai);
+      result.grand_total = result.pekerja.reduce((s, p) => s + p.total_nilai, 0);
+      result.total_by_posisi.picker = result.pekerja.filter(p => p.posisi === 'Picker').reduce((s, p) => s + p.total_nilai, 0);
+      result.total_by_posisi.sorter = result.pekerja.filter(p => p.posisi === 'Sorter').reduce((s, p) => s + p.total_nilai, 0);
+      result.total_by_posisi.loader = result.pekerja.filter(p => p.posisi === 'Loader').reduce((s, p) => s + p.total_nilai, 0);
+      result.leaderboard = result.pekerja.slice(0, 10).map((p, i) => ({ rank: i + 1, nama: p.nama, posisi: p.posisi, total_nilai: p.total_nilai, total_pencapaian: p.total_pencapaian }));
+
+    } else {
+      // Local JSON fallback (simplified)
+      const db = load();
+      result.pekerja = [];
+    }
+
+    return result;
+  },
+
   // ============= MONITORING MPP =============
 
   async getMonitoringMPP(tanggalMulai, tanggalAkhir) {
