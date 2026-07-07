@@ -3612,17 +3612,29 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
     }
 
     const top3 = leaderboard.slice(0, 3);
-    // Reorder: 2nd, 1st, 3rd for podium display
-    const order = [top3[1], top3[0], top3[2]].filter(Boolean);
-    const podiumConfig = [
-      { rank: 2, medal: '🥈', height: '130px', bg: 'linear-gradient(180deg,#94a3b8,#64748b)', label: '2nd', delay: '0.2s' },
-      { rank: 1, medal: '🥇', height: '170px', bg: 'linear-gradient(180deg,#fbbf24,#d97706)', label: '1st', delay: '0s' },
-      { rank: 3, medal: '🥉', height: '100px', bg: 'linear-gradient(180deg,#cd7c4a,#a05c2e)', label: '3rd', delay: '0.3s' },
-    ];
+    const podiumItems = [];
+    if (top3[1]) {
+      podiumItems.push({
+        data: top3[1],
+        cfg: { rank: 2, medal: '🥈', height: '130px', bg: 'linear-gradient(180deg,#94a3b8,#64748b)', label: '2nd', delay: '0.2s' }
+      });
+    }
+    if (top3[0]) {
+      podiumItems.push({
+        data: top3[0],
+        cfg: { rank: 1, medal: '🥇', height: '170px', bg: 'linear-gradient(180deg,#fbbf24,#d97706)', label: '1st', delay: '0s' }
+      });
+    }
+    if (top3[2]) {
+      podiumItems.push({
+        data: top3[2],
+        cfg: { rank: 3, medal: '🥉', height: '100px', bg: 'linear-gradient(180deg,#cd7c4a,#a05c2e)', label: '3rd', delay: '0.3s' }
+      });
+    }
 
-    podiumEl.innerHTML = order.map((p, i) => {
-      if (!p) return '';
-      const cfg = podiumConfig[i];
+    podiumEl.innerHTML = podiumItems.map(item => {
+      const p = item.data;
+      const cfg = item.cfg;
       const posColor = RP_POSISI_COLOR[p.posisi] || { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0' };
       const pct = rpGrandTotal > 0 ? ((p.total_nilai / rpGrandTotal) * 100).toFixed(1) : 0;
       return `
@@ -3749,6 +3761,17 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
       const matchP = !posisi || p.posisi === posisi;
       return matchQ && matchP;
     });
+
+    // Update kartu Total Pekerja yang terfilter
+    const pekerjaEl = document.getElementById('rpTotalPekerja');
+    if (pekerjaEl) {
+      pekerjaEl.textContent = rpFiltered.length;
+    }
+
+    // Render ulang Leaderboard agar ikut terfilter
+    rpRenderLeaderboard(rpFiltered);
+
+    // Render ulang tabel
     rpRenderTable();
   }
   window.rpApplyFilter = rpApplyFilter;
