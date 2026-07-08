@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS ketentuan_harga (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   posisi TEXT NOT NULL CHECK (posisi IN ('Picker', 'Sorter', 'Loader')),
   zona TEXT NOT NULL,
-  harga INTEGER NOT NULL DEFAULT 0,
+  harga NUMERIC NOT NULL DEFAULT 0,
   satuan TEXT NOT NULL DEFAULT 'pcs',
   keterangan TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),

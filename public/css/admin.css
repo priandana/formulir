@@ -362,6 +362,105 @@
     }
     .dashboard-date-input::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
 
+    /* Range date picker — Dari → Sampai */
+    .mpp-range-picker-wrap { min-width: 300px; }
+    .mpp-range-inputs {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .mpp-range-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+    }
+    .mpp-range-field-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.5);
+    }
+    .mpp-range-arrow {
+      font-size: 16px;
+      color: rgba(255,255,255,0.5);
+      margin-top: 14px;
+      flex-shrink: 0;
+    }
+
+    /* Expand button in table */
+    .mpp-expand-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      border: 1.5px solid var(--border);
+      background: var(--card-bg);
+      color: var(--text-secondary);
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+    .mpp-expand-btn:hover {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+      transform: scale(1.1);
+    }
+    .mpp-expand-btn.expanded {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+    .mpp-expand-col { width: 36px; padding: 0 4px 0 8px !important; }
+
+    /* Detail harian rows — expandable */
+    .mpp-detail-row td {
+      background: rgba(99,102,241,0.04) !important;
+      border-bottom: 1px dashed var(--border) !important;
+    }
+    /* Animasi dipicu via JS, bukan auto dari class */
+    .mpp-detail-row.is-animating {
+      animation: mppFadeIn 0.18s ease-out both;
+    }
+    @keyframes mppFadeIn {
+      from { opacity: 0.3; transform: translateY(-3px); }
+      to   { opacity: 1;   transform: translateY(0); }
+    }
+    .mpp-detail-inner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 0 0 20px;
+    }
+    .mpp-detail-date-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--primary);
+      background: rgba(99,102,241,0.08);
+      border: 1px solid rgba(99,102,241,0.15);
+      border-radius: 8px;
+      padding: 3px 9px;
+      white-space: nowrap;
+    }
+    .mpp-detail-val {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .mpp-detail-nilai {
+      font-size: 12px;
+      color: var(--success);
+      font-weight: 600;
+    }
+
     /* Section label */
     .dashboard-section-label {
       font-size: 12px;
@@ -1072,7 +1171,16 @@
   }
   .dashboard-hero-title { font-size: 22px; }
   .dashboard-date-picker-wrap { width: 100%; }
-  .dashboard-date-input { width: 100%; }
+  .dashboard-date-input { width: 100%; font-size: 13px !important; }
+  /* Range picker — susun vertikal di mobile */
+  .mpp-range-picker-wrap { min-width: unset; width: 100%; }
+  .mpp-range-inputs { flex-direction: column; gap: 8px; }
+  .mpp-range-arrow { display: none; }
+  .mpp-range-field { width: 100%; }
+  /* Expand col — hide on very small screens to save space */
+  .mpp-expand-col { width: 30px; padding: 0 2px 0 6px !important; }
+  .mpp-detail-inner { flex-wrap: wrap; gap: 6px; padding-left: 10px; }
+  .mpp-detail-date-badge { font-size: 10px; }
 
   /* --- MPP filter search + posisi --- */
   .table-header {
