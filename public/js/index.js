@@ -4871,8 +4871,6 @@ window.openFormTab = openFormTab;
 window.rtLoadLoaderEntries = rtLoadLoaderEntries;
 window.rtUpdateSelisih = rtUpdateSelisih;
 window.rtSubmitAll = rtSubmitAll;
-window.rtPrintGroupedHandover = rtPrintGroupedHandover;
-window.rtPrintHandover = rtPrintHandover;
 window.rtPrintDailyReport = rtPrintDailyReport;
 window.printLoaderEntryDirect = printLoaderEntryDirect;
 
@@ -5714,6 +5712,15 @@ window.qcoSubmitForm = qcoSubmitForm;
 window.qcoClearForm = qcoClearForm;
 window.qcoLoadRiwayat = qcoLoadRiwayat;
 window.qcoDeleteEntry = qcoDeleteEntry;
+window.qcoLoadGroupMobils = qcoLoadGroupMobils;
+window.qcoRenderArmadas = qcoRenderArmadas;
+window.qcoAddArmada = qcoAddArmada;
+window.qcoRemoveArmada = qcoRemoveArmada;
+window.qcoToggleGmChip = qcoToggleGmChip;
+window.qcoLoadClusterCapacity = qcoLoadClusterCapacity;
+window.qcoOpenNopolDropdown = qcoOpenNopolDropdown;
+window.qcoFilterNopolDropdown = qcoFilterNopolDropdown;
+window.qcoFilterArmadaGrid = qcoFilterArmadaGrid;
 
 // ===================== END QC OUTBOUND =====================
 
