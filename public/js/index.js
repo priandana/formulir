@@ -5094,7 +5094,6 @@ async function qcoSubmitForm() {
   const tanggal = document.getElementById('qco_tanggal')?.value;
   const no_polisi = document.getElementById('qco_nopol')?.value?.trim();
   const nama_qc = document.getElementById('qco_nama_qc')?.value || currentUser?.nama_lengkap || currentUser?.username || '';
-  const zona = document.getElementById('qco_zona')?.value || '';
   const kontainer = parseInt(document.getElementById('qco_kontainer')?.value) || 0;
   const styrofoam = parseInt(document.getElementById('qco_styrofoam')?.value) || 0;
   const dus = parseInt(document.getElementById('qco_dus')?.value) || 0;
@@ -5126,7 +5125,6 @@ async function qcoSubmitForm() {
     formData.append('tanggal', tanggal);
     formData.append('no_polisi', no_polisi);
     formData.append('nama_qc', nama_qc);
-    formData.append('zona', zona);
     formData.append('kontainer', kontainer);
     formData.append('styrofoam', styrofoam);
     formData.append('dus', dus);
@@ -5169,8 +5167,6 @@ function qcoClearForm() {
   if (select) select.value = '';
   const info = document.getElementById('qco_armada_info');
   if (info) { info.style.display = 'none'; info.textContent = ''; }
-  const zona = document.getElementById('qco_zona');
-  if (zona) zona.value = '';
 
   document.getElementById('qco_kontainer').value = 0;
   document.getElementById('qco_styrofoam').value = 0;
