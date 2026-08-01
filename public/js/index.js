@@ -4954,11 +4954,15 @@ async function qcoLoadGroupMobils() {
 
     console.log('[QCO] Raw records dari API:', records.length, records.slice(0,3));
 
-    // Ambil semua records yang punya field 'batch' (group mobil)
-    // Tidak filter berdasarkan posisi — QC Outbound butuh semua batch yang ada
+    // Ambil semua records yang punya field 'batch' berupa nama GM valid
+    // (mengandung huruf, bukan angka saja — contoh valid: BDG09, CJR01, KWG28)
     const batchList = records
-      .filter(rec => rec.batch && String(rec.batch).trim() !== '' && String(rec.batch).trim() !== 'undefined')
-      .map(rec => String(rec.batch).trim());
+      .filter(rec => {
+        const b = String(rec.batch || '').trim();
+        // Valid GM: tidak kosong, bukan 'undefined', mengandung minimal 1 huruf
+        return b !== '' && b !== 'undefined' && b !== 'null' && /[A-Za-z]/.test(b);
+      })
+      .map(rec => String(rec.batch).trim().toUpperCase());
 
     console.log('[QCO] batchList:', batchList);
 
@@ -5264,7 +5268,7 @@ function qcoFilterArmadaGrid(index) {
       <div class="batch-chip ${isSel ? 'selected' : ''}" 
            onclick="qcoToggleGmChip(${index}, '${gm}')"
            style="padding:8px 10px; border-radius:8px; font-size:12px; font-weight:800; text-align:center; cursor:pointer; transition:all 0.15s; ${isSel ? 'background:#7C3AED; color:#fff; border:1.5px solid #5B21B6;' : 'background:#F8FAFC; color:#334155; border:1.5px solid #E2E8F0;'}">
-        <span>🚚 ${gm}</span>
+        <span>${gm}</span>
       </div>
     `;
   }).join('');
