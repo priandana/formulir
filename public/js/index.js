@@ -2881,12 +2881,7 @@ async function doLoaderSubmit() {
       fd.append('no_polisi',         truck.no_polisi);
       fd.append('clusters',                    JSON.stringify(truck.selectedGms));
       fd.append('cluster_outputs',              JSON.stringify(truckOutputs));
-      // Outbound outputs per truck (filter hanya GM milik truck ini)
-      const truckOutboundOutputs = {};
-      truck.selectedGms.forEach(gm => {
-        truckOutboundOutputs[gm] = clusterOutboundOutputs[gm] || 0;
-      });
-      fd.append('cluster_outbound_outputs',     JSON.stringify(truckOutboundOutputs));
+      fd.append('cluster_outbound_outputs',     JSON.stringify({}));
       fd.append('non_group',                    JSON.stringify(index === 0 ? nonGroup : { gacoan: 0, dikichi: 0, benfarm: 0 }));
       fd.append('jumlah_kontainer',             String(index === 0 ? (truckTotal + nonGroup.gacoan + nonGroup.dikichi + nonGroup.benfarm) : truckTotal));
       fd.append('catatan',                      finalCatatan);
