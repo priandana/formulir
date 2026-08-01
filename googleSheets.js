@@ -22,6 +22,8 @@ const PRIVATE_KEY = (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || '').repla
 const SHEET_SUBMISSIONS = 'Entry Picker Sorter';
 const SHEET_SUMMARY     = 'Summary';
 const SHEET_LOADER      = 'Entry Loader';
+const SHEET_RETURN      = 'Entry Return';
+const SHEET_QC_OUTBOUND = 'QC Outbound';
 
 // Header kolom untuk sheet Entry Picker Sorter
 const SUBMISSION_HEADERS = [
@@ -33,9 +35,25 @@ const SUBMISSION_HEADERS = [
 // Header kolom untuk sheet Entry Loader
 const LOADER_HEADERS = [
   'Tanggal Carian', 'Tanggal Kirim', 'Nama', 'Posisi', 'Zona',
-  'Jumlah Kontainer', 'Lembar Register', 'Batch/Cluster', 'Tipe Lokasi', 'Catatan',
+  'Jumlah Kontainer (RPS)', 'Outbound Kontainer', 'Outbound Styrofoam', 'Outbound Dus', 'Total Outbound Items',
+  'Lembar Register', 'Batch/Cluster', 'Detail Outbound per Cluster', 'Catatan',
   'No. Polisi', 'Gacoan', 'Dikichi', 'Benfarm',
   'Waktu Submit', 'ID Entry'
+];
+
+// Header kolom untuk sheet Entry Return
+const RETURN_HEADERS = [
+  'No', 'Tanggal Return', 'Tanggal Outbound (Referensi)', 'No. Polisi', 'Diinput oleh',
+  'Outbound Kontainer', 'Outbound Styrofoam', 'Outbound Dus', 'Total Outbound',
+  'Kembali Kontainer', 'Kembali Styrofoam', 'Kembali Dus', 'Total Kembali DC',
+  'Selisih Kontainer', 'Selisih Styrofoam', 'Selisih Dus', 'Total Selisih',
+  'Detail per Cluster', 'Catatan', 'Status Validasi', 'Divalidasi oleh', 'Waktu Submit', 'ID Entry'
+];
+
+// Header kolom untuk sheet QC Outbound
+const QC_OUTBOUND_HEADERS = [
+  'No', 'Tanggal', 'No. Polisi', 'Kontainer', 'Styrofoam', 'Dus',
+  'Total Items', 'Catatan', 'Diinput oleh', 'Waktu Submit', 'ID Entry'
 ];
 
 /**
@@ -380,6 +398,26 @@ async function initLoaderSheet(sheets) {
 }
 
 /**
+ * Helper untuk parse package breakdown (Kontainer, Styrofoam, Dus)
+ */
+function parsePackageBreakdown(item) {
+  if (typeof item === 'number') {
+    return { kontainer: item, styrofoam: 0, dus: 0, total: item };
+  }
+  if (typeof item === 'string') {
+    const p = parseInt(item) || 0;
+    return { kontainer: p, styrofoam: 0, dus: 0, total: p };
+  }
+  if (typeof item === 'object' && item !== null) {
+    const k = parseInt(item.kontainer || item.kont) || 0;
+    const s = parseInt(item.styrofoam || item.stero) || 0;
+    const d = parseInt(item.dus || item.box) || 0;
+    return { kontainer: k, styrofoam: s, dus: d, total: k + s + d };
+  }
+  return { kontainer: 0, styrofoam: 0, dus: 0, total: 0 };
+}
+
+/**
  * Konversi loader entry DB object ke array baris untuk Google Sheets
  */
 function loaderEntryToRow(e, idx, files = []) {
@@ -390,8 +428,21 @@ function loaderEntryToRow(e, idx, files = []) {
     clusterList = e.clusters.list || [];
   }
   const clustersStr = clusterList.join(', ');
-
   const linkFoto = buildHyperlinkFormula(files);
+
+  const outboundOutputs = e.cluster_outbound_outputs || {};
+  let outKontainer = 0, outStyrofoam = 0, outDus = 0;
+  const detailList = [];
+
+  Object.entries(outboundOutputs).forEach(([gm, val]) => {
+    const p = parsePackageBreakdown(val);
+    outKontainer += p.kontainer;
+    outStyrofoam += p.styrofoam;
+    outDus += p.dus;
+    detailList.push(`${gm}: ${p.kontainer} Kontainer, ${p.styrofoam} Styrofoam, ${p.dus} Dus`);
+  });
+
+  const totalOutboundItems = outKontainer + outStyrofoam + outDus;
 
   return [
     e.tanggal_carian || '',
@@ -400,14 +451,90 @@ function loaderEntryToRow(e, idx, files = []) {
     'Loader',
     e.zona || '',
     e.jumlah_kontainer || 0,
+    outKontainer,
+    outStyrofoam,
+    outDus,
+    totalOutboundItems,
     linkFoto,
     clustersStr,
-    'Loading Dock',
+    detailList.join('; '),
     e.catatan || '',
     e.no_polisi || '',
     (e.non_group || {}).gacoan || 0,
     (e.non_group || {}).dikichi || 0,
     (e.non_group || {}).benfarm || 0,
+    e.created_at ? new Date(e.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : '',
+    e.id || ''
+  ];
+}
+
+/**
+ * Konversi return entry DB object ke array baris untuk Google Sheets
+ */
+function returnEntryToRow(e, idx) {
+  let clusterDetail = '';
+  let retKontainer = 0, retStyrofoam = 0, retDus = 0;
+  let outKontainer = 0, outStyrofoam = 0, outDus = 0;
+
+  try {
+    const outputs = typeof e.cluster_return_outputs === 'string'
+      ? JSON.parse(e.cluster_return_outputs)
+      : (e.cluster_return_outputs || {});
+    
+    const detailList = [];
+    Object.entries(outputs).forEach(([gm, val]) => {
+      const p = parsePackageBreakdown(val);
+      retKontainer += p.kontainer;
+      retStyrofoam += p.styrofoam;
+      retDus += p.dus;
+      detailList.push(`${gm}: ${p.kontainer} Kont, ${p.styrofoam} Stero, ${p.dus} Dus`);
+    });
+    clusterDetail = detailList.join('; ');
+  } catch(err) {
+    clusterDetail = '';
+  }
+
+  // Parse total outbound breakdown if object stored or numbers
+  if (typeof e.outbound_breakdown === 'object' && e.outbound_breakdown !== null) {
+    outKontainer = parseInt(e.outbound_breakdown.kontainer) || 0;
+    outStyrofoam = parseInt(e.outbound_breakdown.styrofoam) || 0;
+    outDus       = parseInt(e.outbound_breakdown.dus) || 0;
+  } else {
+    outKontainer = e.total_outbound || 0;
+  }
+
+  const totOutbound = outKontainer + outStyrofoam + outDus;
+  const totKembali  = retKontainer + retStyrofoam + retDus;
+
+  const selKontainer = outKontainer - retKontainer;
+  const selStyrofoam = outStyrofoam - retStyrofoam;
+  const selDus       = outDus - retDus;
+  const totSelisih   = totOutbound - totKembali;
+
+  const statusLabel = e.status === 'validated' ? 'Tervalidasi' : e.status === 'revised' ? 'Perlu Revisi' : 'Menunggu Validasi';
+
+  return [
+    idx,
+    e.tanggal_return || '',
+    e.tanggal_referensi || '',
+    e.no_polisi || '',
+    e.nama_return || '',
+    outKontainer,
+    outStyrofoam,
+    outDus,
+    totOutbound,
+    retKontainer,
+    retStyrofoam,
+    retDus,
+    totKembali,
+    selKontainer,
+    selStyrofoam,
+    selDus,
+    totSelisih,
+    clusterDetail,
+    e.catatan || '',
+    statusLabel,
+    e.validated_by || '',
     e.created_at ? new Date(e.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : '',
     e.id || ''
   ];
@@ -529,7 +656,10 @@ async function styleSheet(sheets, sheetTitle) {
     const sheetId = await getSheetId(sheets, sheetTitle);
     if (sheetId === null) return;
 
-    const maxCols = sheetTitle === SHEET_LOADER ? LOADER_HEADERS.length : SUBMISSION_HEADERS.length;
+    let maxCols;
+    if (sheetTitle === SHEET_LOADER) maxCols = LOADER_HEADERS.length;
+    else if (sheetTitle === SHEET_QC_OUTBOUND) maxCols = QC_OUTBOUND_HEADERS.length;
+    else maxCols = SUBMISSION_HEADERS.length;
 
     const requests = [
       // 1. Freeze baris pertama
@@ -758,14 +888,286 @@ async function appendDataCarianToSheet(records, tanggal = null) {
   }
 }
 
+/**
+ * Inisialisasi sheet Entry Return: buat sheet jika belum ada, selalu update header
+ */
+async function initReturnSheet(sheets) {
+  const created = await ensureSheet(sheets, SHEET_RETURN);
+
+  // Selalu tulis ulang header
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${SHEET_RETURN}!A1`,
+    valueInputOption: 'RAW',
+    requestBody: { values: [RETURN_HEADERS] }
+  });
+
+  if (created) {
+    const sheetId = await getSheetId(sheets, SHEET_RETURN);
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      requestBody: {
+        requests: [
+          {
+            repeatCell: {
+              range: { sheetId, startRowIndex: 0, endRowIndex: 1 },
+              cell: {
+                userEnteredFormat: {
+                  textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } },
+                  backgroundColor: { red: 0.051, green: 0.580, blue: 0.514 }, // teal
+                  horizontalAlignment: 'CENTER'
+                }
+              },
+              fields: 'userEnteredFormat(textFormat,backgroundColor,horizontalAlignment)'
+            }
+          },
+          {
+            updateSheetProperties: {
+              properties: { sheetId, gridProperties: { frozenRowCount: 1 } },
+              fields: 'gridProperties.frozenRowCount'
+            }
+          }
+        ]
+      }
+    });
+  }
+  return created;
+}
+
+/**
+ * Konversi return entry DB object ke array baris untuk Google Sheets
+ */
+function returnEntryToRow(e, idx) {
+  // Susun detail per cluster dari cluster_return_outputs
+  let clusterDetail = '';
+  try {
+    const outputs = typeof e.cluster_return_outputs === 'string'
+      ? JSON.parse(e.cluster_return_outputs)
+      : (e.cluster_return_outputs || {});
+    clusterDetail = Object.entries(outputs)
+      .map(([cluster, qty]) => `${cluster}: ${qty}`)
+      .join(', ');
+  } catch(err) {
+    clusterDetail = '';
+  }
+
+  const statusLabel = e.status === 'validated' ? 'Tervalidasi' : e.status === 'revised' ? 'Perlu Revisi' : 'Menunggu Validasi';
+
+  return [
+    idx,
+    e.tanggal_return || '',
+    e.tanggal_referensi || '',
+    e.no_polisi || '',
+    e.nama_return || '',
+    e.total_outbound || 0,
+    e.total_kembali || 0,
+    e.total_selisih || 0,
+    clusterDetail,
+    e.catatan || '',
+    statusLabel,
+    e.validated_by || '',
+    e.created_at ? new Date(e.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : '',
+    e.id || ''
+  ];
+}
+
+/**
+ * Push SEMUA Return entries ke Google Sheets (replace isi sheet, pertahankan header)
+ * @param {Array} entries — array dari db.getAllReturnEntries()
+ * @returns {{ success: boolean, rowCount: number, message: string }}
+ */
+async function pushAllReturnEntries(entries) {
+  if (!isConfigured()) {
+    return { success: false, rowCount: 0, message: 'Google Sheets belum dikonfigurasi.' };
+  }
+
+  try {
+    const sheets = await getSheetsClient();
+    await initReturnSheet(sheets);
+
+    // Clear data lama (baris 2 ke bawah), pertahankan header
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_RETURN}!A2:Z`,
+    });
+
+    if (!entries || entries.length === 0) {
+      return { success: true, rowCount: 0, message: 'Tidak ada data Return untuk di-push.' };
+    }
+
+    const rows = entries.map((e, i) => returnEntryToRow(e, i + 1));
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_RETURN}!A2`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: rows }
+    });
+
+    await styleSheet(sheets, SHEET_RETURN);
+
+    return {
+      success: true,
+      rowCount: rows.length,
+      message: `Berhasil push ${rows.length} data return ke Google Sheets (sheet "${SHEET_RETURN}").`
+    };
+  } catch (err) {
+    console.error('[GoogleSheets] pushAllReturnEntries error:', err.message);
+    return { success: false, rowCount: 0, message: `Gagal push return entries: ${err.message}` };
+  }
+}
+
+/**
+ * Append satu Return entry baru ke sheet Entry Return
+ */
+async function appendReturnEntry(entry) {
+  if (!isConfigured()) return { success: false };
+  try {
+    const sheets = await getSheetsClient();
+    await initReturnSheet(sheets);
+
+    const valRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_RETURN}!A:A`,
+    });
+    const rowCount = Math.max(0, (valRes.data.values || []).length - 1);
+    const idx = rowCount + 1;
+    const row = returnEntryToRow(entry, idx);
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_RETURN}!A:A`,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: { values: [row] }
+    });
+    return { success: true };
+  } catch (err) {
+    console.error('[GoogleSheets] appendReturnEntry error:', err.message);
+    return { success: false };
+  }
+}
+
+/**
+ * Inisialisasi sheet QC Outbound: buat sheet jika belum ada, selalu update header
+ */
+async function initQcOutboundSheet(sheets) {
+  const created = await ensureSheet(sheets, SHEET_QC_OUTBOUND);
+
+  // Selalu tulis ulang header
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${SHEET_QC_OUTBOUND}!A1`,
+    valueInputOption: 'RAW',
+    requestBody: { values: [QC_OUTBOUND_HEADERS] }
+  });
+
+  if (created) {
+    const sheetId = await getSheetId(sheets, SHEET_QC_OUTBOUND);
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      requestBody: {
+        requests: [
+          {
+            repeatCell: {
+              range: { sheetId, startRowIndex: 0, endRowIndex: 1 },
+              cell: {
+                userEnteredFormat: {
+                  textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } },
+                  backgroundColor: { red: 0.345, green: 0.157, blue: 0.698 }, // ungu
+                  horizontalAlignment: 'CENTER'
+                }
+              },
+              fields: 'userEnteredFormat(textFormat,backgroundColor,horizontalAlignment)'
+            }
+          },
+          {
+            updateSheetProperties: {
+              properties: { sheetId, gridProperties: { frozenRowCount: 1 } },
+              fields: 'gridProperties.frozenRowCount'
+            }
+          }
+        ]
+      }
+    });
+  }
+  return created;
+}
+
+/**
+ * Konversi QC Outbound entry ke array baris untuk Google Sheets
+ */
+function qcOutboundToRow(e, idx) {
+  const total = (parseInt(e.kontainer) || 0) + (parseInt(e.styrofoam) || 0) + (parseInt(e.dus) || 0);
+  return [
+    idx,
+    e.tanggal || '',
+    e.no_polisi || '',
+    parseInt(e.kontainer) || 0,
+    parseInt(e.styrofoam) || 0,
+    parseInt(e.dus) || 0,
+    total,
+    e.catatan || '',
+    e.created_by || '',
+    e.created_at ? new Date(e.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : '',
+    e.id || ''
+  ];
+}
+
+/**
+ * Push SEMUA QC Outbound entries ke Google Sheets (replace isi, pertahankan header)
+ */
+async function pushAllQcOutbound(entries) {
+  if (!isConfigured()) {
+    return { success: false, rowCount: 0, message: 'Google Sheets belum dikonfigurasi.' };
+  }
+
+  try {
+    const sheets = await getSheetsClient();
+    await initQcOutboundSheet(sheets);
+
+    // Clear data lama (baris 2 ke bawah), pertahankan header di baris 1
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_QC_OUTBOUND}!A2:Z`,
+    });
+
+    if (!entries || entries.length === 0) {
+      return { success: true, rowCount: 0, message: 'Tidak ada data QC Outbound untuk di-push.' };
+    }
+
+    const rows = entries.map((e, i) => qcOutboundToRow(e, i + 1));
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_QC_OUTBOUND}!A2`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: rows }
+    });
+
+    await styleSheet(sheets, SHEET_QC_OUTBOUND);
+
+    return {
+      success: true,
+      rowCount: rows.length,
+      message: `Berhasil push ${rows.length} data QC Outbound ke Google Sheets.`
+    };
+  } catch (err) {
+    console.error('[GoogleSheets] pushAllQcOutbound error:', err.message);
+    return { success: false, rowCount: 0, message: `Gagal push QC Outbound: ${err.message}` };
+  }
+}
+
 module.exports = {
   isConfigured,
   pushAllSubmissions,
   appendSubmission,
   pushAllLoaderEntries,
   appendLoaderEntry,
+  pushAllReturnEntries,
+  appendReturnEntry,
   appendDataCarianToSheet,
+  pushAllQcOutbound,
   checkStatus,
   testConnection
 };
-

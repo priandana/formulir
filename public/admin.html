@@ -62,6 +62,11 @@
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
           Entry Loader
         </a>
+        <a class="nav-item" id="nav-return-validation" onclick="showPage('return-validation')">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+          Validasi Return
+        </a>
+
         <a class="nav-item" id="nav-data-carian" onclick="showPage('data-carian')">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
           Carian Harian
@@ -101,6 +106,10 @@
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
           Rekap Pendapatan
         </a>
+        <a class="nav-item" id="nav-penggajian" onclick="showPage('penggajian')">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Rekap Penggajian (HR)
+        </a>
 
         <a class="nav-item" id="nav-announcements" onclick="showPage('announcements')">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
@@ -125,10 +134,6 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
           Google Sheets
         </a>
-        <a class="nav-item" onclick="exportCSV()">
-          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-          Ekspor File CSV
-        </a>
         <a class="nav-item" href="/" target="_blank">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
           Buka Formulir Input
@@ -138,8 +143,16 @@
 
     <div class="nav-section-title" style="margin-top:12px">Pengaturan</div>
     <a class="nav-item" onclick="showPage('login-settings')" id="nav-login-settings">
-      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 3v18"/></svg>
-      Tampilan Login
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+      Pengaturan Situs
+    </a>
+    <a class="nav-item" onclick="showPage('periode-aktif')" id="nav-periode-aktif">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01"/></svg>
+      Periode Aktif
+    </a>
+    <a class="nav-item" onclick="showPage('phl-settings')" id="nav-phl-settings">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+      Pengaturan PHL
     </a>
     <a class="nav-item" onclick="showPage('admin-accounts')" id="nav-admin-accounts">
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
@@ -175,6 +188,7 @@
 <!-- Main Content -->
 <main class="main-content">
   <div class="topbar">
+
     <div style="display:flex;align-items:center;gap:12px;">
       <button class="btn btn-outline" id="mobileMenuBtn" onclick="document.getElementById('sidebar').classList.toggle('open')">
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
@@ -182,6 +196,23 @@
       <h2 id="pageTitle">Dashboard</h2>
     </div>
     <div class="topbar-actions">
+      <!-- Real-time clock + server status (subtle, di tengah) -->
+      <div class="topbar-clock-wrap" id="topbarClockWrap">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="opacity:0.5;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span id="tisClock" style="font-size:12px; font-weight:500; color:var(--text-muted); white-space:nowrap;">—</span>
+        <div style="width:1px;height:12px;background:var(--card-border);flex-shrink:0;"></div>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <div class="tis-status-dot" id="tisStatusDot"></div>
+          <span id="tisStatusText" style="font-size:11px;font-weight:600;color:var(--text-muted);">Online</span>
+        </div>
+        <!-- Pending chip -->
+        <div class="tis-pending" id="tisPendingChip" onclick="showPage('submissions'); filterToPending()" style="display:none;" title="Klik untuk tinjau">
+          <span class="tis-pending-badge" id="tisPendingCount">0</span>
+          Pending
+        </div>
+        <div class="tis-divider" id="tisPendingDivider" style="display:none;"></div>
+      </div>
+
       <button class="btn btn-success" id="btnExportExcel" onclick="exportExcel()">
         <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3"/><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1"/></svg>
         <span>Export Excel</span>
@@ -197,6 +228,7 @@
       </button>
     </div>
   </div>
+
 
   <div class="page-content">
 
@@ -315,6 +347,7 @@
               <option value="Picker">🔵 Picker</option>
               <option value="Sorter">🟢 Sorter</option>
               <option value="Loader">🟡 Loader</option>
+              <option value="Return">🔄 Return</option>
             </select>
           </div>
         </div>
@@ -489,6 +522,12 @@
             <option value="Picker">Picker</option>
             <option value="Sorter">Sorter</option>
             <option value="Loader">Loader</option>
+            <option value="Return">Return</option>
+          </select>
+          <select id="rpFilterTipe" onchange="rpApplyFilter()" style="padding:6px 10px; border:1px solid var(--card-border); border-radius:8px; background:var(--card-bg); color:var(--text-primary); font-size:12px;">
+            <option value="">Semua Tipe</option>
+            <option value="Productivity">Productivity</option>
+            <option value="PHL">PHL</option>
           </select>
           <div style="position:relative;">
             <svg width="14" height="14" fill="none" stroke="var(--text-muted)" stroke-width="2" viewBox="0 0 24 24" style="position:absolute; left:8px; top:50%; transform:translateY(-50%);"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
@@ -648,6 +687,7 @@
                 <option value="Picker">🔵 Picker</option>
                 <option value="Sorter">🟢 Sorter</option>
                 <option value="Loader">🟡 Loader</option>
+                <option value="Return">🔄 Return</option>
               </select>
             </div>
             <!-- Tipe Lokasi -->
@@ -680,16 +720,48 @@
           <div class="table-title" style="font-size:14px;">Semua Data Submissions</div>
           <div id="filterResultInfo" style="font-size:12px; color:var(--text-muted);"></div>
         </div>
+
+        <!-- BULK ACTION BAR -->
+        <div class="bulk-action-bar" id="bulkActionBar">
+          <span class="bulk-count-badge">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+            <span id="bulkSelectedCount">0</span> dipilih
+          </span>
+          <span class="bulk-label">Terapkan aksi ke semua submission yang dipilih:</span>
+          <button class="btn-bulk-approve" onclick="bulkUpdateStatus('approved')">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+            Approve Semua
+          </button>
+          <button class="btn-bulk-reject" onclick="bulkUpdateStatus('rejected')">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+            Reject Semua
+          </button>
+          <button class="btn-bulk-clear" onclick="clearBulkSelection()">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+            Batal Pilih
+          </button>
+        </div>
+
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
+                <th class="select-all-th"><input type="checkbox" class="bulk-checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)" title="Pilih semua pending"></th>
                 <th>No</th><th>Tgl Carian</th><th>Tgl Pengerjaan</th><th>Nama</th><th>Posisi</th><th>Tipe Lokasi</th><th>Zona</th><th>Batch</th><th>Output</th><th>Status</th><th>Submit</th><th>Aksi</th>
               </tr>
             </thead>
             <tbody id="allTableBody">
-              <tr><td colspan="12"><div class="loading-spinner"><div class="spin"></div></div></td></tr>
+              <!-- skeleton loading rows (akan diganti JS setelah data dimuat) -->
+              <tr class="skeleton-row"><td><span class="skeleton-cell circle"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-xl"></span></td><td><span class="skeleton-cell badge-shape"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell badge-shape"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-md"></span></td></tr>
+              <tr class="skeleton-row"><td><span class="skeleton-cell circle"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-lg"></span></td><td><span class="skeleton-cell badge-shape"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell badge-shape"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-md"></span></td></tr>
+              <tr class="skeleton-row"><td><span class="skeleton-cell circle"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell w-xl"></span></td><td><span class="skeleton-cell badge-shape"></span></td><td><span class="skeleton-cell w-lg"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell badge-shape"></span></td><td><span class="skeleton-cell w-lg"></span></td><td><span class="skeleton-cell w-md"></span></td></tr>
+              <tr class="skeleton-row"><td><span class="skeleton-cell circle"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-xl"></span></td><td><span class="skeleton-cell badge-shape"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell badge-shape"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-md"></span></td></tr>
+              <tr class="skeleton-row"><td><span class="skeleton-cell circle"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-lg"></span></td><td><span class="skeleton-cell badge-shape"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell badge-shape"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-md"></span></td></tr>
+              <tr class="skeleton-row"><td><span class="skeleton-cell circle"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell w-xl"></span></td><td><span class="skeleton-cell badge-shape"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell badge-shape"></span></td><td><span class="skeleton-cell w-lg"></span></td><td><span class="skeleton-cell w-md"></span></td></tr>
+              <tr class="skeleton-row"><td><span class="skeleton-cell circle"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-lg"></span></td><td><span class="skeleton-cell badge-shape"></span></td><td><span class="skeleton-cell w-xl"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell badge-shape"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-md"></span></td></tr>
+              <tr class="skeleton-row"><td><span class="skeleton-cell circle"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell w-xl"></span></td><td><span class="skeleton-cell badge-shape"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-sm"></span></td><td><span class="skeleton-cell badge-shape"></span></td><td><span class="skeleton-cell w-md"></span></td><td><span class="skeleton-cell w-md"></span></td></tr>
             </tbody>
+
           </table>
         </div>
         <div class="table-footer">
@@ -864,7 +936,10 @@
             </tbody>
           </table>
         </div>
-        <div style="padding:10px 16px;font-size:12px;color:#64748b;" id="rekapPageInfo">-</div>
+        <div style="padding:10px 16px;display:flex;justify-content:space-between;align-items:center;background:var(--card-bg);border-top:1px solid var(--border);border-bottom-left-radius:12px;border-bottom-right-radius:12px;">
+          <div style="font-size:12px;color:#64748b;" id="rekapPageInfo">-</div>
+          <div id="rekapPaginationControls" style="display:flex;gap:8px;align-items:center;"></div>
+        </div>
       </div>
     </div>
 
@@ -897,6 +972,8 @@
                 <option value="Picker">Picker</option>
                 <option value="Sorter">Sorter</option>
                 <option value="Loader">Loader</option>
+                <option value="Return">Return</option>
+                <option value="QC Outbound">QC Outbound</option>
               </select>
             </div>
             <div class="form-group">
@@ -923,12 +1000,19 @@
       </div>
 
       <div class="table-card">
-        <div class="table-header">
+        <div class="table-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
           <div class="table-title">Daftar User Operasional</div>
-          <button class="btn btn-outline" onclick="loadUsers()">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-            Refresh
-          </button>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <select id="userFilterTipe" onchange="filterUsersTable()" style="height:34px; padding:0 12px; font-size:12px; font-weight:600; border-radius:10px; border:1px solid var(--card-border); background:var(--card-bg); color:var(--text); cursor:pointer; outline:none;">
+              <option value="">-- Semua Tipe Karyawan --</option>
+              <option value="Productivity">Productivity</option>
+              <option value="PHL">PHL</option>
+            </select>
+            <button class="btn btn-outline" onclick="loadUsers()">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              Refresh
+            </button>
+          </div>
         </div>
         <div class="table-wrap">
           <table>
@@ -1082,6 +1166,15 @@
                   <span class="perm-card-desc">Lihat leaderboard & total gaji</span>
                 </span>
               </label>
+              <label class="perm-card">
+                <input type="checkbox" name="newAdminPages" value="penggajian" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+                <div class="perm-checkbox-indicator"></div>
+                <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></span>
+                <span class="perm-card-info">
+                  <span class="perm-card-title">Rekap Penggajian (HR)</span>
+                  <span class="perm-card-desc">Combined Kehadiran & Pendapatan</span>
+                </span>
+              </label>
 
               <label class="perm-card">
                 <input type="checkbox" name="newAdminPages" value="announcements" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
@@ -1158,6 +1251,47 @@
             </button>
           </div>
         </div>
+
+        <!-- Filter Panel -->
+        <div class="filter-panel" style="display: flex; gap: 16px; padding: 20px; border-bottom: 1px solid var(--card-border); flex-wrap: wrap; background: rgba(30, 41, 59, 0.15);">
+          <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px; min-width: 160px; flex: 1;">
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Kategori Aksi</label>
+            <select id="logActionFilter" class="form-control" onchange="loadAuditLogs(1)" style="font-size: 13px; height: 38px; padding: 0 12px;">
+              <option value="">Semua Kategori</option>
+              <option value="auth">🔑 Autentikasi (Login/Ganti PW)</option>
+              <option value="submissions">✅ Persetujuan (Approve/Reject/Delete)</option>
+              <option value="data_carian">📦 Data Carian & Google Sheets</option>
+              <option value="users">👥 Manajemen Pengguna</option>
+              <option value="absensi">📅 Kehadiran & Setelan</option>
+              <option value="announcements">📢 Pengumuman</option>
+            </select>
+          </div>
+          <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px; min-width: 160px; flex: 1;">
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Admin User</label>
+            <select id="logUserFilter" class="form-control" onchange="loadAuditLogs(1)" style="font-size: 13px; height: 38px; padding: 0 12px;">
+              <option value="">Semua Admin</option>
+            </select>
+          </div>
+          <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px; min-width: 140px; flex: 1;">
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Tanggal Dari</label>
+            <input type="date" id="logDateStartFilter" class="form-control" onchange="loadAuditLogs(1)" style="font-size: 13px; height: 38px; padding: 0 12px;">
+          </div>
+          <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px; min-width: 140px; flex: 1;">
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Tanggal Sampai</label>
+            <input type="date" id="logDateEndFilter" class="form-control" onchange="loadAuditLogs(1)" style="font-size: 13px; height: 38px; padding: 0 12px;">
+          </div>
+          <div class="filter-group" style="display: flex; align-items: flex-end; gap: 10px; min-width: 200px; flex: 1.2; justify-content: flex-end;">
+            <button class="btn btn-outline" onclick="resetLogFilters()" style="height: 38px; padding: 0 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              Reset
+            </button>
+            <button class="btn" onclick="exportAuditLogsExcel()" style="height: 38px; padding: 0 16px; font-size: 13px; display: flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; font-weight: 600; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              Ekspor Excel
+            </button>
+          </div>
+        </div>
+
         <div class="table-wrap">
           <table>
             <thead>
@@ -1236,6 +1370,16 @@
               style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); font-size:14px; box-sizing:border-box; resize:vertical; font-family:inherit;"></textarea>
           </div>
 
+          <!-- Gambar (Upload) -->
+          <div style="margin-bottom:18px;">
+            <label style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:.5px;">Gambar Pengumuman (Opsional)</label>
+            <input type="file" id="annImageInput" accept="image/*" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); font-size:13px; box-sizing:border-box;">
+            <div id="annImagePreviewContainer" style="display:none; margin-top:10px; position:relative; width:100%; max-height:160px; border-radius:10px; overflow:hidden; border:1px solid var(--border);">
+              <img id="annImagePreviewEl" src="" style="width:100%; height:100%; object-fit:cover; display:block;">
+              <button type="button" onclick="clearAnnImage()" style="position:absolute; top:8px; right:8px; background:rgba(239,68,68,0.9); color:white; border:none; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-weight:700; font-size:12px; box-shadow:0 2px 4px rgba(0,0,0,0.2);">✕</button>
+            </div>
+          </div>
+
           <!-- Type -->
           <div style="margin-bottom:24px;">
             <label style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:10px; text-transform:uppercase; letter-spacing:.5px;">Tipe Tampilan</label>
@@ -1294,9 +1438,137 @@
       </div>
     </div>
 
+    <!-- ===== VALIDASI RETURN PAGE ===== -->
+    <div id="page-return-validation" class="page-section" style="display:none;">
+
+      <!-- Header Banner -->
+      <div style="background:linear-gradient(135deg,rgba(13,148,136,0.1),rgba(15,118,110,0.04));border:1.5px solid rgba(13,148,136,0.2);border-radius:16px;padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;box-shadow:0 4px 20px rgba(13,148,136,0.06);">
+        <div style="display:flex;align-items:center;gap:16px;">
+          <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#0D9488,#0F766E);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(13,148,136,0.35);flex-shrink:0;">
+            <svg width="24" height="24" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          </div>
+          <div>
+            <h2 style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:3px;letter-spacing:-0.2px;">Validasi Return Kontainer</h2>
+            <p style="font-size:13px;color:var(--text-muted);margin:0;">Periksa dan validasi data fisik kontainer kembali dari toko ke DC</p>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <button onclick="exportReturnExcel()"
+            style="padding:10px 18px;border-radius:10px;border:none;background:linear-gradient(135deg,#10B981,#059669);color:#fff;font-weight:700;cursor:pointer;font-size:13px;display:inline-flex;align-items:center;gap:8px;box-shadow:0 3px 10px rgba(16,185,129,0.25);transition:all 0.2s;"
+            onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 5px 14px rgba(16,185,129,0.35)';"
+            onmouseout="this.style.transform='none';this.style.boxShadow='0 3px 10px rgba(16,185,129,0.25)';">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Export Excel
+          </button>
+          <button onclick="loadAdminReturnEntries()"
+            style="padding:10px 16px;border-radius:10px;border:1.5px solid rgba(100,116,139,0.25);background:var(--card-bg);color:var(--text);font-weight:700;cursor:pointer;font-size:13px;display:inline-flex;align-items:center;gap:6px;transition:all 0.2s;"
+            onmouseover="this.style.borderColor='#0D9488';this.style.color='#0D9488';"
+            onmouseout="this.style.borderColor='rgba(100,116,139,0.25)';this.style.color='var(--text)';">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Summary Stats Bar -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px;">
+        <div style="background:var(--card-bg);border:1.5px solid rgba(100,116,139,0.15);border-radius:14px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,0.02);">
+          <div>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.5px;">Total Entry</div>
+            <div id="rvStatTotal" style="font-size:22px;font-weight:800;color:var(--text);margin-top:2px;">—</div>
+          </div>
+          <div style="width:38px;height:38px;border-radius:10px;background:rgba(59,130,246,0.1);color:#2563EB;display:flex;align-items:center;justify-content:center;">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          </div>
+        </div>
+
+        <div style="background:var(--card-bg);border:1.5px solid rgba(245,158,11,0.25);border-radius:14px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(245,158,11,0.04);">
+          <div>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#D97706;letter-spacing:0.5px;">Menunggu Validasi</div>
+            <div id="rvStatPending" style="font-size:22px;font-weight:800;color:#B45309;margin-top:2px;">—</div>
+          </div>
+          <div style="width:38px;height:38px;border-radius:10px;background:rgba(245,158,11,0.12);color:#D97706;display:flex;align-items:center;justify-content:center;">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+        </div>
+
+        <div style="background:var(--card-bg);border:1.5px solid rgba(16,185,129,0.25);border-radius:14px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(16,185,129,0.04);">
+          <div>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#059669;letter-spacing:0.5px;">Tervalidasi</div>
+            <div id="rvStatValidated" style="font-size:22px;font-weight:800;color:#047857;margin-top:2px;">—</div>
+          </div>
+          <div style="width:38px;height:38px;border-radius:10px;background:rgba(16,185,129,0.12);color:#059669;display:flex;align-items:center;justify-content:center;">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+        </div>
+
+        <div style="background:var(--card-bg);border:1.5px solid rgba(239,68,68,0.25);border-radius:14px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(239,68,68,0.04);">
+          <div>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#DC2626;letter-spacing:0.5px;">Perlu Revisi</div>
+            <div id="rvStatRevised" style="font-size:22px;font-weight:800;color:#B91C1C;margin-top:2px;">—</div>
+          </div>
+          <div style="width:38px;height:38px;border-radius:10px;background:rgba(239,68,68,0.12);color:#DC2626;display:flex;align-items:center;justify-content:center;">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Styled Filter Card -->
+      <div style="background:var(--card-bg);border:1.5px solid rgba(100,116,139,0.15);border-radius:16px;padding:16px 20px;margin-bottom:20px;display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;box-shadow:0 2px 10px rgba(0,0,0,0.02);">
+        <div style="min-width:180px;">
+          <label style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px;">
+            📅 Tanggal Return
+          </label>
+          <input type="date" id="rvFilterTanggal" oninput="loadAdminReturnEntries()"
+            style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid rgba(13,148,136,0.25);background:var(--input-bg,#F8FAFC);font-size:13px;font-weight:600;color:var(--text);outline:none;transition:all 0.2s;"
+            onfocus="this.style.borderColor='#0D9488';this.style.boxShadow='0 0 0 3px rgba(13,148,136,0.15)';"
+            onblur="this.style.borderColor='rgba(13,148,136,0.25)';this.style.boxShadow='none';">
+        </div>
+
+        <div style="min-width:180px;">
+          <label style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px;">
+            🔍 Status Validasi
+          </label>
+          <div style="position:relative;">
+            <select id="rvFilterStatus" onchange="loadAdminReturnEntries()"
+              style="width:100%;padding:9px 36px 9px 12px;border-radius:10px;border:1.5px solid rgba(13,148,136,0.25);background:var(--input-bg,#F8FAFC);font-size:13px;font-weight:700;color:var(--text);outline:none;appearance:none;-webkit-appearance:none;cursor:pointer;transition:all 0.2s;"
+              onfocus="this.style.borderColor='#0D9488';this.style.boxShadow='0 0 0 3px rgba(13,148,136,0.15)';"
+              onblur="this.style.borderColor='rgba(13,148,136,0.25)';this.style.boxShadow='none';">
+              <option value="">Semua Status</option>
+              <option value="submitted">⏳ Menunggu Validasi</option>
+              <option value="validated">✅ Tervalidasi</option>
+              <option value="revised">🔁 Perlu Revisi</option>
+            </select>
+            <div style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:#0D9488;">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:1;min-width:200px;">
+          <label style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px;">
+            🔎 Cari Armada / Loader
+          </label>
+          <input type="text" id="rvFilterSearch" placeholder="Cari No. Polisi atau nama team..." oninput="loadAdminReturnEntries()"
+            style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid rgba(100,116,139,0.2);background:var(--input-bg,#F8FAFC);font-size:13px;color:var(--text);outline:none;transition:all 0.2s;"
+            onfocus="this.style.borderColor='#0D9488';this.style.boxShadow='0 0 0 3px rgba(13,148,136,0.15)';"
+            onblur="this.style.borderColor='rgba(100,116,139,0.2)';this.style.boxShadow='none';">
+        </div>
+      </div>
+
+      <!-- Table / Cards Content Container -->
+      <div id="returnValidationContent">
+        <div style="text-align:center;padding:48px;color:var(--text-muted);font-size:13px;">
+          Memuat data return...
+        </div>
+      </div>
+    </div>
+    <!-- ===== END VALIDASI RETURN PAGE ===== -->
+
     <!-- ===== STATUS INPUT CARIAN PAGE ===== -->
 
     <div id="page-status-carian" class="page-section" style="display:none;">
+
       <!-- Header -->
       <div class="section-header" style="margin-bottom: 24px;">
         <div>
@@ -1799,8 +2071,8 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
     <!-- ===== EDIT TAMPILAN LOGIN PAGE ===== -->
     <div id="page-login-settings" class="page-section" style="display:none;">
       <div style="margin-bottom:24px;">
-        <h2 style="font-size:20px; font-weight:800; color:var(--text); margin-bottom:6px;">Pengaturan Tampilan Login</h2>
-        <p style="font-size:13px; color:var(--text-muted);">Ubah teks headline, deskripsi, quote, dan info lainnya pada halaman login.</p>
+        <h2 style="font-size:20px; font-weight:800; color:var(--text); margin-bottom:6px;">Pengaturan Tampilan Login & Pemeliharaan</h2>
+        <p style="font-size:13px; color:var(--text-muted);">Ubah teks visual login, aktifkan mode pemeliharaan (maintenance), dan atur pesan pemberitahuannya.</p>
       </div>
 
       <div class="gs-panel">
@@ -1871,7 +2143,223 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
           </form>
         </div>
       </div>
+
+      <!-- ===== MAINTENANCE MODE PANEL ===== -->
+      <div class="gs-panel" style="margin-top:24px;">
+        <div class="gs-header">
+          <div class="gs-logo">
+            <div class="gs-icon" style="background:linear-gradient(135deg,#EF4444,#F59E0B);">
+              <svg width="22" height="22" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            </div>
+            <div>
+              <div class="gs-title">Mode Pemeliharaan Sistem (Maintenance Mode)</div>
+              <div class="gs-subtitle">Kelola akses operasional dan pesan pemeliharaan kustom</div>
+            </div>
+          </div>
+        </div>
+        <div class="gs-body">
+          <form id="formMaintenanceSettings" onsubmit="window.saveMaintenanceSettings(event)" style="display:flex; flex-direction:column; gap:16px;">
+            <div class="form-group" style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-secondary); padding:16px; border-radius:12px; border:1px solid var(--border);">
+              <div>
+                <div style="font-weight:700; font-size:14px; color:var(--text);">Aktifkan Mode Pemeliharaan</div>
+                <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">Jika aktif, user operasional tidak dapat login atau mengakses formulir, sedangkan Admin tetap memiliki akses penuh.</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="maintActive">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="form-group">
+              <label for="maintTitleInput" style="font-weight:600; font-size:13px; color:var(--text); margin-bottom:6px; display:block;">Judul Pesan Pemeliharaan</label>
+              <input type="text" id="maintTitleInput" class="form-control" placeholder="Contoh: Sistem Sedang Pemeliharaan" required>
+            </div>
+
+            <div class="form-group">
+              <label for="maintMessageInput" style="font-weight:600; font-size:13px; color:var(--text); margin-bottom:6px; display:block;">Detail Deskripsi / Pesan Pemeliharaan</label>
+              <textarea id="maintMessageInput" class="form-control" rows="3" style="resize:vertical;" placeholder="Detail penjelasan untuk user operasional..." required></textarea>
+            </div>
+
+            <div class="form-group">
+              <label for="maintEstimatedEnd" style="font-weight:600; font-size:13px; color:var(--text); margin-bottom:6px; display:block;">Perkiraan Selesai (Opsional)</label>
+              <input type="text" id="maintEstimatedEnd" class="form-control" placeholder="Contoh: 12 Juli 2026, 21:00 WIB (kosongkan jika tidak ingin ditampilkan)">
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:8px;">
+              <button type="button" class="btn btn-outline" onclick="window.loadMaintenanceSettings()">
+                Reset
+              </button>
+              <button type="submit" class="btn btn-primary" id="btnSaveMaintenanceSettings" style="background:var(--primary); color:white; border:none; border-radius:8px; padding:8px 16px; font-weight:600; cursor:pointer;">
+                Simpan Konfigurasi
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
+
+    <!-- ===== PERIODE AKTIF PAGE ===== -->
+    <div id="page-periode-aktif" class="page-section" style="display:none;">
+      <div style="margin-bottom:24px;">
+        <h2 style="font-size:20px; font-weight:800; color:var(--text); margin-bottom:6px;">Periode Aktif (Tutup Buku)</h2>
+        <p style="font-size:13px; color:var(--text-muted);">Tetapkan tanggal mulai periode kerja aktif. Statistik <strong>TOTAL (PERIODE INI)</strong> di dashboard karyawan akan dihitung mulai dari tanggal ini. Data sebelum tanggal ini tetap tersimpan di Riwayat.</p>
+      </div>
+
+      <!-- Info Banner -->
+      <div style="display:flex; align-items:flex-start; gap:12px; padding:14px 18px; background:rgba(37,99,235,0.05); border:1px solid rgba(37,99,235,0.15); border-radius:12px; margin-bottom:24px;">
+        <svg width="18" height="18" fill="none" stroke="#2563EB" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0; margin-top:1px;"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+        <div style="font-size:13px; color:var(--text-muted); line-height:1.6;">
+          <strong style="color:var(--text);">Cara Kerja:</strong> Setelah tanggal mulai ditetapkan, kartu TOTAL di dashboard karyawan hanya menampilkan data dari tanggal tersebut ke depan. Jika dikosongkan, statistik kembali ke hitungan semua waktu.
+        </div>
+      </div>
+
+      <!-- Periode Aktif Card -->
+      <div class="gs-panel">
+        <div class="gs-header">
+          <div class="gs-logo">
+            <div class="gs-icon" style="background:linear-gradient(135deg,#7C3AED,#A78BFA);">
+              <svg width="22" height="22" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
+            </div>
+            <div>
+              <div class="gs-title">Tetapkan Tanggal Mulai Periode</div>
+              <div class="gs-subtitle" id="periodeAktifStatusText">Memuat...</div>
+            </div>
+          </div>
+        </div>
+        <div class="gs-body" style="padding:24px;">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:end;">
+            <div class="form-group" style="margin:0;">
+              <label style="font-weight:700; font-size:13px; color:var(--text); margin-bottom:8px; display:block;">
+                Tanggal Mulai Periode Aktif
+              </label>
+              <input type="date" id="periodeAktifTanggal" class="form-control"
+                style="font-size:14px; font-weight:600; padding:10px 14px;">
+              <p style="font-size:11px; color:var(--text-muted); margin-top:6px; margin-bottom:0;">
+                Kosongkan untuk menghitung dari semua waktu (tidak ada tutup buku).
+              </p>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              <button class="btn btn-primary" onclick="savePeriodeAktif()" style="width:100%; justify-content:center; gap:8px;">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+                Simpan Periode
+              </button>
+              <button class="btn btn-outline" onclick="resetPeriodeAktif()" style="width:100%; justify-content:center; gap:8px;">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                Reset (Semua Waktu)
+              </button>
+            </div>
+          </div>
+
+          <!-- Preview info -->
+          <div id="periodeAktifPreview" style="display:none; margin-top:20px; padding:14px 18px; background:rgba(124,58,237,0.05); border:1px solid rgba(124,58,237,0.15); border-radius:10px;">
+            <div style="font-size:12px; font-weight:700; color:#7C3AED; margin-bottom:4px;">✅ Periode Aktif Berlaku</div>
+            <div style="font-size:13px; color:var(--text);">Dashboard karyawan menampilkan data mulai <strong id="periodeAktifTanggalDisplay">—</strong> hingga sekarang.</div>
+          </div>
+          <div id="periodeAktifPreviewReset" style="display:none; margin-top:20px; padding:14px 18px; background:rgba(107,114,128,0.05); border:1px solid rgba(107,114,128,0.15); border-radius:10px;">
+            <div style="font-size:12px; font-weight:700; color:#4B5563; margin-bottom:4px;">📊 Mode Semua Waktu</div>
+            <div style="font-size:13px; color:var(--text);">Tidak ada tutup buku aktif. Dashboard karyawan menampilkan data dari semua waktu.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PHL SETTINGS PAGE ===== -->
+    <div id="page-phl-settings" class="page-section" style="display:none;">
+
+      <div style="margin-bottom:24px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+          <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#a78bfa);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(124,58,237,0.3);">
+            <svg width="20" height="20" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+          </div>
+          <div>
+            <h2 style="font-size:20px;font-weight:800;color:var(--text);margin:0 0 2px;">Pengaturan Karyawan PHL</h2>
+            <p style="font-size:13px;color:var(--text-muted);margin:0;">Atur upah harian untuk semua karyawan berstatus PHL. Nilai ini digunakan untuk menghitung estimasi pendapatan.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Info Banner -->
+      <div style="background:linear-gradient(135deg,rgba(124,58,237,0.08),rgba(167,139,250,0.05));border:1.5px solid rgba(124,58,237,0.2);border-radius:14px;padding:16px 20px;margin-bottom:24px;display:flex;align-items:flex-start;gap:14px;">
+        <div style="font-size:22px;flex-shrink:0;">💡</div>
+        <div>
+          <div style="font-weight:700;font-size:13px;color:var(--text);margin-bottom:4px;">Cara Kerja Sistem PHL</div>
+          <div style="font-size:12px;color:var(--text-muted);line-height:1.7;">
+            Karyawan dengan status <strong>PHL</strong> akan melihat estimasi pendapatan berdasarkan <strong>Jumlah Hari Hadir × Upah Harian</strong> yang kamu atur di sini.
+            Karyawan PHL tetap bisa mengisi formulir untuk keperluan pencatatan dan monitoring produktivitas.
+          </div>
+        </div>
+      </div>
+
+      <!-- PHL Rate Card -->
+      <div class="gs-panel">
+        <div class="gs-header">
+          <div class="gs-logo">
+            <div class="gs-icon" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);">
+              <svg width="22" height="22" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div>
+              <div class="gs-title">Upah Harian Karyawan PHL</div>
+              <div class="gs-subtitle">Berlaku untuk semua karyawan berstatus PHL</div>
+            </div>
+          </div>
+        </div>
+        <div class="gs-body">
+          <form id="formPhlSettings" onsubmit="savePhlSettings(event)" style="display:flex;flex-direction:column;gap:20px;">
+            <div>
+              <label for="phlUpahHarian" style="font-weight:700;font-size:13px;color:var(--text);margin-bottom:8px;display:block;">Nominal Upah Harian (Rp)</label>
+              <div style="position:relative;">
+                <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-weight:700;font-size:14px;color:var(--text-muted);">Rp</span>
+                <input type="number" id="phlUpahHarian" class="form-control" placeholder="Contoh: 80000" min="0" step="500" required
+                  style="padding-left:40px;font-size:16px;font-weight:700;letter-spacing:0.5px;"
+                  oninput="updatePhlPreview()">
+              </div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:6px;">Masukkan angka tanpa titik atau koma. Contoh: <strong>80000</strong> untuk Rp 80.000</div>
+            </div>
+
+            <!-- Live Preview -->
+            <div id="phlLivePreview" style="background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:16px 20px;display:none;">
+              <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;">📊 Estimasi Preview</div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;">
+                <div style="text-align:center;padding:12px;background:rgba(124,58,237,0.06);border-radius:10px;">
+                  <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Per 20 Hari</div>
+                  <div id="phlPreview20" style="font-size:16px;font-weight:800;color:#7c3aed;">Rp 0</div>
+                </div>
+                <div style="text-align:center;padding:12px;background:rgba(124,58,237,0.06);border-radius:10px;">
+                  <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Per 25 Hari</div>
+                  <div id="phlPreview25" style="font-size:16px;font-weight:800;color:#7c3aed;">Rp 0</div>
+                </div>
+                <div style="text-align:center;padding:12px;background:rgba(124,58,237,0.06);border-radius:10px;">
+                  <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Per 26 Hari</div>
+                  <div id="phlPreview26" style="font-size:16px;font-weight:800;color:#7c3aed;">Rp 0</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Status Message -->
+            <div id="phlSettingsSaveStatus" style="display:none;padding:12px 16px;border-radius:10px;font-size:13px;font-weight:700;text-align:center;"></div>
+
+            <div style="display:flex;justify-content:flex-end;gap:12px;">
+              <button type="button" class="btn btn-outline" onclick="loadPhlAdminSettings()" style="font-size:13px;">Reset</button>
+              <button type="submit" class="btn btn-primary" id="btnSavePhlSettings" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);border:none;color:#fff;padding:10px 24px;font-size:14px;font-weight:700;border-radius:10px;cursor:pointer;transition:all 0.2s;">
+                <span id="phlSaveBtnText">💾 Simpan Pengaturan PHL</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Info Table: Karyawan PHL -->
+      <div class="table-card" style="margin-top:24px;">
+        <div class="table-header" style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+          <div class="table-title">👥 Daftar Karyawan Berstatus PHL</div>
+          <div id="phlUserCount" style="font-size:12px;color:var(--text-muted);">Memuat...</div>
+        </div>
+        <div id="phlUserList" style="padding:0;">
+          <div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">Memuat daftar karyawan PHL...</div>
+        </div>
+      </div>
+    </div>
+    <!-- ===== END PHL SETTINGS PAGE ===== -->
 
     <!-- ===== ABSENSI PAGE ===== -->
     <div id="page-absensi" class="page-section" style="display:none;">
@@ -1890,6 +2378,21 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
 
       <!-- Status Banner -->
       <div id="absensiStatusBanner" style="display:none; margin-bottom:20px;"></div>
+
+      <!-- Mode Tabs: Absensi Harian vs Rekap Per Karyawan -->
+      <div style="display:flex; gap:8px; margin-bottom:20px;">
+        <button id="absensiModeHarian" onclick="setAbsensiMode('harian')"
+          style="padding:9px 20px; border-radius:10px; border:1.5px solid var(--primary); background:var(--primary); color:#fff; font-size:13px; font-weight:700; cursor:pointer; transition:all 0.2s;">
+          📅 Absensi Harian
+        </button>
+        <button id="absensiModeRekap" onclick="setAbsensiMode('rekap')"
+          style="padding:9px 20px; border-radius:10px; border:1.5px solid var(--card-border); background:var(--card-bg); color:var(--text); font-size:13px; font-weight:600; cursor:pointer; transition:all 0.2s;">
+          👤 Rekap Per Karyawan
+        </button>
+      </div>
+
+      <!-- ===== PANEL ABSENSI HARIAN ===== -->
+      <div id="panelAbsensiHarian">
 
       <!-- Stats Row -->
       <div id="absensiStatsRow" style="display:none; display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:20px;">
@@ -1989,9 +2492,162 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
           </div>
         </div>
       </div>
+      </div> <!-- end panelAbsensiHarian -->
+
+      <!-- ===== PANEL REKAP PER KARYAWAN ===== -->
+      <div id="panelRekapKaryawan" style="display:none;">
+        <div class="table-card">
+          <div class="table-header" style="flex-wrap:wrap; gap:14px;">
+            <div class="table-title" style="display:flex;align-items:center;gap:8px;">
+              👤 Rekap Kehadiran Per Karyawan
+            </div>
+          </div>
+
+          <!-- Filter Row -->
+          <div style="display:flex; flex-wrap:wrap; gap:12px; padding:0 20px 18px; align-items:flex-end;">
+            <div style="display:flex;flex-direction:column;gap:5px;flex:1;min-width:220px;" id="riwayatUserComboWrap">
+              <label style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">Karyawan</label>
+              <!-- Custom Searchable Combobox -->
+              <div id="riwayatCombo" style="position:relative;">
+                <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;border:1.5px solid var(--card-border);background:var(--card-bg);cursor:pointer;transition:border-color 0.2s;" id="riwayatComboBox" onclick="toggleRiwayatCombo()">
+                  <div id="riwayatComboAvatar" style="width:26px;height:26px;border-radius:50%;background:var(--primary);display:none;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0;"></div>
+                  <input type="text" id="riwayatComboInput" placeholder="Cari nama karyawan..." autocomplete="off"
+                    oninput="filterRiwayatCombo()"
+                    onfocus="openRiwayatCombo()"
+                    style="flex:1;border:none;background:transparent;color:var(--text);font-size:13px;font-weight:600;outline:none;min-width:120px;cursor:text;"
+                  >
+                  <div id="riwayatComboBadge" style="display:none;"></div>
+                  <svg id="riwayatComboChevron" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="flex-shrink:0;color:var(--text-muted);transition:transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <!-- Hidden value store -->
+                <input type="hidden" id="riwayatUserSelect" value="">
+                <!-- Dropdown list -->
+                <div id="riwayatComboList" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--card-bg);border:1.5px solid var(--primary);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.18);z-index:9999;max-height:280px;overflow-y:auto;">
+                  <div id="riwayatComboItems"></div>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:5px;">
+              <label style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">Dari</label>
+              <input type="date" id="riwayatTanggalMulai" style="padding:9px 12px; border-radius:10px; border:1.5px solid var(--card-border); background:var(--card-bg); color:var(--text); font-size:13px; width:155px;">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:5px;">
+              <label style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">Sampai</label>
+              <input type="date" id="riwayatTanggalAkhir" style="padding:9px 12px; border-radius:10px; border:1.5px solid var(--card-border); background:var(--card-bg); color:var(--text); font-size:13px; width:155px;">
+            </div>
+            <div style="display:flex;gap:8px;align-self:flex-end;">
+              <button onclick="loadRiwayatUser()" style="padding:9px 20px; border-radius:10px; background:var(--primary); color:#fff; border:none; font-size:13px; font-weight:700; cursor:pointer; height:40px; display:flex; align-items:center; gap:6px;">
+                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                Tampilkan
+              </button>
+              <button id="btnExportRiwayat" onclick="exportRiwayatExcel()" style="padding:9px 18px; border-radius:10px; background:linear-gradient(135deg,#10b981,#059669); color:#fff; border:none; font-size:13px; font-weight:700; cursor:pointer; height:40px; display:flex; align-items:center; gap:6px; box-shadow:0 2px 8px rgba(16,185,129,0.3); transition:all 0.2s;" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 16px rgba(16,185,129,0.4)'" onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(16,185,129,0.3)'">
+                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export Excel
+              </button>
+            </div>
+          </div>
+
+          <!-- Summary Cards -->
+          <div id="riwayatSummary" style="display:none; padding:0 20px 18px; display:none;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:18px;">
+              <div style="background:rgba(16,185,129,0.08);border:1.5px solid rgba(16,185,129,0.25);border-radius:14px;padding:14px 16px;text-align:center;">
+                <div style="font-size:26px;font-weight:800;color:#10b981;" id="riwayatStatHadir">—</div>
+                <div style="font-size:11px;font-weight:700;color:#10b981;margin-top:2px;">✅ Hari Hadir</div>
+              </div>
+              <div style="background:rgba(239,68,68,0.08);border:1.5px solid rgba(239,68,68,0.25);border-radius:14px;padding:14px 16px;text-align:center;">
+                <div style="font-size:26px;font-weight:800;color:#ef4444;" id="riwayatStatTidakHadir">—</div>
+                <div style="font-size:11px;font-weight:700;color:#ef4444;margin-top:2px;">❌ Tidak Hadir</div>
+              </div>
+              <div style="background:rgba(99,102,241,0.08);border:1.5px solid rgba(99,102,241,0.25);border-radius:14px;padding:14px 16px;text-align:center;">
+                <div style="font-size:26px;font-weight:800;color:var(--primary);" id="riwayatStatTotal">—</div>
+                <div style="font-size:11px;font-weight:700;color:var(--primary);margin-top:2px;">📅 Total Hari</div>
+              </div>
+              <div style="background:rgba(245,158,11,0.08);border:1.5px solid rgba(245,158,11,0.25);border-radius:14px;padding:14px 16px;text-align:center;">
+                <div style="font-size:26px;font-weight:800;color:#f59e0b;" id="riwayatStatPct">—</div>
+                <div style="font-size:11px;font-weight:700;color:#f59e0b;margin-top:2px;">📊 % Kehadiran</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Result List -->
+          <div id="riwayatResult" style="padding:0 20px 20px;">
+            <div style="text-align:center;padding:40px 0;color:var(--text-muted);font-size:13px;">
+              <div style="font-size:36px;margin-bottom:10px;">👆</div>
+              Pilih karyawan dan rentang tanggal, lalu klik <b>Tampilkan</b>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- ===== END PANEL REKAP PER KARYAWAN ===== -->
 
     </div>
     <!-- ===== END ABSENSI PAGE ===== -->
+
+    <!-- ===== REKAP PENGGAJIAN PAGE (HR) ===== -->
+    <div id="page-penggajian" class="page-section" style="display:none;">
+      <div class="page-header" style="margin-bottom:20px;">
+        <div>
+          <h2 style="font-size:22px; font-weight:800; color:var(--text); margin-bottom:6px;">💵 Rekap Penggajian (HR Payroll)</h2>
+          <p style="font-size:13px; color:var(--text-muted);">Gabungan data kehadiran (absensi) dan pendapatan (hasil carian) pekerja untuk mempermudah HR dalam penggajian.</p>
+        </div>
+      </div>
+
+      <!-- Filter Card -->
+      <div class="table-card" style="margin-bottom:20px;">
+        <div style="display:flex; flex-wrap:wrap; gap:16px; padding:20px; align-items:flex-end;">
+          <div style="display:flex;flex-direction:column;gap:5px;flex:1;min-width:150px;">
+            <label style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">Dari Tanggal</label>
+            <input type="date" id="penggajianTanggalMulai" style="padding:9px 12px; border-radius:10px; border:1.5px solid var(--card-border); background:var(--card-bg); color:var(--text); font-size:13px; width:100%;">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:5px;flex:1;min-width:150px;">
+            <label style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">Sampai Tanggal</label>
+            <input type="date" id="penggajianTanggalAkhir" style="padding:9px 12px; border-radius:10px; border:1.5px solid var(--card-border); background:var(--card-bg); color:var(--text); font-size:13px; width:100%;">
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button onclick="loadRekapPenggajian()" style="padding:9px 20px; border-radius:10px; background:var(--primary); color:#fff; border:none; font-size:13px; font-weight:700; cursor:pointer; height:40px; display:flex; align-items:center; gap:6px;">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              Hitung
+            </button>
+            <button id="btnExportPenggajian" onclick="exportPenggajianExcel()" style="padding:9px 18px; border-radius:10px; background:linear-gradient(135deg,#10b981,#059669); color:#fff; border:none; font-size:13px; font-weight:700; cursor:pointer; height:40px; display:flex; align-items:center; gap:6px; box-shadow:0 2px 8px rgba(16,185,129,0.3); transition:all 0.2s;" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 16px rgba(16,185,129,0.4)'" onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(16,185,129,0.3)'">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export Excel
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agregat Summary Cards -->
+      <div id="penggajianSummary" style="display:none; margin-bottom:20px;">
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px;">
+          <div style="background:rgba(99,102,241,0.08); border:1.5px solid rgba(99,102,241,0.2); border-radius:16px; padding:18px 20px;">
+            <div style="font-size:12px; font-weight:700; color:var(--primary); text-transform:uppercase; letter-spacing:.04em;">Rata-Rata Kehadiran</div>
+            <div style="font-size:28px; font-weight:800; color:var(--primary); margin-top:6px;" id="pgStatHadir">—</div>
+          </div>
+          <div style="background:rgba(139,92,246,0.08); border:1.5px solid rgba(139,92,246,0.2); border-radius:16px; padding:18px 20px;">
+            <div style="font-size:12px; font-weight:700; color:#7c3aed; text-transform:uppercase; letter-spacing:.04em;">Rata-Rata Gaji / Pekerja</div>
+            <div style="font-size:28px; font-weight:800; color:#7c3aed; margin-top:6px;" id="pgStatTidakHadir">—</div>
+          </div>
+          <div style="background:linear-gradient(135deg, rgba(16,185,129,0.1), rgba(5,150,105,0.1)); border:1.5px solid #10b981; border-radius:16px; padding:18px 20px;">
+            <div style="font-size:12px; font-weight:700; color:#059669; text-transform:uppercase; letter-spacing:.04em;">Total Pendapatan Carian</div>
+            <div style="font-size:28px; font-weight:900; color:#059669; margin-top:6px;" id="pgStatCarian">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Result List / Table Card -->
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">Daftar Rincian Penggajian</div>
+        </div>
+        <div id="penggajianResult" style="padding:0 20px 20px;">
+          <div style="text-align:center; padding:50px 0; color:var(--text-muted); font-size:13px;">
+            <div style="font-size:42px; margin-bottom:12px;">💵</div>
+            Tentukan rentang tanggal dan parameter harian, lalu klik <b>Hitung</b>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- ===== END REKAP PENGGAJIAN PAGE (HR) ===== -->
 
   </div>
 </main>
@@ -2006,6 +2662,7 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
       </button>
     </div>
     <div class="modal-body" id="modalBody">Loading...</div>
+    <div id="detailModalFooter" style="padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 12px; background: var(--bg-secondary); border-bottom-left-radius: 16px; border-bottom-right-radius: 16px;"></div>
   </div>
 </div>
 
@@ -2021,7 +2678,10 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
     <div class="modal-body">
       <div class="form-group">
         <label for="importTanggal">Tanggal Carian <span class="req">*</span></label>
-        <input type="date" id="importTanggal" class="form-control">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <input type="date" id="importTanggal" class="form-control" style="flex:1;">
+          <span id="importTanggalHari" style="font-weight:600;color:var(--primary-light);font-size:14px;min-width:90px;display:none;"></span>
+        </div>
       </div>
       <div class="form-group">
         <label>Mode Import</label>
@@ -2045,6 +2705,15 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
         </div>
         <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleImportFile(this.files[0])">
         <div id="importFileInfo" style="display:none;"></div>
+        
+        <!-- Warning mismatch tanggal file & input -->
+        <div id="importDateWarning" style="display:none; margin-top:12px; padding:10px 14px; background:rgba(234,179,8,0.12); border:1px solid rgba(234,179,8,0.35); border-radius:8px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <div style="display:flex; align-items:center; gap:8px; color:#FCD34D; font-size:13px; text-align:left;">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;color:#F59E0B;"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <span id="importDateWarningText">Tanggal file terdeteksi berbeda dengan pilihan Anda.</span>
+          </div>
+          <button type="button" class="btn btn-xs" style="padding:4px 8px; font-size:11px; background:var(--primary); color:#fff; border:none; border-radius:4px; cursor:pointer;" onclick="applyDetectedDate()">Gunakan Tanggal File</button>
+        </div>
       </div>
 
       <!-- Format guide -->
@@ -2174,6 +2843,8 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
             <option value="Picker">Picker</option>
             <option value="Sorter">Sorter</option>
             <option value="Loader">Loader</option>
+            <option value="Return">Return</option>
+            <option value="QC Outbound">QC Outbound</option>
           </select>
         </div>
         <div class="form-group" style="margin-bottom: 0;">
@@ -2262,7 +2933,7 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
   <div class="lightbox-caption" id="lightboxCaption">Bukti Foto</div>
 </div>
 
-<script src="/js/admin.js?v=1.8" defer></script>
+<script src="/js/admin.js?v=2.2" defer></script>
 
 <!-- ===== ABSENSI SETTINGS MODAL ===== -->
 <div class="modal-overlay" id="absensiSettingsModal">
@@ -2415,6 +3086,15 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
               <span class="perm-card-desc">Lihat leaderboard & total gaji</span>
             </span>
           </label>
+          <label class="perm-card">
+            <input type="checkbox" name="editAdminPages" value="penggajian" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
+            <div class="perm-checkbox-indicator"></div>
+            <span class="perm-card-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></span>
+            <span class="perm-card-info">
+              <span class="perm-card-title">Rekap Penggajian (HR)</span>
+              <span class="perm-card-desc">Combined Kehadiran &amp; Pendapatan</span>
+            </span>
+          </label>
 
           <label class="perm-card">
             <input type="checkbox" name="editAdminPages" value="announcements" onchange="this.closest('.perm-card').classList.toggle('checked', this.checked)">
@@ -2500,6 +3180,7 @@ let absensiAllUsers = [];   // all operational users
 let absensiPresent = [];    // current attendance records for selected date
 let absensiSettings = { absensi_required: false, absensi_visible_to_user: false };
 let absensiActiveSection = 'Semua';  // active section tab: 'Semua', 'Picker', 'Sorter', 'Loader'
+let absensiSavingUserIds = new Set(); // set of user IDs being processed (saving state)
 
 window.setAbsensiSection = function setAbsensiSection(section) {
   absensiActiveSection = section;
@@ -2514,6 +3195,15 @@ window.initAbsensiPage = async function initAbsensiPage() {
   const today = new Date().toISOString().split('T')[0];
   const inp = document.getElementById('absensiTanggal');
   if (inp && !inp.value) inp.value = today;
+
+  // Tampilkan loading spinner
+  const listEl = document.getElementById('absensiUserList');
+  if (listEl) {
+    listEl.innerHTML = `<div style="display:flex; justify-content:center; align-items:center; padding:48px 0; gap:12px; color:var(--text-muted);">
+      <div class="loading-spinner"><div class="spin"></div></div>
+      <span style="font-size:13px; font-weight:500;">Memuat data absensi...</span>
+    </div>`;
+  }
 
   await Promise.all([
     loadAbsensiUsers(),
@@ -2626,19 +3316,27 @@ function renderAbsensiUserList() {
 
   container.innerHTML = sorted.map(user => {
     const hadir = presentIds.has(user.id);
+    const saving = absensiSavingUserIds.has(user.id);
     const initials = (user.nama_lengkap || user.username || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
     const posisiBadge = user.posisi ? getPosisiBadge(user.posisi) : '';
     const absenRecord = absensiPresent.find(a => a.user_id === user.id);
 
+    let checkIconHtml = '';
+    if (saving) {
+      checkIconHtml = '<div class="absensi-mini-spinner"></div>';
+    } else if (hadir) {
+      checkIconHtml = '<svg width="12" height="12" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
+    }
+
     return `
-      <div class="absensi-user-card ${hadir ? 'hadir' : ''}" onclick="window.toggleAbsensi('${user.id}', '${absenRecord ? absenRecord.id : ''}')" data-user-id="${user.id}" data-nama="${(user.nama_lengkap || '').toLowerCase()}">
+      <div class="absensi-user-card ${hadir ? 'hadir' : ''} ${saving ? 'saving' : ''}" onclick="if(!absensiSavingUserIds.has('${user.id}')) window.toggleAbsensi('${user.id}', '${absenRecord ? absenRecord.id : ''}')" data-user-id="${user.id}" data-nama="${(user.nama_lengkap || '').toLowerCase()}">
         <div class="absensi-user-avatar">${initials}</div>
         <div class="absensi-user-info">
           <div class="absensi-user-name">${user.nama_lengkap || user.username}</div>
-          <div class="absensi-user-meta">${posisiBadge} ${hadir ? '<span style="color:#10B981; font-weight:600;">Hadir</span>' : '<span style="color:var(--text-dim);">Tidak Hadir</span>'}</div>
+          <div class="absensi-user-meta">${posisiBadge} ${saving ? '<span style="color:var(--text-muted); font-weight:600;">Memproses...</span>' : (hadir ? '<span style="color:#10B981; font-weight:600;">Hadir</span>' : '<span style="color:var(--text-dim);">Tidak Hadir</span>')}</div>
         </div>
-        <div class="absensi-check-icon">
-          ${hadir ? '<svg width="12" height="12" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+        <div class="absensi-check-icon ${saving ? 'saving' : ''}">
+          ${checkIconHtml}
         </div>
       </div>
     `;
@@ -2662,6 +3360,9 @@ window.toggleAbsensi = async function toggleAbsensi(userId, absensiRecordId) {
   const backupPresent = [...absensiPresent];
   const presentIds = new Set(absensiPresent.map(a => a.user_id));
   const isHadir = presentIds.has(userId);
+
+  // Set saving state
+  absensiSavingUserIds.add(userId);
 
   // Optimistic UI Update: Toggle status locally and re-render immediately
   if (isHadir) {
@@ -2711,17 +3412,18 @@ window.toggleAbsensi = async function toggleAbsensi(userId, absensiRecordId) {
         tempRec.id = data.record.id;
         tempRec.created_by = data.record.created_by || '';
         tempRec.created_at = data.record.created_at || tempRec.created_at;
-        renderAbsensiUserList();
-        renderAbsensiRekap();
       }
     }
   } catch(e) {
     console.error('toggleAbsensi error:', e);
     // Revert to backup state on error
     absensiPresent = backupPresent;
+    alert('Gagal mengubah status absensi: ' + e.message);
+  } finally {
+    // Clear saving state and re-render
+    absensiSavingUserIds.delete(userId);
     renderAbsensiUserList();
     renderAbsensiRekap();
-    alert('Gagal mengubah status absensi: ' + e.message);
   }
 }
 
@@ -2907,6 +3609,127 @@ window.saveAbsensiSettings = async function saveAbsensiSettings() {
   }
 }
 // ===================== END ABSENSI MODULE =====================
+
+// ===================== PHL SETTINGS MODULE =====================
+window.updatePhlPreview = function updatePhlPreview() {
+  const val = parseInt(document.getElementById('phlUpahHarian')?.value) || 0;
+  const preview = document.getElementById('phlLivePreview');
+  if (!preview) return;
+  if (val > 0) {
+    preview.style.display = 'block';
+    const fmt = (n) => 'Rp ' + n.toLocaleString('id-ID');
+    document.getElementById('phlPreview20').textContent = fmt(val * 20);
+    document.getElementById('phlPreview25').textContent = fmt(val * 25);
+    document.getElementById('phlPreview26').textContent = fmt(val * 26);
+  } else {
+    preview.style.display = 'none';
+  }
+};
+
+window.loadPhlAdminSettings = async function loadPhlAdminSettings() {
+  try {
+    const res = await fetch('/api/settings/phl-rate', { credentials: 'include' });
+    if (!res.ok) return;
+    const data = await res.json();
+    const input = document.getElementById('phlUpahHarian');
+    if (input) {
+      input.value = data.upah_harian || 0;
+      updatePhlPreview();
+    }
+    // Load user list
+    loadPhlUserList();
+  } catch(e) {
+    console.error('loadPhlAdminSettings error:', e);
+  }
+};
+
+window.savePhlSettings = async function savePhlSettings(e) {
+  e.preventDefault();
+  const upah_harian = parseInt(document.getElementById('phlUpahHarian')?.value) || 0;
+  const btn = document.getElementById('btnSavePhlSettings');
+  const btnText = document.getElementById('phlSaveBtnText');
+  const status = document.getElementById('phlSettingsSaveStatus');
+
+  // Loading state
+  if (btn) btn.disabled = true;
+  if (btnText) btnText.textContent = 'Menyimpan...';
+
+  try {
+    const res = await fetch('/api/settings/phl-rate', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ upah_harian })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Gagal menyimpan');
+
+    if (status) {
+      status.style.display = 'block';
+      status.style.background = 'rgba(16,185,129,0.1)';
+      status.style.color = '#10b981';
+      status.style.border = '1.5px solid rgba(16,185,129,0.3)';
+      status.textContent = `✓ Upah harian PHL berhasil disimpan: Rp ${upah_harian.toLocaleString('id-ID')}`;
+      setTimeout(() => { if(status) status.style.display = 'none'; }, 3000);
+    }
+  } catch(err) {
+    if (status) {
+      status.style.display = 'block';
+      status.style.background = 'rgba(239,68,68,0.1)';
+      status.style.color = '#ef4444';
+      status.style.border = '1.5px solid rgba(239,68,68,0.3)';
+      status.textContent = '✗ Gagal menyimpan: ' + err.message;
+      setTimeout(() => { if(status) status.style.display = 'none'; }, 3000);
+    }
+  } finally {
+    if (btn) btn.disabled = false;
+    if (btnText) btnText.textContent = '💾 Simpan Pengaturan PHL';
+  }
+};
+
+async function loadPhlUserList() {
+  const container = document.getElementById('phlUserList');
+  const countEl = document.getElementById('phlUserCount');
+  if (!container) return;
+  try {
+    const res = await fetch('/api/users', { credentials: 'include' });
+    if (!res.ok) throw new Error('Gagal memuat');
+    const users = await res.json();
+    const phlUsers = users.filter(u => u.tipe_karyawan === 'PHL');
+    if (countEl) countEl.textContent = `${phlUsers.length} karyawan PHL`;
+
+    if (phlUsers.length === 0) {
+      container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:13px;">
+        <div style="font-size:36px;margin-bottom:10px;">👤</div>
+        Belum ada karyawan berstatus PHL. Ubah status karyawan di menu <strong>Data Karyawan</strong>.
+      </div>`;
+      return;
+    }
+
+    const posColors = { 'Picker': '#8b5cf6', 'Sorter': '#10b981', 'Loader': '#f59e0b' };
+    container.innerHTML = `
+      <div style="padding:8px;">
+        ${phlUsers.map(u => `
+          <div style="display:flex;align-items:center;gap:14px;padding:12px 16px;border-bottom:1px solid var(--border);transition:background 0.15s;" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background='transparent'">
+            <div style="width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#a78bfa);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff;flex-shrink:0;">
+              ${(u.nama_lengkap || u.username || '?')[0].toUpperCase()}
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:700;font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${u.nama_lengkap || u.username}</div>
+              <div style="font-size:11px;color:var(--text-muted);">@${u.username} • NIK: ${u.nik || '-'}</div>
+            </div>
+            <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+              <span style="background:rgba(124,58,237,0.1);color:#7c3aed;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">PHL</span>
+              <span style="background:${(posColors[u.posisi] || '#6b7280')}15;color:${posColors[u.posisi] || '#6b7280'};font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;">${u.posisi || '-'}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>`;
+  } catch(e) {
+    if (container) container.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">Gagal memuat daftar karyawan PHL.</div>`;
+  }
+}
+// ===================== END PHL SETTINGS MODULE =====================
 </script>
 
 </body>

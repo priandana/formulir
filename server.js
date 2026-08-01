@@ -1,4 +1,4 @@
-require('dotenv').config();
+﻿require('dotenv').config();
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
@@ -51,8 +51,44 @@ async function syncSubmissionsToSheets() {
   }
 }
 
+// Optimized helper function to sync all loader entries to Google Sheets (combining queries to avoid N+1)
+async function syncLoaderEntriesToSheets() {
+  if (!googleSheets.isConfigured()) return;
+  try {
+    const allEntries = await db.getAllLoaderEntries();
+    const allFiles = await db.getAllFiles();
+
+    // Map files in memory by submission_id to avoid N+1 queries
+    const filesMap = new Map();
+    for (const f of allFiles) {
+      if (!filesMap.has(f.submission_id)) {
+        filesMap.set(f.submission_id, []);
+      }
+      filesMap.get(f.submission_id).push(f);
+    }
+
+    await googleSheets.pushAllLoaderEntries(allEntries, filesMap);
+  } catch(e) {
+    console.error('[AutoSync Loader] Google Sheets sync error:', e.message);
+  }
+}
+
+// Helper: sync semua QC Outbound entries ke Google Sheets
+async function syncQcOutboundToSheets() {
+  if (!googleSheets.isConfigured()) return;
+  try {
+    const allEntries = await db.getAllQcOutbound();
+    await googleSheets.pushAllQcOutbound(allEntries);
+  } catch(e) {
+    console.error('[AutoSync QC Outbound] Google Sheets sync error:', e.message);
+  }
+}
+
 // JWT Secret Key configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'ss08-formulir-secret-fallback-2026';
+if (JWT_SECRET === 'ss08-formulir-secret-fallback-2026') {
+  console.warn('âš ï¸ WARNING: Using fallback JWT_SECRET. Please set JWT_SECRET in production environment!');
+}
 
 // Middleware
 app.use(express.json());
@@ -93,12 +129,26 @@ const uploadExcel = multer({
 });
 
 // Auth middleware (stateless cookie-based JWT)
-const requireAuth = (req, res, next) => {
+const requireAuth = async (req, res, next) => {
   const token = req.cookies.token;
   if (!token) return res.status(401).json({ error: 'Unauthorized. Silakan login terlebih dahulu.' });
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
+    
+    // Check maintenance mode for operasional users
+    if (decoded.role !== 'admin') {
+      const maintenance = await db.getMaintenanceSettings();
+      if (maintenance && maintenance.active) {
+        return res.status(503).json({
+          error: 'Sistem sedang dalam pemeliharaan.',
+          code: 'MAINTENANCE_MODE',
+          title: maintenance.title,
+          message: maintenance.message,
+          estimated_end: maintenance.estimated_end
+        });
+      }
+    }
     next();
   } catch (err) {
     res.status(401).json({ error: 'Sesi login habis atau tidak valid. Silakan login kembali.' });
@@ -108,7 +158,7 @@ const requireAuth = (req, res, next) => {
 // ==================== PUBLIC ROUTES ====================
 
 // POST /api/submit - submit form dengan validasi kapasitas
-app.post('/api/submit', (req, res, next) => {
+app.post('/api/submit', requireAuth, (req, res, next) => {
   uploadLembar.array('lembar_register', 5)(req, res, (err) => {
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'Ukuran file maksimum 10MB per file.' });
@@ -165,9 +215,9 @@ app.post('/api/submit', (req, res, next) => {
       return res.status(400).json({ error: 'Isi jumlah output untuk minimal satu batch.' });
     }
 
-    // ===== CEK KAPASITAS — tentukan status submission =====
-    // Jika ada batch yang melebihi kapasitas → status 'pending' (butuh validasi admin)
-    // Jika semua dalam batas → status 'approved'
+    // ===== CEK KAPASITAS â€” tentukan status submission =====
+    // Jika ada batch yang melebihi kapasitas â†’ status 'pending' (butuh validasi admin)
+    // Jika semua dalam batas â†’ status 'approved'
     const pendingBatches = []; // batch yang melebihi kapasitas
     const overCapacityInfo = {}; // detail info per batch yang over
     
@@ -244,7 +294,7 @@ app.post('/api/submit', (req, res, next) => {
 
     const hasPending = pendingBatches.length > 0;
     const message = hasPending
-      ? `Formulir terkirim! ${batchOutputs.length} batch tersimpan. ⚠️ ${pendingBatches.length} batch melebihi kapasitas dan menunggu validasi admin.`
+      ? `Formulir terkirim! ${batchOutputs.length} batch tersimpan. âš ï¸ ${pendingBatches.length} batch melebihi kapasitas dan menunggu validasi admin.`
       : `Formulir berhasil dikirim! ${batchOutputs.length} batch tersimpan. Terima kasih.`;
 
     res.json({
@@ -273,7 +323,7 @@ app.post('/api/submit', (req, res, next) => {
   }
 });
 
-// GET /api/batch-capacity — Public: cek kapasitas batch untuk form validasi real-time
+// GET /api/batch-capacity â€” Public: cek kapasitas batch untuk form validasi real-time
 app.get('/api/batch-capacity', async (req, res) => {
   try {
     const { tanggal_carian, posisi, zona, batch } = req.query;
@@ -290,8 +340,33 @@ app.get('/api/batch-capacity', async (req, res) => {
 
 // ==================== AUTH ROUTES ====================
 
+// Simple in-memory rate limiter for login
+const loginAttempts = {};
+const loginRateLimiter = (req, res, next) => {
+  const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const now = Date.now();
+  const attemptWindow = 10 * 60 * 1000; // 10 minutes
+  const maxAttempts = 10;
+
+  if (!loginAttempts[ip]) {
+    loginAttempts[ip] = [];
+  }
+
+  // Filter out attempts older than window
+  loginAttempts[ip] = loginAttempts[ip].filter(timestamp => now - timestamp < attemptWindow);
+
+  if (loginAttempts[ip].length >= maxAttempts) {
+    return res.status(429).json({
+      error: 'Terlalu banyak percobaan login. Silakan coba lagi dalam 10 menit.'
+    });
+  }
+
+  loginAttempts[ip].push(now);
+  next();
+};
+
 // POST /api/login
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', loginRateLimiter, async (req, res) => {
   try {
     const { username, password, nik, mode } = req.body;
 
@@ -299,6 +374,13 @@ app.post('/api/login', async (req, res) => {
     let tokenPayload = {};
 
     if (mode === 'operasional') {
+      const maintenance = await db.getMaintenanceSettings();
+      if (maintenance && maintenance.active) {
+        return res.status(503).json({
+          error: maintenance.message || 'Sistem sedang dalam pemeliharaan. Silakan hubungi Administrator.',
+          code: 'MAINTENANCE_MODE'
+        });
+      }
       // Login Operasional: username + NIK (plaintext)
       if (!username || !nik) {
         return res.status(400).json({ error: 'Username dan NIK wajib diisi.' });
@@ -319,6 +401,7 @@ app.post('/api/login', async (req, res) => {
         username: user.username,
         nama_lengkap: user.nama_lengkap,
         posisi: user.posisi,
+        tipe_karyawan: user.tipe_karyawan || 'Productivity',
         role: 'operasional'
       };
     } else {
@@ -368,12 +451,12 @@ app.post('/api/logout', (req, res) => {
   res.json({ success: true });
 });
 
-// GET /api/ping — Keep-alive endpoint (no auth required, for UptimeRobot/monitoring)
+// GET /api/ping â€” Keep-alive endpoint (no auth required, for UptimeRobot/monitoring)
 app.get('/api/ping', (req, res) => {
   res.json({ status: 'ok', ts: Date.now() });
 });
 
-// GET /api/settings/login — Ambil setting halaman login (public, no auth)
+// GET /api/settings/login â€” Ambil setting halaman login (public, no auth)
 app.get('/api/settings/login', async (req, res) => {
   try {
     const settings = await db.getLoginSettings();
@@ -385,11 +468,39 @@ app.get('/api/settings/login', async (req, res) => {
 });
 
 // GET /api/check-auth
-app.get('/api/check-auth', (req, res) => {
+app.get('/api/check-auth', async (req, res) => {
   const token = req.cookies.token;
   if (token) {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
+      
+      let isImpersonating = false;
+      let adminUsername = null;
+      if (req.cookies.admin_token) {
+        try {
+          const adminDecoded = jwt.verify(req.cookies.admin_token, JWT_SECRET);
+          if (adminDecoded && adminDecoded.role === 'admin') {
+            isImpersonating = true;
+            adminUsername = adminDecoded.username;
+          }
+        } catch (e) {}
+      }
+
+      // Check maintenance for operasional user (skip if impersonated by admin)
+      if (decoded.role !== 'admin' && !isImpersonating) {
+        const maintenance = await db.getMaintenanceSettings();
+        if (maintenance && maintenance.active) {
+          return res.json({
+            authenticated: true,
+            maintenance: true,
+            role: decoded.role,
+            title: maintenance.title,
+            message: maintenance.message,
+            estimated_end: maintenance.estimated_end
+          });
+        }
+      }
+
       return res.json({
         authenticated: true,
         userId: decoded.userId || null,
@@ -397,7 +508,10 @@ app.get('/api/check-auth', (req, res) => {
         nama_lengkap: decoded.nama_lengkap || decoded.username,
         role: decoded.role || 'admin',
         posisi: decoded.posisi || null,
-        allowed_pages: decoded.allowed_pages || []
+        tipe_karyawan: decoded.tipe_karyawan || 'Productivity',
+        allowed_pages: decoded.allowed_pages || [],
+        isImpersonating: isImpersonating,
+        adminUsername: adminUsername
       });
     } catch (err) {
       // Token invalid or expired
@@ -406,7 +520,7 @@ app.get('/api/check-auth', (req, res) => {
   res.json({ authenticated: false });
 });
 
-// ==================== ADMIN ROUTES ====================
+// ==================== ADMIN ROUTES & MIDDLEWARES ====================
 
 // Middleware: admin only
 const requireAdmin = (req, res, next) => {
@@ -467,6 +581,123 @@ const requirePermission = (page) => {
   };
 };
 
+// Middleware: QC Outbound â€” bisa diakses oleh:
+// 1. User operasional dengan posisi 'QC Outbound'
+// 2. Admin manapun (super admin / admin dengan qc-outbound permission)
+const requireQcOutbound = (req, res, next) => {
+  const token = req.cookies.token;
+  if (!token) return res.status(401).json({ error: 'Unauthorized.' });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    // Izinkan admin (semua jenis)
+    if (decoded.role === 'admin') {
+      req.user = decoded;
+      return next();
+    }
+    // Izinkan operasional dengan posisi QC Outbound
+    if (decoded.role === 'operasional' && decoded.posisi === 'QC Outbound') {
+      req.user = decoded;
+      return next();
+    }
+    return res.status(403).json({ error: 'Akses ditolak. Hanya untuk QC Outbound.' });
+  } catch (err) {
+    res.status(401).json({ error: 'Sesi tidak valid.' });
+  }
+};
+
+// POST /api/admin/impersonate â€” Login sebagai user lain (Admin only)
+app.post('/api/admin/impersonate', requirePermission('users'), async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: 'ID user diperlukan.' });
+
+    const targetUser = await db.getUserById(userId);
+    if (!targetUser) return res.status(404).json({ error: 'User tidak ditemukan.' });
+
+    if (targetUser.role === 'admin') {
+      return res.status(400).json({ error: 'Tidak dapat meng-impersonate sesama Admin.' });
+    }
+
+    // Token admin saat ini
+    const adminToken = req.cookies.token;
+
+    // Buat token baru untuk target user
+    const userPayload = {
+      userId: targetUser.id,
+      username: targetUser.username,
+      nama_lengkap: targetUser.nama_lengkap || targetUser.username,
+      role: targetUser.role || 'operasional',
+      posisi: targetUser.posisi || null,
+      tipe_karyawan: targetUser.tipe_karyawan || 'Productivity',
+      isImpersonating: true
+    };
+
+    const userToken = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '1d' });
+
+    // Simpan token admin ke cookie 'admin_token'
+    res.cookie('admin_token', adminToken, {
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000,
+      sameSite: 'lax'
+    });
+
+    // Ganti token utama dengan token target user
+    res.cookie('token', userToken, {
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000,
+      sameSite: 'lax'
+    });
+
+    if (db.insertAuditLog) {
+      await db.insertAuditLog(req.user.username, 'IMPERSONATE_USER', `Admin ${req.user.username} beralih sesi ke user: ${targetUser.nama_lengkap} (${targetUser.username})`);
+    }
+
+    res.json({
+      success: true,
+      message: `Berhasil beralih ke sesi user ${targetUser.nama_lengkap}`,
+      targetUser: {
+        id: targetUser.id,
+        username: targetUser.username,
+        nama_lengkap: targetUser.nama_lengkap
+      }
+    });
+  } catch (err) {
+    console.error('Impersonate user error:', err);
+    res.status(500).json({ error: 'Gagal beralih ke sesi user.' });
+  }
+});
+
+// POST /api/switch-back-admin â€” Kembali ke sesi Admin dari sesi impersonasi
+app.post('/api/switch-back-admin', async (req, res) => {
+  try {
+    const adminToken = req.cookies.admin_token;
+    if (!adminToken) {
+      return res.status(400).json({ error: 'Tidak ada sesi Admin yang tersimpan.' });
+    }
+
+    const adminDecoded = jwt.verify(adminToken, JWT_SECRET);
+    if (!adminDecoded || adminDecoded.role !== 'admin') {
+      return res.status(401).json({ error: 'Sesi Admin tidak valid.' });
+    }
+
+    // Kembalikan token utama ke token admin
+    res.cookie('token', adminToken, {
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000,
+      sameSite: 'lax'
+    });
+
+    // Hapus cookie admin_token
+    res.clearCookie('admin_token');
+
+    res.json({ success: true, message: 'Berhasil kembali ke sesi Administrator.' });
+  } catch (err) {
+    console.error('Switch back to admin error:', err);
+    res.status(500).json({ error: 'Gagal kembali ke sesi Admin.' });
+  }
+});
+
+
 // Polling endpoint untuk admin notifications (menggantikan SSE)
 // Admin frontend fetch endpoint ini setiap 15 detik - AMAN untuk serverless
 app.get('/api/admin/updates-poll', requireAdmin, (req, res) => {
@@ -484,7 +715,11 @@ app.get('/api/audit-logs', requireSuperAdmin, async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
     const search = req.query.search || '';
-    const result = await db.getAuditLogs(page, limit, search);
+    const actionType = req.query.actionType || '';
+    const adminUser = req.query.adminUser || '';
+    const dateStart = req.query.dateStart || '';
+    const dateEnd = req.query.dateEnd || '';
+    const result = await db.getAuditLogs(page, limit, search, actionType, adminUser, dateStart, dateEnd);
     res.json(result);
   } catch (err) {
     console.error('Fetch audit logs error:', err);
@@ -492,14 +727,80 @@ app.get('/api/audit-logs', requireSuperAdmin, async (req, res) => {
   }
 });
 
+// GET /api/audit-logs/users
+app.get('/api/audit-logs/users', requireSuperAdmin, async (req, res) => {
+  try {
+    const users = await db.getAuditLogUsers();
+    res.json(users);
+  } catch (err) {
+    console.error('Fetch audit log users error:', err);
+    res.status(500).json({ error: 'Gagal memuat daftar user audit.' });
+  }
+});
+
+// GET /api/audit-logs/export
+app.get('/api/audit-logs/export', requireSuperAdmin, async (req, res) => {
+  try {
+    const { search, actionType, adminUser, dateStart, dateEnd } = req.query;
+    // Ambil semua log yang cocok (tidak terpaginasi)
+    const result = await db.getAuditLogs(1, 100000, search, actionType, adminUser, dateStart, dateEnd);
+    const logs = result.logs || [];
+    
+    const ExcelJS = require('exceljs');
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Log Aktivitas');
+    
+    worksheet.columns = [
+      { header: 'Waktu (WIB)', key: 'waktu', width: 22 },
+      { header: 'Admin User', key: 'username', width: 15 },
+      { header: 'Aksi', key: 'action', width: 25 },
+      { header: 'Detail Deskripsi', key: 'details', width: 65 }
+    ];
+    
+    // Format Header
+    worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFF' } };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: '1E3A8A' } // Navy blue
+    };
+    
+    logs.forEach(l => {
+      const dt = new Date(l.created_at);
+      const dateStr = dt.toLocaleDateString('id-ID', { year:'numeric', month:'2-digit', day:'2-digit' }) + ' ' + 
+                      dt.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit', second:'2-digit', timeZone:'Asia/Jakarta' });
+      worksheet.addRow({
+        waktu: dateStr,
+        username: l.username,
+        action: l.action,
+        details: l.details
+      });
+    });
+    
+    // Set response headers
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=Audit_Logs_SS08.xlsx');
+    await workbook.xlsx.write(res);
+    res.end();
+    
+    await db.insertAuditLog(req.user.username, 'EXPORT_AUDIT_LOGS', `Mengekspor ${logs.length} log audit ke Excel`);
+  } catch (err) {
+    console.error('Export audit logs error:', err);
+    res.status(500).json({ error: 'Gagal mengekspor log audit.' });
+  }
+});
+
 // GET /api/submissions
 app.get('/api/submissions', requirePermission('submissions'), async (req, res) => {
   try {
-    const { status } = req.query;
+    const { status, limit, offset } = req.query;
     const filters = {};
     if (status && ['pending', 'approved', 'rejected'].includes(status)) {
       filters.status = status;
     }
+    if (limit) filters.limit = parseInt(limit);
+    if (offset) filters.offset = parseInt(offset);
+
     const submissions = await db.getAllSubmissions(filters);
     res.json(submissions);
   } catch (err) {
@@ -508,7 +809,7 @@ app.get('/api/submissions', requirePermission('submissions'), async (req, res) =
   }
 });
 
-// POST /api/settings/login — Simpan setting halaman login (Super Admin only)
+// POST /api/settings/login â€” Simpan setting halaman login (Super Admin only)
 app.post('/api/settings/login', requireSuperAdmin, async (req, res) => {
   try {
     const saved = await db.saveLoginSettings(req.body);
@@ -520,9 +821,33 @@ app.post('/api/settings/login', requireSuperAdmin, async (req, res) => {
   }
 });
 
+// GET /api/settings/maintenance-status â€” Ambil status pemeliharaan (public, no auth)
+app.get('/api/settings/maintenance-status', async (req, res) => {
+  try {
+    const settings = await db.getMaintenanceSettings();
+    res.json(settings);
+  } catch (err) {
+    console.error('GET maintenance status error:', err);
+    res.status(500).json({ error: 'Gagal memuat status pemeliharaan.' });
+  }
+});
+
+// POST /api/settings/maintenance-settings â€” Simpan status pemeliharaan (Admin only)
+app.post('/api/settings/maintenance-settings', requireAdmin, async (req, res) => {
+  try {
+    const { active, title, message, estimated_end } = req.body;
+    const saved = await db.saveMaintenanceSettings({ active: !!active, title, message, estimated_end });
+    await db.insertAuditLog(req.user.username, 'UPDATE_MAINTENANCE', `Mengubah mode pemeliharaan menjadi ${active ? 'AKTIF' : 'NONAKTIF'}`);
+    res.json({ success: true, settings: saved });
+  } catch (err) {
+    console.error('Save maintenance settings error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan pengaturan pemeliharaan.' });
+  }
+});
+
 // ==================== ABSENSI ROUTES ====================
 
-// GET /api/settings/absensi — Ambil pengaturan absensi (public)
+// GET /api/settings/absensi â€” Ambil pengaturan absensi (public)
 app.get('/api/settings/absensi', async (req, res) => {
   try {
     const settings = await db.getAbsensiSettings();
@@ -533,7 +858,7 @@ app.get('/api/settings/absensi', async (req, res) => {
   }
 });
 
-// PUT /api/settings/absensi — Simpan pengaturan absensi (admin only)
+// PUT /api/settings/absensi â€” Simpan pengaturan absensi (admin only)
 app.put('/api/settings/absensi', requirePermission('absensi'), async (req, res) => {
   try {
     const { absensi_required, absensi_visible_to_user } = req.body;
@@ -550,7 +875,67 @@ app.put('/api/settings/absensi', requirePermission('absensi'), async (req, res) 
   }
 });
 
-// GET /api/absensi/tanggal-list — Daftar tanggal punya absensi (admin only)
+// GET /api/settings/phl-rate â€” Ambil upah harian PHL (accessible by authenticated users)
+app.get('/api/settings/phl-rate', requireAuth, async (req, res) => {
+  try {
+    const settings = await db.getPhlSettings();
+    res.json(settings);
+  } catch (err) {
+    console.error('Get PHL settings error:', err);
+    res.json(db.DEFAULT_PHL_SETTINGS);
+  }
+});
+
+// PUT /api/settings/phl-rate â€” Simpan upah harian PHL (admin only, with permission 'penggajian')
+app.put('/api/settings/phl-rate', requireAdmin, async (req, res) => {
+  try {
+    const { upah_harian } = req.body;
+    const upahNum = parseInt(upah_harian) || 0;
+    if (upahNum < 0) {
+      return res.status(400).json({ error: 'Upah harian tidak boleh negatif.' });
+    }
+    const saved = await db.savePhlSettings({ upah_harian: upahNum });
+    await db.insertAuditLog(req.user.username, 'UPDATE_SETTINGS',
+      `Mengubah pengaturan upah harian PHL menjadi Rp ${upahNum.toLocaleString('id-ID')}`);
+    res.json({ success: true, settings: saved });
+  } catch (err) {
+    console.error('Save PHL settings error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan pengaturan upah harian PHL.' });
+  }
+});
+
+// GET /api/settings/periode-aktif â€” Ambil tanggal mulai periode aktif (accessible by authenticated users)
+app.get('/api/settings/periode-aktif', requireAuth, async (req, res) => {
+  try {
+    const settings = await db.getPeriodeAktif();
+    res.json(settings);
+  } catch (err) {
+    console.error('Get periode aktif error:', err);
+    res.json({ tanggal_mulai: null });
+  }
+});
+
+// PUT /api/settings/periode-aktif â€” Simpan tanggal mulai periode aktif (admin only)
+app.put('/api/settings/periode-aktif', requireAdmin, async (req, res) => {
+  try {
+    const { tanggal_mulai } = req.body;
+    // Validate format YYYY-MM-DD or null
+    if (tanggal_mulai && !/^\d{4}-\d{2}-\d{2}$/.test(tanggal_mulai)) {
+      return res.status(400).json({ error: 'Format tanggal tidak valid. Gunakan YYYY-MM-DD.' });
+    }
+    const saved = await db.savePeriodeAktif({ tanggal_mulai: tanggal_mulai || null });
+    await db.insertAuditLog(req.user.username, 'UPDATE_SETTINGS',
+      tanggal_mulai
+        ? `Menetapkan periode aktif mulai ${tanggal_mulai} (tutup buku)`
+        : 'Mereset periode aktif ke semua waktu');
+    res.json({ success: true, settings: saved });
+  } catch (err) {
+    console.error('Save periode aktif error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan pengaturan periode aktif.' });
+  }
+});
+
+// GET /api/absensi/tanggal-list â€” Daftar tanggal punya absensi (admin only)
 app.get('/api/absensi/tanggal-list', requirePermission('absensi'), async (req, res) => {
   try {
     const dates = await db.getAbsensiTanggalList();
@@ -561,7 +946,7 @@ app.get('/api/absensi/tanggal-list', requirePermission('absensi'), async (req, r
   }
 });
 
-// GET /api/absensi/check — Cek apakah user hadir untuk tanggal tertentu (public)
+// GET /api/absensi/check â€” Cek apakah user hadir untuk tanggal tertentu (public)
 app.get('/api/absensi/check', async (req, res) => {
   try {
     const { tanggal, user_id } = req.query;
@@ -578,7 +963,7 @@ app.get('/api/absensi/check', async (req, res) => {
   }
 });
 
-// GET /api/absensi/hadir-hari-ini?tanggal=YYYY-MM-DD — Rekap hadir (public jika visible)
+// GET /api/absensi/hadir-hari-ini?tanggal=YYYY-MM-DD â€” Rekap hadir (public jika visible)
 app.get('/api/absensi/hadir-hari-ini', async (req, res) => {
   try {
     const tanggal = req.query.tanggal;
@@ -601,7 +986,7 @@ app.get('/api/absensi/hadir-hari-ini', async (req, res) => {
   }
 });
 
-// GET /api/absensi?tanggal=YYYY-MM-DD — Rekap absensi per tanggal (admin only)
+// GET /api/absensi?tanggal=YYYY-MM-DD â€” Rekap absensi per tanggal (admin only)
 app.get('/api/absensi', requirePermission('absensi'), async (req, res) => {
   try {
     const tanggal = req.query.tanggal;
@@ -614,7 +999,7 @@ app.get('/api/absensi', requirePermission('absensi'), async (req, res) => {
   }
 });
 
-// POST /api/absensi — Tambah user ke absensi (admin only)
+// POST /api/absensi â€” Tambah user ke absensi (admin only)
 app.post('/api/absensi', requirePermission('absensi'), async (req, res) => {
   try {
     const { tanggal, user_id } = req.body;
@@ -630,7 +1015,7 @@ app.post('/api/absensi', requirePermission('absensi'), async (req, res) => {
   }
 });
 
-// DELETE /api/absensi/:id — Hapus user dari absensi (admin only)
+// DELETE /api/absensi/:id â€” Hapus user dari absensi (admin only)
 app.delete('/api/absensi/:id', requirePermission('absensi'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -644,8 +1029,1477 @@ app.delete('/api/absensi/:id', requirePermission('absensi'), async (req, res) =>
   }
 });
 
+// GET /api/absensi/riwayat-user â€” Riwayat hadir/tidak hadir satu user dalam range tanggal
+app.get('/api/absensi/riwayat-user', requirePermission('absensi'), async (req, res) => {
+  try {
+    const { user_id, tanggal_mulai, tanggal_akhir } = req.query;
+    if (!user_id || !tanggal_mulai || !tanggal_akhir) {
+      return res.status(400).json({ error: 'Parameter user_id, tanggal_mulai, dan tanggal_akhir diperlukan.' });
+    }
+    if (tanggal_akhir < tanggal_mulai) {
+      return res.status(400).json({ error: 'tanggal_akhir tidak boleh lebih awal dari tanggal_mulai.' });
+    }
+    const data = await db.getAbsensiRiwayatUser(user_id, tanggal_mulai, tanggal_akhir);
+    res.json(data);
+  } catch (err) {
+    console.error('GET absensi/riwayat-user error:', err);
+    res.status(500).json({ error: 'Gagal memuat riwayat absensi.' });
+  }
+});
 
-// GET /api/submissions/pending-count — Jumlah submission pending (untuk badge admin)
+// GET /api/absensi/riwayat-semua-karyawan â€” Riwayat hadir/tidak hadir semua user dalam range tanggal (JSON)
+app.get('/api/absensi/riwayat-semua-karyawan', requirePermission('absensi'), async (req, res) => {
+  try {
+    const { tanggal_mulai, tanggal_akhir } = req.query;
+    if (!tanggal_mulai || !tanggal_akhir) {
+      return res.status(400).json({ error: 'Parameter tanggal_mulai dan tanggal_akhir diperlukan.' });
+    }
+    if (tanggal_akhir < tanggal_mulai) {
+      return res.status(400).json({ error: 'tanggal_akhir tidak boleh lebih awal dari tanggal_mulai.' });
+    }
+    const data = await db.getAbsensiRiwayatSemuaUser(tanggal_mulai, tanggal_akhir);
+    res.json(data);
+  } catch (err) {
+    console.error('GET absensi/riwayat-semua-karyawan error:', err);
+    res.status(500).json({ error: 'Gagal memuat riwayat absensi semua karyawan.' });
+  }
+});
+
+
+// GET /api/absensi/export-riwayat-user â€” Export rekap kehadiran karyawan ke Excel
+app.get('/api/absensi/export-riwayat-user', requirePermission('absensi'), async (req, res) => {
+  try {
+    const { user_id, tanggal_mulai, tanggal_akhir } = req.query;
+    if (!user_id || !tanggal_mulai || !tanggal_akhir) {
+      return res.status(400).json({ error: 'Parameter user_id, tanggal_mulai, dan tanggal_akhir diperlukan.' });
+    }
+
+    const data = await db.getAbsensiRiwayatUser(user_id, tanggal_mulai, tanggal_akhir);
+    const u    = data.user || {};
+    const nama = u.nama_lengkap || u.username || 'Karyawan';
+    const pct  = data.total_hari > 0 ? ((data.total_hadir / data.total_hari) * 100).toFixed(1) : '0';
+
+    const hadirSet = new Set(data.hadir);
+
+    // â”€â”€â”€ Helper formatting â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    const fmtDate = (d) => {
+      if (!d) return '';
+      const [y, m, day] = d.split('-');
+      const bln = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+      return `${parseInt(day)} ${bln[parseInt(m)-1]} ${y}`;
+    };
+    const fmtDateFull = (d) => {
+      if (!d) return '';
+      const [y, m, day] = d.split('-');
+      const bln = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+      const hari = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+      const dt = new Date(`${d}T00:00:00`);
+      return `${hari[dt.getDay()]}, ${parseInt(day)} ${bln[parseInt(m)-1]} ${y}`;
+    };
+
+    // â”€â”€â”€ Color palette â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    const C = {
+      primaryBg:   'FF4F46E5', // indigo
+      primaryFg:   'FFFFFFFF',
+      headerBg:    'FF312E81', // dark indigo
+      accentGreen: 'FF10B981',
+      accentRed:   'FFEF4444',
+      accentAmber: 'FFF59E0B',
+      greenLight:  'FFD1FAE5',
+      greenDark:   'FF065F46',
+      redLight:    'FFFEE2E2',
+      redDark:     'FF991B1B',
+      amberLight:  'FFFEF3C7',
+      amberDark:   'FF92400E',
+      grayLight:   'FFF8FAFC',
+      grayMid:     'FFE2E8F0',
+      grayDark:    'FF64748B',
+      white:       'FFFFFFFF',
+      darkText:    'FF1E293B',
+    };
+
+    const border1 = {
+      top:    { style: 'thin', color: { argb: C.grayMid } },
+      left:   { style: 'thin', color: { argb: C.grayMid } },
+      bottom: { style: 'thin', color: { argb: C.grayMid } },
+      right:  { style: 'thin', color: { argb: C.grayMid } },
+    };
+    const borderMedium = (argb) => ({
+      top:    { style: 'medium', color: { argb } },
+      left:   { style: 'medium', color: { argb } },
+      bottom: { style: 'medium', color: { argb } },
+      right:  { style: 'medium', color: { argb } },
+    });
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator  = 'SS08 - Formulir Pencapaian Kerja';
+    wb.created  = new Date();
+    wb.modified = new Date();
+
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // SHEET 1 â€” RINGKASAN
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    const ws1 = wb.addWorksheet('ðŸ“‹ Ringkasan', {
+      pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true },
+      properties: { tabColor: { argb: C.primaryBg } },
+    });
+    ws1.views = [{ showGridLines: false }];
+    ws1.columns = [
+      { key: 'A', width: 3 },
+      { key: 'B', width: 28 },
+      { key: 'C', width: 38 },
+      { key: 'D', width: 18 },
+    ];
+
+    // === HEADER BANNER ===
+    ws1.mergeCells('A1:D1');
+    ws1.getRow(1).height = 14;
+
+    ws1.mergeCells('A2:D5');
+    const titleCell = ws1.getCell('A2');
+    titleCell.value     = 'ðŸ“Š REKAP KEHADIRAN KARYAWAN';
+    titleCell.font      = { name: 'Calibri', size: 20, bold: true, color: { argb: C.primaryFg } };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false };
+    titleCell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.primaryBg } };
+    ws1.getRow(2).height = 20;
+    ws1.getRow(3).height = 20;
+    ws1.getRow(4).height = 20;
+    ws1.getRow(5).height = 20;
+
+    ws1.mergeCells('A6:D6');
+    const subTitle = ws1.getCell('A6');
+    subTitle.value     = `SS08 - Formulir Pencapaian Kerja  â€¢  Dicetak: ${new Date().toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}`;
+    subTitle.font      = { name: 'Calibri', size: 10, color: { argb: 'FFCBD5E1' } };
+    subTitle.alignment = { vertical: 'middle', horizontal: 'center' };
+    subTitle.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.headerBg } };
+    ws1.getRow(6).height = 18;
+
+    ws1.getRow(7).height = 10; // spacer
+
+    // === PROFIL KARYAWAN ===
+    ws1.mergeCells('B8:D8');
+    const profileLabel = ws1.getCell('B8');
+    profileLabel.value     = '  PROFIL KARYAWAN';
+    profileLabel.font      = { name: 'Calibri', size: 11, bold: true, color: { argb: C.primaryFg } };
+    profileLabel.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.primaryBg } };
+    profileLabel.alignment = { vertical: 'middle', horizontal: 'left' };
+    ws1.getRow(8).height   = 22;
+
+    const profileRows = [
+      ['Nama Lengkap',  nama],
+      ['Posisi',        u.posisi || '-'],
+      ['NIK',           u.nik    || '-'],
+      ['Username',      u.username || '-'],
+      ['Periode',       `${fmtDate(tanggal_mulai)} â€” ${fmtDate(tanggal_akhir)}`],
+    ];
+    let pr = 9;
+    profileRows.forEach(([label, val]) => {
+      ws1.getRow(pr).height = 20;
+      const lc = ws1.getCell(`B${pr}`);
+      lc.value     = label;
+      lc.font      = { name: 'Calibri', size: 11, bold: true, color: { argb: C.grayDark } };
+      lc.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.grayLight } };
+      lc.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+      lc.border    = border1;
+
+      ws1.mergeCells(`C${pr}:D${pr}`);
+      const vc = ws1.getCell(`C${pr}`);
+      vc.value     = val;
+      vc.font      = { name: 'Calibri', size: 11, bold: false, color: { argb: C.darkText } };
+      vc.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.white } };
+      vc.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+      vc.border    = border1;
+      pr++;
+    });
+
+    ws1.getRow(pr).height = 12; // spacer
+    pr++;
+
+    // === STATISTIK CARDS ===
+    ws1.mergeCells(`B${pr}:D${pr}`);
+    const statLabel = ws1.getCell(`B${pr}`);
+    statLabel.value     = '  STATISTIK KEHADIRAN';
+    statLabel.font      = { name: 'Calibri', size: 11, bold: true, color: { argb: C.primaryFg } };
+    statLabel.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.accentGreen } };
+    statLabel.alignment = { vertical: 'middle', horizontal: 'left' };
+    ws1.getRow(pr).height = 22;
+    pr++;
+
+    const stats = [
+      ['âœ… Total Hari Hadir',    data.total_hadir,       C.greenLight, C.greenDark, C.accentGreen],
+      ['âŒ Total Tidak Hadir',   data.total_tidak_hadir, C.redLight,   C.redDark,   C.accentRed  ],
+      ['ðŸ“… Total Hari Periode',  data.total_hari,        C.amberLight, C.amberDark, C.accentAmber],
+      ['ðŸ“Š Persentase Kehadiran',`${pct}%`,              'FFE0E7FF',   C.primaryBg, C.primaryBg  ],
+    ];
+    stats.forEach(([label, val, bgArgb, fgArgb, accentArgb]) => {
+      ws1.getRow(pr).height = 26;
+      const lc = ws1.getCell(`B${pr}`);
+      lc.value     = label;
+      lc.font      = { name: 'Calibri', size: 12, bold: true, color: { argb: fgArgb } };
+      lc.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgArgb } };
+      lc.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+      lc.border    = borderMedium(accentArgb);
+
+      ws1.mergeCells(`C${pr}:D${pr}`);
+      const vc = ws1.getCell(`C${pr}`);
+      vc.value     = val;
+      vc.font      = { name: 'Calibri', size: 16, bold: true, color: { argb: fgArgb } };
+      vc.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgArgb } };
+      vc.alignment = { vertical: 'middle', horizontal: 'center' };
+      vc.border    = borderMedium(accentArgb);
+      pr++;
+    });
+
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // SHEET 2 â€” KALENDER PER BULAN
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    const ws2 = wb.addWorksheet('ðŸ“… Kalender', {
+      properties: { tabColor: { argb: C.accentGreen } },
+    });
+    ws2.views = [{ showGridLines: false }];
+
+    // Generate all dates in range
+    const allDates = [];
+    const cur  = new Date(tanggal_mulai + 'T00:00:00');
+    const last = new Date(tanggal_akhir  + 'T00:00:00');
+    while (cur <= last) {
+      const y = cur.getFullYear();
+      const m = String(cur.getMonth() + 1).padStart(2, '0');
+      const d = String(cur.getDate()).padStart(2, '0');
+      allDates.push(`${y}-${m}-${d}`);
+      cur.setDate(cur.getDate() + 1);
+    }
+
+    // Group by month
+    const byMonth = {};
+    allDates.forEach(d => {
+      const key = d.slice(0, 7);
+      if (!byMonth[key]) byMonth[key] = [];
+      byMonth[key].push(d);
+    });
+
+    const HARI  = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+    const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+    // Cal sheet columns â€” 7 day cols per month, 2 spacer cols between months
+    // Layout: left margin col(1) | Mon cols 7 | spacer(1) | Mon cols 7 | ...
+    // We'll stack months vertically for simplicity with max 2 per row
+    const CAL_COLS = 7;
+    const SPACER   = 1;
+
+    ws2.columns = [
+      { key: 'margin', width: 3 },
+      ...Array.from({ length: CAL_COLS }, (_, i) => ({ key: `d${i}`, width: 7 })),
+      { key: 'spacer', width: 4 },
+      ...Array.from({ length: CAL_COLS }, (_, i) => ({ key: `d${i+7}`, width: 7 })),
+    ];
+
+    // Banner
+    ws2.mergeCells('A1:O1');
+    const cal_banner = ws2.getCell('A1');
+    cal_banner.value     = `ðŸ“…  KALENDER KEHADIRAN â€” ${nama}  (${fmtDate(tanggal_mulai)} s/d ${fmtDate(tanggal_akhir)})`;
+    cal_banner.font      = { name: 'Calibri', size: 13, bold: true, color: { argb: C.primaryFg } };
+    cal_banner.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.primaryBg } };
+    cal_banner.alignment = { vertical: 'middle', horizontal: 'center' };
+    ws2.getRow(1).height = 26;
+
+    ws2.getRow(2).height = 8; // spacer
+
+    const monthKeys = Object.keys(byMonth).sort();
+    // 2 months per row
+    const MONTHS_PER_ROW = 2;
+    const LEFT_COL  = 2;   // col index (1-based) for left month
+    const RIGHT_COL = 10;  // col index for right month (2 + 7 + 1)
+
+    let calRow = 3;
+
+    for (let mi = 0; mi < monthKeys.length; mi += MONTHS_PER_ROW) {
+      const monthPair = monthKeys.slice(mi, mi + MONTHS_PER_ROW);
+      const rowStart  = calRow;
+
+      monthPair.forEach((mKey, pairIdx) => {
+        const [y, m] = mKey.split('-');
+        const monthLabel = `${BULAN[parseInt(m) - 1]} ${y}`;
+        const firstDayDow = new Date(`${mKey}-01T00:00:00`).getDay(); // 0=Sun
+        const daysInMonth = new Date(parseInt(y), parseInt(m), 0).getDate();
+        const colOff = pairIdx === 0 ? LEFT_COL : RIGHT_COL;
+
+        // Month title
+        const mTitleRow = ws2.getRow(rowStart);
+        mTitleRow.height = 22;
+        const mTitle = ws2.getCell(rowStart, colOff);
+        ws2.mergeCells(rowStart, colOff, rowStart, colOff + CAL_COLS - 1);
+        mTitle.value     = `  ${monthLabel}`;
+        mTitle.font      = { name: 'Calibri', size: 12, bold: true, color: { argb: C.primaryFg } };
+        mTitle.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.primaryBg } };
+        mTitle.alignment = { vertical: 'middle', horizontal: 'left' };
+
+        // Day-of-week headers
+        const dowRow = ws2.getRow(rowStart + 1);
+        dowRow.height = 18;
+        HARI.forEach((h, hi) => {
+          const dc = ws2.getCell(rowStart + 1, colOff + hi);
+          dc.value     = h;
+          dc.font      = { name: 'Calibri', size: 10, bold: true, color: { argb: h === 'Min' ? C.accentRed : C.primaryBg } };
+          dc.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E7FF' } };
+          dc.alignment = { vertical: 'middle', horizontal: 'center' };
+        });
+
+        // Day cells
+        let dayRow = rowStart + 2;
+        let dayCol = colOff + firstDayDow;
+
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dateStr  = `${y}-${m}-${String(day).padStart(2, '0')}`;
+          const inRange  = dateStr >= tanggal_mulai && dateStr <= tanggal_akhir;
+          const isHadir  = hadirSet.has(dateStr);
+          const isSunday = (firstDayDow + day - 1) % 7 === 0;
+
+          if (dayCol >= colOff + CAL_COLS) { dayRow++; dayCol = colOff; }
+          ws2.getRow(dayRow).height = 18;
+
+          const dc = ws2.getCell(dayRow, dayCol);
+          dc.value = day;
+          dc.alignment = { vertical: 'middle', horizontal: 'center' };
+
+          if (!inRange) {
+            dc.font = { name: 'Calibri', size: 10, color: { argb: 'FFCBD5E1' } };
+            dc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+          } else if (isHadir) {
+            dc.font = { name: 'Calibri', size: 10, bold: true, color: { argb: C.greenDark } };
+            dc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.greenLight } };
+            dc.border = { top: { style:'thin', color:{ argb: C.accentGreen } }, left: { style:'thin', color:{ argb: C.accentGreen } }, bottom: { style:'thin', color:{ argb: C.accentGreen } }, right: { style:'thin', color:{ argb: C.accentGreen } } };
+          } else {
+            dc.font = { name: 'Calibri', size: 10, bold: true, color: { argb: C.redDark } };
+            dc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.redLight } };
+            dc.border = { top: { style:'thin', color:{ argb: C.accentRed } }, left: { style:'thin', color:{ argb: C.accentRed } }, bottom: { style:'thin', color:{ argb: C.accentRed } }, right: { style:'thin', color:{ argb: C.accentRed } } };
+          }
+
+          dayCol++;
+          if (dayCol >= colOff + CAL_COLS) { dayRow++; dayCol = colOff; }
+        }
+
+        // Max rows needed (rowStart + 1 dow + 6 weeks + 1 spacer)
+        calRow = Math.max(calRow, dayRow + 2);
+      });
+
+      calRow = calRow + 1; // spacer between month rows
+    }
+
+    // Legend
+    ws2.getRow(calRow).height = 8;
+    calRow++;
+    const legRow = ws2.getRow(calRow);
+    legRow.height = 18;
+    const legCells = [
+      [LEFT_COL,      '  âœ… Hadir',     C.greenLight, C.greenDark ],
+      [LEFT_COL + 2,  '  âŒ Tidak Hadir', C.redLight, C.redDark   ],
+      [LEFT_COL + 4,  '  â¬œ Di luar periode', 'FFF8FAFC', 'FFCBD5E1'],
+    ];
+    legCells.forEach(([col, label, bg, fg]) => {
+      ws2.mergeCells(calRow, col, calRow, col + 1);
+      const lc = ws2.getCell(calRow, col);
+      lc.value     = label;
+      lc.font      = { name: 'Calibri', size: 10, bold: true, color: { argb: fg } };
+      lc.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+      lc.alignment = { vertical: 'middle', horizontal: 'left' };
+      lc.border    = border1;
+    });
+
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // SHEET 3 â€” DETAIL DAFTAR HADIR & TIDAK HADIR
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    const ws3 = wb.addWorksheet('ðŸ“‹ Detail Absensi', {
+      properties: { tabColor: { argb: C.accentAmber } },
+    });
+    ws3.views = [{ showGridLines: false, state: 'frozen', ySplit: 4 }];
+    ws3.columns = [
+      { key: 'no',     width: 6  },
+      { key: 'tgl',    width: 14 },
+      { key: 'hari',   width: 24 },
+      { key: 'status', width: 16 },
+      { key: 'note',   width: 30 },
+    ];
+
+    // Banner
+    ws3.mergeCells('A1:E1');
+    const d3_banner = ws3.getCell('A1');
+    d3_banner.value     = `ðŸ“‹  DETAIL ABSENSI â€” ${nama}`;
+    d3_banner.font      = { name: 'Calibri', size: 13, bold: true, color: { argb: C.primaryFg } };
+    d3_banner.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.primaryBg } };
+    d3_banner.alignment = { vertical: 'middle', horizontal: 'center' };
+    ws3.getRow(1).height = 26;
+
+    ws3.mergeCells('A2:E2');
+    const d3_sub = ws3.getCell('A2');
+    d3_sub.value     = `Periode: ${fmtDate(tanggal_mulai)} s/d ${fmtDate(tanggal_akhir)}   |   Hadir: ${data.total_hadir} hari   |   Tidak Hadir: ${data.total_tidak_hadir} hari   |   Kehadiran: ${pct}%`;
+    d3_sub.font      = { name: 'Calibri', size: 10, color: { argb: 'FFCBD5E1' } };
+    d3_sub.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.headerBg } };
+    d3_sub.alignment = { vertical: 'middle', horizontal: 'center' };
+    ws3.getRow(2).height = 18;
+
+    ws3.getRow(3).height = 8; // spacer
+
+    // Header row
+    const d3Headers = ['No', 'Tanggal', 'Hari', 'Status', 'Keterangan'];
+    ws3.getRow(4).height = 22;
+    d3Headers.forEach((h, i) => {
+      const cell = ws3.getRow(4).getCell(i + 1);
+      cell.value     = h;
+      cell.font      = { name: 'Calibri', size: 11, bold: true, color: { argb: C.primaryFg } };
+      cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.primaryBg } };
+      cell.alignment = { vertical: 'middle', horizontal: i === 0 ? 'center' : 'left', indent: i > 0 ? 1 : 0 };
+      cell.border    = border1;
+    });
+
+    // Data rows â€” all dates in range
+    allDates.forEach((dateStr, idx) => {
+      const rowIdx  = idx + 5;
+      const isHadir = hadirSet.has(dateStr);
+      const isBg    = idx % 2 === 0;
+      const row     = ws3.getRow(rowIdx);
+      row.height    = 19;
+
+      const rowBg   = isHadir
+        ? (isBg ? C.greenLight : 'FFE6FFF5')
+        : (isBg ? C.redLight   : 'FFFFF0F0');
+
+      const cells = [
+        idx + 1,
+        dateStr,
+        fmtDateFull(dateStr),
+        isHadir ? 'âœ… HADIR' : 'âŒ TIDAK HADIR',
+        isHadir ? '' : 'Tidak tercatat hadir pada tanggal ini',
+      ];
+
+      cells.forEach((val, ci) => {
+        const cell = row.getCell(ci + 1);
+        cell.value     = val;
+        cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBg } };
+        cell.border    = border1;
+        cell.alignment = { vertical: 'middle', horizontal: ci === 0 ? 'center' : 'left', indent: ci > 0 ? 1 : 0 };
+        if (ci === 3) {
+          cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: isHadir ? C.greenDark : C.redDark } };
+        } else {
+          cell.font = { name: 'Calibri', size: 10, color: { argb: C.darkText } };
+        }
+      });
+    });
+
+    // â”€â”€â”€ Send file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    const safeName = nama.replace(/[^a-zA-Z0-9\s]/g, '').trim().replace(/\s+/g, '_');
+    const filename  = `Absensi_${safeName}_${tanggal_mulai}_sd_${tanggal_akhir}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    await wb.xlsx.write(res);
+    res.end();
+
+  } catch (err) {
+    console.error('Export riwayat absensi error:', err);
+    res.status(500).json({ error: 'Gagal mengekspor data absensi.' });
+  }
+});
+
+
+
+// GET /api/absensi/export-semua-karyawan â€” Export rekap kehadiran SEMUA karyawan ke Excel
+app.get('/api/absensi/export-semua-karyawan', requirePermission('absensi'), async (req, res) => {
+  try {
+    const { tanggal_mulai, tanggal_akhir } = req.query;
+    if (!tanggal_mulai || !tanggal_akhir) {
+      return res.status(400).json({ error: 'Parameter tanggal_mulai dan tanggal_akhir diperlukan.' });
+    }
+
+    const data  = await db.getAbsensiRiwayatSemuaUser(tanggal_mulai, tanggal_akhir);
+    const { allDates, total_hari, users } = data;
+
+    const fmtDate = (d) => {
+      if (!d) return '';
+      const [y, m, day] = d.split('-');
+      const bln = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+      return `${parseInt(day)} ${bln[parseInt(m)-1]} ${y}`;
+    };
+    const fmtDateFull = (d) => {
+      if (!d) return '';
+      const [y, m, day] = d.split('-');
+      const bln = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+      const hari = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+      const dt = new Date(`${d}T00:00:00`);
+      return `${hari[dt.getDay()]}, ${parseInt(day)} ${bln[parseInt(m)-1]} ${y}`;
+    };
+    const fmtShortDay = (d) => {
+      if (!d) return '';
+      const [y, m, day] = d.split('-');
+      return `${String(day).padStart(2,'0')}/${String(m).padStart(2,'0')}`;
+    };
+
+    // Colors
+    const C = {
+      primaryBg:'FF4F46E5', primaryFg:'FFFFFFFF', headerBg:'FF312E81',
+      green:'FF10B981', greenLight:'FFD1FAE5', greenDark:'FF065F46',
+      red:'FFEF4444', redLight:'FFFEE2E2', redDark:'FF991B1B',
+      amber:'FFF59E0B', amberLight:'FFFEF3C7', amberDark:'FF92400E',
+      gray:'FFF8FAFC', grayMid:'FFE2E8F0', grayDark:'FF64748B',
+      white:'FFFFFFFF', dark:'FF1E293B',
+      picker:'FF7C3AED', pickerBg:'FFEDE9FE',
+      sorter:'FF065F46', sorterBg:'FFD1FAE5',
+      loader:'FF92400E', loaderBg:'FFFEF3C7',
+    };
+    const posColor = (pos) => {
+      const p = (pos||'').toLowerCase();
+      if (p==='picker') return { fg: C.picker, bg: C.pickerBg };
+      if (p==='sorter') return { fg: C.sorter, bg: C.sorterBg };
+      if (p==='loader') return { fg: C.loader, bg: C.loaderBg };
+      return { fg: C.grayDark, bg: C.gray };
+    };
+    const thin = { style:'thin', color:{ argb: C.grayMid } };
+    const b1 = { top:thin, left:thin, bottom:thin, right:thin };
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'SS08 - Formulir Pencapaian Kerja';
+    wb.created = new Date();
+
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // SHEET 1 â€” REKAP SEMUA KARYAWAN (summary table)
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    const ws1 = wb.addWorksheet('ðŸ“Š Rekap Semua Karyawan', {
+      views: [{ showGridLines: false, state: 'frozen', ySplit: 5 }],
+      properties: { tabColor: { argb: C.primaryBg } },
+    });
+
+    // Banner
+    const totalCols = 8;
+    ws1.mergeCells(1, 1, 1, totalCols);
+    const banner = ws1.getCell('A1');
+    banner.value = `ðŸ“Š REKAP KEHADIRAN SEMUA KARYAWAN  â€”  ${fmtDate(tanggal_mulai)} s/d ${fmtDate(tanggal_akhir)}`;
+    banner.font  = { name:'Calibri', size:14, bold:true, color:{ argb: C.primaryFg } };
+    banner.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: C.primaryBg } };
+    banner.alignment = { vertical:'middle', horizontal:'center' };
+    ws1.getRow(1).height = 28;
+
+    ws1.mergeCells(2, 1, 2, totalCols);
+    const sub = ws1.getCell('A2');
+    sub.value = `Total Karyawan: ${users.length}  |  Total Hari Periode: ${total_hari}  |  Dicetak: ${new Date().toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}`;
+    sub.font  = { name:'Calibri', size:10, color:{ argb:'FFCBD5E1' } };
+    sub.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: C.headerBg } };
+    sub.alignment = { vertical:'middle', horizontal:'center' };
+    ws1.getRow(2).height = 18;
+    ws1.getRow(3).height = 8;
+
+    // Stats summary row
+    const totalHadir     = users.reduce((s, u) => s + u.total_hadir, 0);
+    const avgPct         = users.length > 0 ? (users.reduce((s,u) => s + parseFloat(u.pct), 0) / users.length).toFixed(1) : '0';
+    const statCols = [
+      { label:'ðŸ‘¥ Total Karyawan', val: users.length,   bg:'FFE0E7FF', fg: C.primaryBg },
+      { label:'ðŸ“… Total Hari',    val: total_hari,      bg: C.amberLight, fg: C.amberDark },
+      { label:'ðŸ“Š Rata-rata Kehadiran', val: avgPct+'%', bg:'FFD1FAE5', fg: C.greenDark },
+    ];
+    // Stat mini cards merged across cols
+    const statColWidths = [Math.floor(totalCols/3), Math.floor(totalCols/3), totalCols - 2*Math.floor(totalCols/3)];
+    let statCol = 1;
+    statCols.forEach((sc, i) => {
+      const w = statColWidths[i];
+      ws1.mergeCells(4, statCol, 4, statCol + w - 1);
+      const cell = ws1.getCell(4, statCol);
+      cell.value = `${sc.label}: ${sc.val}`;
+      cell.font  = { name:'Calibri', size:11, bold:true, color:{ argb: sc.fg } };
+      cell.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: sc.bg } };
+      cell.alignment = { vertical:'middle', horizontal:'center' };
+      statCol += w;
+    });
+    ws1.getRow(4).height = 22;
+
+    // Header row
+    const headers = ['No','Nama Karyawan','Posisi','NIK','âœ… Hadir','âŒ Tidak Hadir','ðŸ“… Total Hari','ðŸ“Š % Kehadiran'];
+    const colWidths = [5, 28, 12, 14, 12, 16, 14, 16];
+    ws1.columns = colWidths.map((w, i) => ({ key: `c${i}`, width: w }));
+    ws1.getRow(5).height = 22;
+    headers.forEach((h, i) => {
+      const cell = ws1.getRow(5).getCell(i + 1);
+      cell.value = h;
+      cell.font  = { name:'Calibri', size:11, bold:true, color:{ argb: C.primaryFg } };
+      cell.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: C.primaryBg } };
+      cell.alignment = { vertical:'middle', horizontal: i <= 1 ? 'left' : 'center', indent: i <= 1 ? 1 : 0 };
+      cell.border = b1;
+    });
+
+    // Data rows
+    users.forEach((u, idx) => {
+      const rowIdx = idx + 6;
+      const row    = ws1.getRow(rowIdx);
+      row.height   = 20;
+      const isBg   = idx % 2 === 0;
+      const pc     = posColor(u.user.posisi);
+      const pctNum = parseFloat(u.pct);
+      const pctBg  = pctNum >= 80 ? C.greenLight : pctNum >= 50 ? C.amberLight : C.redLight;
+      const pctFg  = pctNum >= 80 ? C.greenDark  : pctNum >= 50 ? C.amberDark  : C.redDark;
+
+      const rowData = [
+        idx + 1,
+        u.user.nama_lengkap || u.user.username,
+        u.user.posisi || '-',
+        u.user.nik    || '-',
+        u.total_hadir,
+        u.total_tidak_hadir,
+        total_hari,
+        u.pct + '%',
+      ];
+      rowData.forEach((val, ci) => {
+        const cell = row.getCell(ci + 1);
+        cell.value = val;
+        cell.border = b1;
+        cell.alignment = { vertical:'middle', horizontal: ci <= 1 ? 'left' : 'center', indent: ci <= 1 ? 1 : 0 };
+        const baseBg = isBg ? C.white : C.gray;
+        if (ci === 2) { // Posisi badge
+          cell.font = { name:'Calibri', size:10, bold:true, color:{ argb: pc.fg } };
+          cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb: pc.bg } };
+        } else if (ci === 4) { // Hadir
+          cell.font = { name:'Calibri', size:11, bold:true, color:{ argb: C.greenDark } };
+          cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb: isBg ? C.greenLight : 'FFE6FFF5' } };
+        } else if (ci === 5) { // Tidak hadir
+          cell.font = { name:'Calibri', size:11, bold:true, color:{ argb: C.redDark } };
+          cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb: isBg ? C.redLight : 'FFFFF0F0' } };
+        } else if (ci === 7) { // % kehadiran
+          cell.font = { name:'Calibri', size:11, bold:true, color:{ argb: pctFg } };
+          cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb: pctBg } };
+        } else {
+          cell.font = { name:'Calibri', size:10, color:{ argb: C.dark } };
+          cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb: baseBg } };
+        }
+      });
+    });
+
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // SHEET 2 â€” MATRIX KEHADIRAN (tanggal x karyawan)
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    const ws2 = wb.addWorksheet('ðŸ“… Matrix Kehadiran', {
+      properties: { tabColor: { argb: C.green } },
+    });
+    ws2.views = [{ showGridLines: false, state: 'frozen', xSplit: 3, ySplit: 4 }];
+
+    // Max 60 dates per sheet for readability â€” split if needed
+    const dateChunks = [];
+    for (let i = 0; i < allDates.length; i += 60) dateChunks.push(allDates.slice(i, i+60));
+    const usedDates = dateChunks[0] || allDates; // use first 60 dates for matrix
+
+    // Columns: No | Nama | Posisi | [date cols...]
+    const fixedCols = [
+      { key:'no',    width: 5  },
+      { key:'nama',  width: 26 },
+      { key:'posisi',width: 10 },
+      ...usedDates.map(d => ({ key: d, width: 6 })),
+      { key:'hadir',      width: 10 },
+      { key:'tidakhadir', width: 14 },
+      { key:'pct',        width: 13 },
+    ];
+    ws2.columns = fixedCols;
+
+    // Banner
+    ws2.mergeCells(1, 1, 1, fixedCols.length);
+    const mBanner = ws2.getCell('A1');
+    mBanner.value = `ðŸ“… MATRIX KEHADIRAN HARIAN  â€”  ${fmtDate(tanggal_mulai)} s/d ${fmtDate(tanggal_akhir)}  ${allDates.length > 60 ? `(Menampilkan 60 dari ${allDates.length} hari)` : ''}`;
+    mBanner.font  = { name:'Calibri', size:13, bold:true, color:{ argb: C.primaryFg } };
+    mBanner.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: C.primaryBg } };
+    mBanner.alignment = { vertical:'middle', horizontal:'center' };
+    ws2.getRow(1).height = 26;
+    ws2.getRow(2).height = 8;
+
+    // Legend row
+    ws2.mergeCells(3, 1, 3, 3);
+    ws2.getCell('A3').value = 'Legenda:';
+    ws2.getCell('A3').font  = { name:'Calibri', size:10, bold:true, color:{ argb: C.dark } };
+    ws2.getCell('A3').fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: C.white } };
+    const legendItems = [['H',C.greenLight,C.greenDark,'Hadir'],['X',C.redLight,C.redDark,'Tidak Hadir']];
+    legendItems.forEach(([sym, bg, fg, label], li) => {
+      const col = 4 + li * 2;
+      ws2.mergeCells(3, col, 3, col + 1);
+      const lc = ws2.getCell(3, col);
+      lc.value = `${sym} = ${label}`;
+      lc.font  = { name:'Calibri', size:10, bold:true, color:{ argb: fg } };
+      lc.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: bg } };
+      lc.alignment = { vertical:'middle', horizontal:'center' };
+    });
+    ws2.getRow(3).height = 18;
+
+    // Header row (col names)
+    const mHeadRow = ws2.getRow(4);
+    mHeadRow.height = 36;
+    ['No','Nama Karyawan','Posisi', ...usedDates.map(d => fmtShortDay(d)), 'Hadir','Tidak Hadir','% Hadir'].forEach((h, i) => {
+      const cell = mHeadRow.getCell(i + 1);
+      cell.value = h;
+      cell.font  = { name:'Calibri', size: i >= 3 && i < 3 + usedDates.length ? 8 : 10, bold:true, color:{ argb: C.primaryFg } };
+      cell.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: i >= 3 && i < 3 + usedDates.length ? C.headerBg : C.primaryBg } };
+      cell.alignment = { vertical:'middle', horizontal:'center', textRotation: i >= 3 && i < 3 + usedDates.length ? 90 : 0 };
+      cell.border = b1;
+    });
+
+    // Data rows
+    users.forEach((u, idx) => {
+      const rowIdx  = idx + 5;
+      const row     = ws2.getRow(rowIdx);
+      row.height    = 18;
+      const hadirSet = new Set(u.hadir);
+      const pc = posColor(u.user.posisi);
+
+      // No
+      let ci = 1;
+      const setCell = (val, font, fill, align='center') => {
+        const cell = row.getCell(ci);
+        cell.value = val; cell.border = b1;
+        if (font) cell.font = { name:'Calibri', size:10, ...font };
+        if (fill) cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb: fill } };
+        cell.alignment = { vertical:'middle', horizontal: align };
+        ci++;
+      };
+      setCell(idx+1, { color:{ argb: C.dark } }, idx%2===0 ? C.white : C.gray);
+      setCell(u.user.nama_lengkap || u.user.username, { color:{ argb: C.dark } }, idx%2===0 ? C.white : C.gray, 'left');
+      setCell(u.user.posisi || '-', { bold:true, color:{ argb: pc.fg } }, pc.bg);
+
+      usedDates.forEach(d => {
+        const h = hadirSet.has(d);
+        setCell(h ? 'H' : 'X',
+          { bold:true, size:9, color:{ argb: h ? C.greenDark : C.redDark } },
+          h ? C.greenLight : C.redLight
+        );
+      });
+      setCell(u.total_hadir, { bold:true, color:{ argb: C.greenDark } }, C.greenLight);
+      setCell(u.total_tidak_hadir, { bold:true, color:{ argb: C.redDark } }, C.redLight);
+      const pctNum = parseFloat(u.pct);
+      const pfg = pctNum>=80 ? C.greenDark : pctNum>=50 ? C.amberDark : C.redDark;
+      const pbg = pctNum>=80 ? C.greenLight : pctNum>=50 ? C.amberLight : C.redLight;
+      setCell(u.pct+'%', { bold:true, color:{ argb: pfg } }, pbg);
+    });
+
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // SHEET 3 â€” TIDAK HADIR PER KARYAWAN (detail list)
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    const ws3 = wb.addWorksheet('âŒ Daftar Tidak Hadir', {
+      properties: { tabColor: { argb: C.red } },
+    });
+    ws3.views = [{ showGridLines: false, state: 'frozen', ySplit: 3 }];
+    ws3.columns = [
+      { key:'no',   width: 5  },
+      { key:'nama', width: 28 },
+      { key:'pos',  width: 12 },
+      { key:'tgl',  width: 14 },
+      { key:'hari', width: 26 },
+    ];
+
+    // Banner
+    ws3.mergeCells('A1:E1');
+    const d3Banner = ws3.getCell('A1');
+    d3Banner.value = `âŒ DAFTAR TIDAK HADIR  â€”  ${fmtDate(tanggal_mulai)} s/d ${fmtDate(tanggal_akhir)}`;
+    d3Banner.font  = { name:'Calibri', size:13, bold:true, color:{ argb: C.primaryFg } };
+    d3Banner.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: C.primaryBg } };
+    d3Banner.alignment = { vertical:'middle', horizontal:'center' };
+    ws3.getRow(1).height = 26;
+    ws3.getRow(2).height = 8;
+
+    // Header
+    ws3.getRow(3).height = 22;
+    ['No','Nama Karyawan','Posisi','Tanggal','Hari'].forEach((h, i) => {
+      const cell = ws3.getRow(3).getCell(i+1);
+      cell.value = h;
+      cell.font  = { name:'Calibri', size:11, bold:true, color:{ argb: C.primaryFg } };
+      cell.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: C.primaryBg } };
+      cell.alignment = { vertical:'middle', horizontal: i<=1 ? 'left' : 'center', indent: i<=1 ? 1 : 0 };
+      cell.border = b1;
+    });
+
+    let absRow = 4, absNo = 1;
+    users.forEach(u => {
+      if (u.tidak_hadir.length === 0) return;
+      const pc = posColor(u.user.posisi);
+      u.tidak_hadir.forEach((d, di) => {
+        const row = ws3.getRow(absRow);
+        row.height = 18;
+        const isBg = absRow % 2 === 0;
+        const bg   = isBg ? C.redLight : 'FFFFF0F0';
+        const rowData = [absNo, u.user.nama_lengkap || u.user.username, u.user.posisi || '-', d, fmtDateFull(d)];
+        rowData.forEach((val, ci) => {
+          const cell = row.getCell(ci+1);
+          cell.value = val; cell.border = b1;
+          cell.alignment = { vertical:'middle', horizontal: ci<=1 ? 'left' : 'center', indent: ci<=1 ? 1 : 0 };
+          if (ci === 2) {
+            cell.font = { name:'Calibri', size:10, bold:true, color:{ argb: pc.fg } };
+            cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb: pc.bg } };
+          } else {
+            cell.font = { name:'Calibri', size:10, color:{ argb: C.redDark } };
+            cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb: bg } };
+          }
+        });
+        absRow++; absNo++;
+      });
+    });
+
+    // Send
+    const filename = `Rekap_Absensi_Semua_Karyawan_${tanggal_mulai}_sd_${tanggal_akhir}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    await wb.xlsx.write(res);
+    res.end();
+
+  } catch (err) {
+    console.error('Export semua karyawan error:', err);
+    res.status(500).json({ error: 'Gagal mengekspor data.' });
+  }
+});
+
+// GET /api/hr/penggajian â€” Get JSON rekap penggajian
+app.get('/api/hr/penggajian', requirePermission('penggajian'), async (req, res) => {
+  try {
+    const { tanggal_mulai, tanggal_akhir } = req.query;
+    if (!tanggal_mulai || !tanggal_akhir) {
+      return res.status(400).json({ error: 'Parameter tanggal_mulai dan tanggal_akhir diperlukan.' });
+    }
+    const data = await db.getRekapPenggajian(tanggal_mulai, tanggal_akhir);
+    res.json(data);
+  } catch (err) {
+    console.error('GET /api/hr/penggajian error:', err);
+    res.status(500).json({ error: 'Gagal memuat rekap penggajian.' });
+  }
+});
+
+// GET /api/hr/penggajian/export â€” Export rekap penggajian ke Excel
+app.get('/api/hr/penggajian/export', requirePermission('penggajian'), async (req, res) => {
+  try {
+    const { tanggal_mulai, tanggal_akhir } = req.query;
+    if (!tanggal_mulai || !tanggal_akhir) {
+      return res.status(400).json({ error: 'Parameter tanggal_mulai dan tanggal_akhir diperlukan.' });
+    }
+
+    const data = await db.getRekapPenggajian(tanggal_mulai, tanggal_akhir);
+    const { pekerja, total_hari } = data;
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'SS08 - Formulir Pencapaian Kerja';
+    wb.created = new Date();
+
+    const ws = wb.addWorksheet('ðŸ“‹ Rekap Penggajian', {
+      views: [{ showGridLines: true, state: 'frozen', ySplit: 7, xSplit: 3 }],
+      properties: { tabColor: { argb: 'FF4F46E5' } }
+    });
+
+    const C = {
+      primaryBg:'FF3F51B5', primaryFg:'FFFFFFFF', headerBg:'FF1A237E',
+      green:'FF10B981', greenLight:'FFD1FAE5', greenDark:'FF065F46',
+      red:'FFEF4444', redLight:'FFFEE2E2', redDark:'FF991B1B',
+      amber:'FFF59E0B', amberLight:'FFFEF3C7', amberDark:'FF92400E',
+      gray:'FFF8FAFC', grayMid:'FFE2E8F0', grayDark:'FF64748B',
+      white:'FFFFFFFF', dark:'FF1E293B',
+      picker:'FF7C3AED', pickerBg:'FFEDE9FE',
+      sorter:'FF065F46', sorterBg:'FFD1FAE5',
+      loader:'FF92400E', loaderBg:'FFFEF3C7',
+    };
+
+    const b1 = {
+      top: { style:'thin', color:{ argb: C.grayMid } },
+      left: { style:'thin', color:{ argb: C.grayMid } },
+      bottom: { style:'thin', color:{ argb: C.grayMid } },
+      right: { style:'thin', color:{ argb: C.grayMid } }
+    };
+
+    const posColor = (pos) => {
+      const p = (pos||'').toLowerCase();
+      if (p==='picker') return { fg: C.picker, bg: C.pickerBg };
+      if (p==='sorter') return { fg: C.sorter, bg: C.sorterBg };
+      if (p==='loader') return { fg: C.loader, bg: C.loaderBg };
+      return { fg: C.grayDark, bg: C.gray };
+    };
+
+    // Columns widths setup
+    // A: No, B: NIK, C: Nama Karyawan, D: Tipe, E: JHK (Hari Hadir)
+    // F: Sorter F, G: Sorter C, H: Sorter A
+    // I: Picker F, J: Picker C, K: Picker A
+    // L: Loader Container
+    // M: Pendapatan, N: Nominal, O: Jika Dihitung Per Kehadiran, P: Keterangan
+    const colWidths = [5, 14, 28, 12, 6, 14, 14, 14, 14, 14, 14, 14, 16, 16, 18, 16];
+    ws.columns = colWidths.map((w, i) => ({ key: `c${i}`, width: w }));
+
+    // Title banner row 1
+    ws.mergeCells(1, 1, 1, 16);
+    const titleCell = ws.getCell('A1');
+    titleCell.value = 'ðŸ’µ LAPORAN SUMMARY GAJIAN KARYAWAN';
+    titleCell.font  = { name:'Calibri', size:14, bold:true, color:{ argb: C.primaryFg } };
+    titleCell.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: 'FF312E81' } };
+    titleCell.alignment = { vertical:'middle', horizontal:'center' };
+    ws.getRow(1).height = 28;
+
+    ws.mergeCells(2, 1, 2, 16);
+    const subTitle = ws.getCell('A2');
+    subTitle.value = `Periode: ${tanggal_mulai} s/d ${tanggal_akhir} (${total_hari} Hari)`;
+    subTitle.font  = { name:'Calibri', size:10, bold:true, color:{ argb:'FFCBD5E1' } };
+    subTitle.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: 'FF1E1B4B' } };
+    subTitle.alignment = { vertical:'middle', horizontal:'center' };
+    ws.getRow(2).height = 18;
+
+    // Parameters Box at top right (Columns Q, R, S)
+    // Row 4: Labels
+    ws.getCell('Q4').value = 'KETERANGAN';
+    ws.getCell('R4').value = 'UMR @ BULAN';
+    ws.getCell('S4').value = 'UMR @ HARI';
+    ws.getRow(4).height = 18;
+    ['Q4','R4','S4'].forEach(c => {
+      const cell = ws.getCell(c);
+      cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: C.white } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF475569' } };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = b1;
+    });
+
+    // Row 5: Values
+    ws.getCell('Q5').value = 'PERBANDINGAN';
+    ws.getCell('R5').value = 3904711;
+    ws.getCell('R5').numFmt = 'Rp#,##0';
+    ws.getCell('S5').value = 153250;
+    ws.getCell('S5').numFmt = 'Rp#,##0';
+    ws.getRow(5).height = 18;
+    ['Q5','R5','S5'].forEach(c => {
+      const cell = ws.getCell(c);
+      cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: C.dark } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+      cell.alignment = { vertical: 'middle', horizontal: c === 'Q5' ? 'center' : 'right' };
+      cell.border = b1;
+    });
+
+    // Unit prices at top row 3 & 4 for columns F to L
+    // Row 3: Sorter prices
+    ws.mergeCells('F3:H3');
+    ws.getCell('F3').value = 'TARIF SORTER:  FREEZER = Rp 312  |  CHILLER = Rp 390  |  AMBIENT = Rp 437';
+    ws.getCell('F3').font = { name: 'Calibri', size: 9, italic: true, bold: true, color: { argb: C.grayDark } };
+    ws.getCell('F3').alignment = { vertical: 'middle', horizontal: 'center' };
+
+    // Row 4: Picker & Loader prices
+    ws.mergeCells('I4:L4');
+    ws.getCell('I4').value = 'TARIF PICKER: FREEZER = Rp 2,73, CHILLER = Rp 3,95, AMBIENT = Rp 4,42  |  LOADER: Rp 232 / Container';
+    ws.getCell('I4').font = { name: 'Calibri', size: 9, italic: true, bold: true, color: { argb: C.grayDark } };
+    ws.getCell('I4').alignment = { vertical: 'middle', horizontal: 'center' };
+
+    // Row 5: Sorter & Picker headers
+    ws.mergeCells('F5:H5');
+    ws.getCell('F5').value = 'SORTER';
+    ws.getCell('F5').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
+    ws.getCell('F5').font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0369A1' } };
+    ws.getCell('F5').alignment = { vertical: 'middle', horizontal: 'center' };
+    ws.getCell('F5').border = b1;
+
+    ws.mergeCells('I5:K5');
+    ws.getCell('I5').value = 'PICKER';
+    ws.getCell('I5').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E8FF' } };
+    ws.getCell('I5').font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF6B21A8' } };
+    ws.getCell('I5').alignment = { vertical: 'middle', horizontal: 'center' };
+    ws.getCell('I5').border = b1;
+
+    ws.getCell('L5').value = 'LOADER';
+    ws.getCell('L5').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2F0D9' } };
+    ws.getCell('L5').font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF385723' } };
+    ws.getCell('L5').alignment = { vertical: 'middle', horizontal: 'center' };
+    ws.getCell('L5').border = b1;
+
+    // Row 6: Total container headers
+    ws.mergeCells('F6:H6');
+    ws.getCell('F6').value = 'TOTAL CONTAINER';
+    ws.getCell('F6').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+    ws.getCell('F6').font = { name: 'Calibri', size: 9, bold: true, color: { argb: C.grayDark } };
+    ws.getCell('F6').alignment = { vertical: 'middle', horizontal: 'center' };
+    ws.getCell('F6').border = b1;
+
+    ws.mergeCells('I6:K6');
+    ws.getCell('I6').value = 'TOTAL CONTAINER';
+    ws.getCell('I6').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+    ws.getCell('I6').font = { name: 'Calibri', size: 9, bold: true, color: { argb: C.grayDark } };
+    ws.getCell('I6').alignment = { vertical: 'middle', horizontal: 'center' };
+    ws.getCell('I6').border = b1;
+
+    ws.getCell('L6').value = 'TOTAL CONTAINER';
+    ws.getCell('L6').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+    ws.getCell('L6').font = { name: 'Calibri', size: 9, bold: true, color: { argb: C.grayDark } };
+    ws.getCell('L6').alignment = { vertical: 'middle', horizontal: 'center' };
+    ws.getCell('L6').border = b1;
+
+    // Row 7: Columns subheaders
+    const subHeaders = [
+      'NO', 'NIK', 'NAMA', 'TIPE', 'JHK',
+      'FREEZER', 'CHILLER', 'AMBIENT',
+      'FREEZER', 'CHILLER', 'AMBIENT',
+      'CONTAINER',
+      'PENDAPATAN', 'NOMINAL',
+      'JIKA DIHITUNG PER KEHADIRAN', 'KETERANGAN'
+    ];
+    ws.getRow(7).height = 24;
+    subHeaders.forEach((sh, i) => {
+      const cell = ws.getRow(7).getCell(i + 1);
+      cell.value = sh;
+      cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: C.white } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: i <= 4 ? 'FF475569' : (i <= 7 ? 'FF0284C7' : (i <= 10 ? 'FF7E22CE' : (i === 11 ? 'FF2E7D32' : 'FF0F172A'))) } };
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      cell.border = b1;
+    });
+
+    // Helper functions for zone breakdown carian value extraction
+    const getZoneValue = (zonaDetail, pos, category) => {
+      let sum = 0;
+      if (!Array.isArray(zonaDetail)) return 0;
+      zonaDetail.forEach(zd => {
+        if (String(zd.posisi || '').toLowerCase() === pos.toLowerCase()) {
+          const z = String(zd.zona || '').trim().toUpperCase();
+          let matched = false;
+          if (category === 'FREEZER' && (z.startsWith('F') || z === 'FREEZER')) matched = true;
+          if (category === 'CHILLER' && (z.startsWith('R') || z === 'CHILLER')) matched = true;
+          if (category === 'AMBIENT' && (z.startsWith('T') || z === 'AMBIENT')) matched = true;
+          if (matched) {
+            sum += zd.nilai || 0;
+          }
+        }
+      });
+      return sum;
+    };
+
+    const getLoaderValue = (zonaDetail) => {
+      let sum = 0;
+      if (!Array.isArray(zonaDetail)) return 0;
+      zonaDetail.forEach(zd => {
+        if (String(zd.posisi || '').toLowerCase() === 'loader') {
+          sum += zd.nilai || 0;
+        }
+      });
+      return sum;
+    };
+
+    const sums = {
+      jhk: 0,
+      sf: 0, sc: 0, sa: 0,
+      pf: 0, pc: 0, pa: 0,
+      loader: 0,
+      pendapatan: 0,
+      nominal: 0,
+      umrComp: 0
+    };
+
+    // Populate data starting from Row 8
+    pekerja.forEach((p, idx) => {
+      const rowIdx = idx + 8;
+      const row = ws.getRow(rowIdx);
+      row.height = 20;
+      const isBg = idx % 2 === 0;
+      const baseBg = isBg ? C.white : C.gray;
+      
+      const sfVal = getZoneValue(p.zona_detail, 'Sorter', 'FREEZER');
+      const scVal = getZoneValue(p.zona_detail, 'Sorter', 'CHILLER');
+      const saVal = getZoneValue(p.zona_detail, 'Sorter', 'AMBIENT');
+      const pfVal = getZoneValue(p.zona_detail, 'Picker', 'FREEZER');
+      const pcVal = getZoneValue(p.zona_detail, 'Picker', 'CHILLER');
+      const paVal = getZoneValue(p.zona_detail, 'Picker', 'AMBIENT');
+      const ldVal = getLoaderValue(p.zona_detail);
+      
+      const pendapatan = p.pendapatan_carian;
+      const nominal = p.pendapatan_carian;
+      const umrComparison = p.total_hadir * 153250;
+      const isAchieve = pendapatan >= umrComparison;
+
+      sums.jhk += p.total_hadir;
+      sums.sf += sfVal; sums.sc += scVal; sums.sa += saVal;
+      sums.pf += pfVal; sums.pc += pcVal; sums.pa += paVal;
+      sums.loader += ldVal;
+      sums.pendapatan += pendapatan;
+      sums.nominal += nominal;
+      sums.umrComp += umrComparison;
+
+      // Helper to render zone breakdown values
+      const renderZoneVal = (col, val) => {
+        const cell = row.getCell(col);
+        cell.value = val;
+        cell.numFmt = 'Rp#,##0';
+        cell.alignment = { vertical: 'middle', horizontal: 'right' };
+        cell.font = { name: 'Calibri', size: 9, color: { argb: val > 0 ? C.dark : 'FFCBD5E1' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
+        cell.border = b1;
+      };
+
+      // Draw cells
+      // 1: NO
+      row.getCell(1).value = idx + 1;
+      row.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
+      row.getCell(1).font = { name: 'Calibri', size: 9 };
+      row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
+      row.getCell(1).border = b1;
+
+      // 2: NIK
+      row.getCell(2).value = p.user.nik || '-';
+      row.getCell(2).alignment = { vertical: 'middle', horizontal: 'center' };
+      row.getCell(2).font = { name: 'Calibri', size: 9, color: { argb: C.grayDark } };
+      row.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
+      row.getCell(2).border = b1;
+
+      // 3: NAMA
+      row.getCell(3).value = p.user.nama_lengkap || p.user.username || p.nama;
+      row.getCell(3).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+      row.getCell(3).font = { name: 'Calibri', size: 10, bold: true, color: { argb: C.dark } };
+      row.getCell(3).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
+      row.getCell(3).border = b1;
+
+      // 4: TIPE
+      row.getCell(4).value = p.user.tipe_karyawan || 'Productivity';
+      row.getCell(4).alignment = { vertical: 'middle', horizontal: 'center' };
+      row.getCell(4).font = { name: 'Calibri', size: 9, bold: true, color: { argb: p.user.tipe_karyawan === 'PHL' ? C.picker : C.dark } };
+      row.getCell(4).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: p.user.tipe_karyawan === 'PHL' ? C.pickerBg : baseBg } };
+      row.getCell(4).border = b1;
+
+      // 5: JHK
+      row.getCell(5).value = p.total_hadir;
+      row.getCell(5).alignment = { vertical: 'middle', horizontal: 'center' };
+      row.getCell(5).font = { name: 'Calibri', size: 10, bold: true, color: { argb: p.total_hadir < 9 ? C.redDark : C.dark } };
+      row.getCell(5).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: p.total_hadir < 9 ? C.redLight : baseBg } };
+      row.getCell(5).border = b1;
+
+      renderZoneVal(6, sfVal);
+      renderZoneVal(7, scVal);
+      renderZoneVal(8, saVal);
+
+      // 9: PF, 10: PC, 11: PA
+      renderZoneVal(9, pfVal);
+      renderZoneVal(10, pcVal);
+      renderZoneVal(11, paVal);
+
+      // 12: LOADER
+      renderZoneVal(12, ldVal);
+
+      // 13: PENDAPATAN
+      const cellM = row.getCell(13);
+      cellM.value = pendapatan;
+      cellM.numFmt = 'Rp#,##0';
+      cellM.alignment = { vertical: 'middle', horizontal: 'right' };
+      cellM.font = { name: 'Calibri', size: 10, bold: true, color: { argb: C.greenDark } };
+      cellM.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isBg ? C.greenLight : 'FFE6FFF5' } };
+      cellM.border = b1;
+
+      // 14: NOMINAL
+      const cellN = row.getCell(14);
+      cellN.value = nominal;
+      cellN.numFmt = 'Rp#,##0';
+      cellN.alignment = { vertical: 'middle', horizontal: 'right' };
+      cellN.font = { name: 'Calibri', size: 10, bold: true, color: { argb: C.greenDark } };
+      cellN.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isBg ? C.greenLight : 'FFE6FFF5' } };
+      cellN.border = b1;
+
+      // 15: JIKA DIHITUNG PER KEHADIRAN
+      const cellO = row.getCell(15);
+      cellO.value = umrComparison;
+      cellO.numFmt = 'Rp#,##0';
+      cellO.alignment = { vertical: 'middle', horizontal: 'right' };
+      cellO.font = { name: 'Calibri', size: 10, color: { argb: C.dark } };
+      cellO.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
+      cellO.border = b1;
+
+      // 16: KETERANGAN
+      const cellP = row.getCell(16);
+      cellP.value = isAchieve ? 'ACHIEVE' : 'NOT ACHIEVE';
+      cellP.alignment = { vertical: 'middle', horizontal: 'center' };
+      cellP.font = { name: 'Calibri', size: 9, bold: true, color: { argb: isAchieve ? C.greenDark : 'FFFFFFFF' } };
+      cellP.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isAchieve ? C.greenLight : C.amber } };
+      cellP.border = b1;
+    });
+
+    // Grand Total Row
+    const tRowIdx = pekerja.length + 8;
+    const tRow = ws.getRow(tRowIdx);
+    tRow.height = 24;
+
+    ws.mergeCells(tRowIdx, 1, tRowIdx, 4);
+    const tLCell = tRow.getCell(1);
+    tLCell.value = 'GRAND TOTAL';
+    tLCell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: C.white } };
+    tLCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+    tLCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    const formatSumCell = (col, val, numFmt = 'Rp#,##0', bgHex = 'FF1E293B') => {
+      const cell = tRow.getCell(col);
+      cell.value = val;
+      cell.numFmt = numFmt;
+      cell.alignment = { vertical: 'middle', horizontal: col === 5 ? 'center' : 'right' };
+      cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: C.white } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgHex } };
+      cell.border = b1;
+    };
+
+    formatSumCell(5, sums.jhk, '#,##0');
+    formatSumCell(6, sums.sf);
+    formatSumCell(7, sums.sc);
+    formatSumCell(8, sums.sa);
+    formatSumCell(9, sums.pf);
+    formatSumCell(10, sums.pc);
+    formatSumCell(11, sums.pa);
+    formatSumCell(12, sums.loader);
+    formatSumCell(13, sums.pendapatan, 'Rp#,##0', 'FF065F46'); // Highlight total green
+    formatSumCell(14, sums.nominal, 'Rp#,##0', 'FF065F46');
+    formatSumCell(15, sums.umrComp);
+
+    // Empty cell for Keterangan
+    tRow.getCell(16).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+    tRow.getCell(16).border = b1;
+
+    const totalEarningsCarian = sums.pendapatan;
+
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // SHEET 2 â€” DETAIL KEHADIRAN (matrix calendar)
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    const dataAbsensi = await db.getAbsensiRiwayatSemuaUser(tanggal_mulai, tanggal_akhir);
+    const { allDates, users: absensiUsers } = dataAbsensi;
+
+    const ws2 = wb.addWorksheet('ðŸ“… Detail Kehadiran', {
+      properties: { tabColor: { argb: C.green } }
+    });
+    ws2.views = [{ showGridLines: false, state: 'frozen', xSplit: 4, ySplit: 4 }];
+
+    const fmtShortDay = (d) => {
+      if (!d) return '';
+      const [y, m, day] = d.split('-');
+      return `${String(day).padStart(2,'0')}/${String(m).padStart(2,'0')}`;
+    };
+
+    // Columns: No | Nama | Posisi | Tipe | [date cols...] | Hadir | Tidak Hadir | % Kehadiran
+    const fixedCols = [
+      { key:'no',    width: 5  },
+      { key:'nama',  width: 26 },
+      { key:'posisi',width: 10 },
+      { key:'tipe',  width: 12 },
+      ...allDates.map(d => ({ key: d, width: 6 })),
+      { key:'hadir',      width: 10 },
+      { key:'tidakhadir', width: 14 },
+      { key:'pct',        width: 13 },
+    ];
+    ws2.columns = fixedCols;
+
+    // Banner Matrix
+    ws2.mergeCells(1, 1, 1, fixedCols.length);
+    const mBanner = ws2.getCell('A1');
+    mBanner.value = `ðŸ“… MATRIX DETAIL KEHADIRAN HARIAN KARYAWAN`;
+    mBanner.font  = { name:'Calibri', size:13, bold:true, color:{ argb: C.primaryFg } };
+    mBanner.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: C.primaryBg } };
+    mBanner.alignment = { vertical:'middle', horizontal:'center' };
+    ws2.getRow(1).height = 26;
+    
+    ws2.mergeCells(2, 1, 2, fixedCols.length);
+    const mSubBanner = ws2.getCell('A2');
+    mSubBanner.value = `Periode: ${tanggal_mulai} s/d ${tanggal_akhir} (${total_hari} Hari)`;
+    mSubBanner.font  = { name:'Calibri', size:10, color:{ argb:'FFCBD5E1' } };
+    mSubBanner.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: C.headerBg } };
+    mSubBanner.alignment = { vertical:'middle', horizontal:'center' };
+    ws2.getRow(2).height = 18;
+
+    // Legend
+    ws2.mergeCells(3, 1, 3, 4);
+    ws2.getCell('A3').value = 'Legenda:   H = Hadir (Hijau)   |   X = Tidak Hadir (Merah)';
+    ws2.getCell('A3').font  = { name:'Calibri', size:10, bold:true, color:{ argb: C.dark } };
+    ws2.getCell('A3').alignment = { vertical:'middle', horizontal:'left', indent: 1 };
+    ws2.getRow(3).height = 18;
+
+    // Headers
+    const mHeadRow = ws2.getRow(4);
+    mHeadRow.height = 36;
+    ['No','Nama Karyawan','Posisi','Tipe', ...allDates.map(d => fmtShortDay(d)), 'Hadir','Tidak Hadir','% Hadir'].forEach((h, i) => {
+      const cell = mHeadRow.getCell(i + 1);
+      cell.value = h;
+      cell.font  = { name:'Calibri', size: i >= 4 && i < 4 + allDates.length ? 8 : 10, bold:true, color:{ argb: C.primaryFg } };
+      cell.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: i >= 4 && i < 4 + allDates.length ? C.headerBg : C.primaryBg } };
+      cell.alignment = { vertical:'middle', horizontal:'center', textRotation: i >= 4 && i < 4 + allDates.length ? 90 : 0 };
+      cell.border = b1;
+    });
+
+    // Matrix Data Rows
+    absensiUsers.forEach((u, idx) => {
+      const rowIdx  = idx + 5;
+      const row     = ws2.getRow(rowIdx);
+      row.height    = 18;
+      const hadirSet = new Set(u.hadir);
+      const pc = posColor(u.user.posisi);
+
+      let ci = 1;
+      const setCell = (val, font, fill, align='center') => {
+        const cell = row.getCell(ci);
+        cell.value = val; cell.border = b1;
+        if (font) cell.font = { name:'Calibri', size:10, ...font };
+        if (fill) cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb: fill } };
+        cell.alignment = { vertical:'middle', horizontal: align };
+        ci++;
+      };
+      setCell(idx+1, { color:{ argb: C.dark } }, idx%2===0 ? C.white : C.gray);
+      setCell(u.user.nama_lengkap || u.user.username, { color:{ argb: C.dark } }, idx%2===0 ? C.white : C.gray, 'left');
+      setCell(u.user.posisi || '-', { bold:true, color:{ argb: pc.fg } }, pc.bg);
+      
+      const tipe = u.user.tipe_karyawan || 'Productivity';
+      setCell(tipe, { bold:true, color:{ argb: tipe === 'PHL' ? C.picker : C.dark } }, tipe === 'PHL' ? C.pickerBg : (idx%2===0 ? C.white : C.gray));
+
+      allDates.forEach(d => {
+        const h = hadirSet.has(d);
+        setCell(h ? 'H' : 'X',
+          { bold:true, size:9, color:{ argb: h ? C.greenDark : C.redDark } },
+          h ? C.greenLight : C.redLight
+        );
+      });
+      setCell(u.total_hadir, { bold:true, color:{ argb: C.greenDark } }, C.greenLight);
+      setCell(u.total_tidak_hadir, { bold:true, color:{ argb: C.redDark } }, C.redLight);
+      const pctNum = parseFloat(u.pct);
+      const pfg = pctNum>=80 ? C.greenDark : pctNum>=50 ? C.amberDark : C.redDark;
+      const pbg = pctNum>=80 ? C.greenLight : pctNum>=50 ? C.amberLight : C.redLight;
+      setCell(u.pct+'%', { bold:true, color:{ argb: pfg } }, pbg);
+    });
+
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // SHEET 3 â€” DETAIL PENDAPATAN (carian detail log)
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    const listDetails = await db.getDetailSubmissionsAndLoader(tanggal_mulai, tanggal_akhir);
+
+    const ws3 = wb.addWorksheet('ðŸ’µ Detail Pendapatan', {
+      views: [{ showGridLines: false, state: 'frozen', ySplit: 4 }],
+      properties: { tabColor: { argb: C.amber } }
+    });
+
+    ws3.columns = [
+      { key: 'no', width: 6 },
+      { key: 'tanggal', width: 14 },
+      { key: 'nama', width: 28 },
+      { key: 'posisi', width: 12 },
+      { key: 'item', width: 26 },
+      { key: 'jumlah', width: 12 },
+      { key: 'harga', width: 14 },
+      { key: 'total', width: 16 }
+    ];
+
+    // Banner Detail
+    ws3.mergeCells('A1:H1');
+    const dBanner = ws3.getCell('A1');
+    dBanner.value = `ðŸ’µ DETAIL LOG PENDAPATAN HARIAN PEKERJA`;
+    dBanner.font  = { name:'Calibri', size:13, bold:true, color:{ argb: C.primaryFg } };
+    dBanner.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: C.primaryBg } };
+    dBanner.alignment = { vertical:'middle', horizontal:'center' };
+    ws3.getRow(1).height = 26;
+
+    ws3.mergeCells('A2:H2');
+    const dSubBanner = ws3.getCell('A2');
+    dSubBanner.value = `Periode: ${tanggal_mulai} s/d ${tanggal_akhir}  |  Total Data Log: ${listDetails.length} Record`;
+    dSubBanner.font  = { name:'Calibri', size:10, color:{ argb:'FFCBD5E1' } };
+    dSubBanner.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: C.headerBg } };
+    dSubBanner.alignment = { vertical:'middle', horizontal:'center' };
+    ws3.getRow(2).height = 18;
+    ws3.getRow(3).height = 8; // Spacer
+
+    // Headers
+    const dHeaders = ['No', 'Tanggal', 'Nama Karyawan', 'Posisi', 'Keterangan/Zona', 'Volume', 'Tarif Satuan', 'Total Pendapatan'];
+    ws3.getRow(4).height = 22;
+    dHeaders.forEach((h, i) => {
+      const cell = ws3.getRow(4).getCell(i + 1);
+      cell.value = h;
+      cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: C.primaryFg } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.primaryBg } };
+      cell.alignment = { vertical: 'middle', horizontal: i <= 2 || i === 4 ? 'left' : (i === 3 ? 'center' : 'right'), indent: i <= 2 || i === 4 ? 1 : 0 };
+      cell.border = b1;
+    });
+
+    // Populate log list
+    listDetails.forEach((ld, idx) => {
+      const rowIdx = idx + 5;
+      const row = ws3.getRow(rowIdx);
+      row.height = 20;
+      const isBg = idx % 2 === 0;
+      const baseBg = isBg ? C.white : C.gray;
+      const pc = posColor(ld.posisi);
+
+      const rowValues = [
+        idx + 1,
+        ld.tanggal,
+        ld.nama,
+        ld.posisi,
+        ld.item,
+        ld.jumlah,
+        ld.harga,
+        ld.total_nilai
+      ];
+
+      rowValues.forEach((val, ci) => {
+        const cell = row.getCell(ci + 1);
+        cell.border = b1;
+
+        if (ci === 0) {
+          cell.value = val;
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+          cell.font = { name: 'Calibri', size: 9, color: { argb: C.dark } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
+        } else if (ci === 1) {
+          cell.value = val;
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+          cell.font = { name: 'Calibri', size: 9, color: { argb: C.dark } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
+        } else if (ci === 2) {
+          cell.value = val;
+          cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+          cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: C.dark } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
+        } else if (ci === 3) {
+          cell.value = val;
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+          cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: pc.fg } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: pc.bg } };
+        } else if (ci === 4) {
+          cell.value = val;
+          cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+          cell.font = { name: 'Calibri', size: 9, color: { argb: C.grayDark } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
+        } else if (ci === 5) {
+          cell.value = val;
+          cell.numFmt = '#,##0';
+          cell.alignment = { vertical: 'middle', horizontal: 'right' };
+          cell.font = { name: 'Calibri', size: 10, color: { argb: C.dark } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
+        } else if (ci === 6) {
+          cell.value = val;
+          cell.numFmt = 'Rp#,##0';
+          cell.alignment = { vertical: 'middle', horizontal: 'right' };
+          cell.font = { name: 'Calibri', size: 10, color: { argb: C.dark } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: baseBg } };
+        } else {
+          cell.value = val;
+          cell.numFmt = 'Rp#,##0';
+          cell.alignment = { vertical: 'middle', horizontal: 'right' };
+          cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: C.greenDark } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isBg ? C.greenLight : 'FFE6FFF5' } };
+        }
+      });
+    });
+
+    // Grand total row for detailed logs
+    const dTotalRowIdx = listDetails.length + 5;
+    const dTRow = ws3.getRow(dTotalRowIdx);
+    dTRow.height = 22;
+    ws3.mergeCells(dTotalRowIdx, 1, dTotalRowIdx, 7);
+    const dTLabelCell = dTRow.getCell(1);
+    dTLabelCell.value = 'GRAND TOTAL PENDAPATAN LOG';
+    dTLabelCell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: C.primaryFg } };
+    dTLabelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.headerBg } };
+    dTLabelCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    const dTotalValCell = dTRow.getCell(8);
+    dTotalValCell.value = totalEarningsCarian;
+    dTotalValCell.numFmt = 'Rp#,##0';
+    dTotalValCell.border = b1;
+    dTotalValCell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: C.primaryFg } };
+    dTotalValCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.green } };
+    dTotalValCell.alignment = { vertical: 'middle', horizontal: 'right' };
+
+    const filename = `Rekap_Kehadiran_dan_Pendapatan_${tanggal_mulai}_sd_${tanggal_akhir}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    await wb.xlsx.write(res);
+    res.end();
+
+  } catch (err) {
+    console.error('Export penggajian error:', err);
+    res.status(500).json({ error: 'Gagal mengekspor data penggajian.' });
+  }
+});
+
+
+// GET /api/submissions/pending-count â€” Jumlah submission pending (untuk badge admin)
 // HARUS SEBELUM /api/submissions/:id agar tidak dianggap sebagai :id
 app.get('/api/submissions/pending-count', requireAuth, async (req, res) => {
   try {
@@ -670,6 +2524,49 @@ app.get('/api/submissions/:id', requireAuth, async (req, res) => {
   }
 });
 
+// PUT /api/submissions/:id â€” Update submission fields (Admin only)
+app.put('/api/submissions/:id', requirePermission('submissions'), async (req, res) => {
+  try {
+    const { jumlah_output, catatan_tambahan, tanggal_carian, tanggal_pengerjaan } = req.body;
+    
+    // Validasi data
+    if (jumlah_output === undefined || isNaN(parseInt(jumlah_output)) || parseInt(jumlah_output) < 0) {
+      return res.status(400).json({ error: 'Jumlah output tidak valid.' });
+    }
+
+    const orig = await db.getSubmissionById(req.params.id);
+    if (!orig) return res.status(404).json({ error: 'Data tidak ditemukan.' });
+
+    // Update
+    const updated = await db.updateSubmission(req.params.id, req.body);
+    
+    // Invalidate cache
+    if (orig.tanggal_carian) invalidateDcCache(orig.tanggal_carian);
+    if (tanggal_carian && tanggal_carian !== orig.tanggal_carian) {
+      invalidateDcCache(tanggal_carian);
+    }
+    
+    // Audit Log
+    await db.insertAuditLog(req.user.username, 'UPDATE_SUBMISSION', `Mengedit submission ID ${req.params.id} milik ${orig.nama} (Jumlah Output diubah dari ${orig.jumlah_output} menjadi ${jumlah_output})`);
+    
+    // Auto-Sync Google Sheets
+    if (googleSheets.isConfigured()) {
+      setImmediate(async () => {
+        try {
+          await syncSubmissionsToSheets();
+        } catch(e) {
+          console.error('[AutoSync Edit] Google Sheets sync error:', e.message);
+        }
+      });
+    }
+
+    res.json({ success: true, submission: updated });
+  } catch (err) {
+    console.error('Update submission error:', err);
+    res.status(500).json({ error: 'Gagal memperbarui data submission.' });
+  }
+});
+
 // DELETE /api/submissions/:id
 app.delete('/api/submissions/:id', requirePermission('submissions'), async (req, res) => {
   try {
@@ -687,7 +2584,7 @@ app.delete('/api/submissions/:id', requirePermission('submissions'), async (req,
       setImmediate(async () => {
         try {
           await syncSubmissionsToSheets();
-          console.log(`[AutoSync] Submission ${req.params.id} dihapus — Sheets berhasil diperbarui.`);
+          console.log(`[AutoSync] Submission ${req.params.id} dihapus â€” Sheets berhasil diperbarui.`);
         } catch(e) {
           console.error('[AutoSync] Gagal sync hapus ke Google Sheets:', e.message);
         }
@@ -712,7 +2609,7 @@ app.get('/api/stats', requireAuth, async (req, res) => {
   }
 });
 
-// PUT /api/submissions/:id/status — Admin approve atau reject submission pending
+// PUT /api/submissions/:id/status â€” Admin approve atau reject submission pending
 app.put('/api/submissions/:id/status', requirePermission('submissions'), async (req, res) => {
   try {
     const { status } = req.body;
@@ -735,7 +2632,7 @@ app.put('/api/submissions/:id/status', requirePermission('submissions'), async (
       setImmediate(async () => {
         try {
           await syncSubmissionsToSheets();
-          console.log(`[AutoSync] Status submission ${req.params.id} → "${status}" berhasil disync ke Sheets.`);
+          console.log(`[AutoSync] Status submission ${req.params.id} â†’ "${status}" berhasil disync ke Sheets.`);
         } catch(e) {
           console.error('[AutoSync] Gagal sync status ke Google Sheets:', e.message);
         }
@@ -934,7 +2831,7 @@ app.get('/api/export', requireAuth, async (req, res) => {
     res.send(buffer);
   } catch (err) {
     console.error('Export Excel error:', err);
-    res.status(500).send('Gagal mengekspor data.');
+    res.status(500).json({ success: false, error: 'Gagal mengekspor data.' });
   }
 });
 
@@ -968,13 +2865,13 @@ app.get('/api/export-csv', requireAuth, async (req, res) => {
     res.send('\uFEFF' + csv);
   } catch (err) {
     console.error('Export CSV error:', err);
-    res.status(500).send('Gagal mengekspor data.');
+    res.status(500).json({ success: false, error: 'Gagal mengekspor data.' });
   }
 });
 
 // ==================== GOOGLE SHEETS ROUTES ====================
 
-// GET /api/google-sheets/status — Cek status koneksi Google Sheets
+// GET /api/google-sheets/status â€” Cek status koneksi Google Sheets
 app.get('/api/google-sheets/status', requireAdmin, async (req, res) => {
   try {
     const status = await googleSheets.checkStatus();
@@ -985,7 +2882,7 @@ app.get('/api/google-sheets/status', requireAdmin, async (req, res) => {
   }
 });
 
-// POST /api/google-sheets/push — Manual push semua data ke Google Sheets
+// POST /api/google-sheets/push â€” Manual push semua data ke Google Sheets
 app.post('/api/google-sheets/push', requireAdmin, async (req, res) => {
   try {
     if (!googleSheets.isConfigured()) {
@@ -1081,7 +2978,7 @@ function invalidateDcCache(tanggal) {
   }
 }
 
-// GET /api/data-carian — Ambil semua atau filter per tanggal
+// GET /api/data-carian â€” Ambil semua atau filter per tanggal
 app.get('/api/data-carian', requireAuth, async (req, res) => {
   try {
     const { tanggal } = req.query;
@@ -1107,7 +3004,7 @@ app.get('/api/data-carian', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/data-carian/tanggal-list — Daftar tanggal yang punya data carian
+// GET /api/data-carian/tanggal-list â€” Daftar tanggal yang punya data carian
 app.get('/api/data-carian/tanggal-list', requireAuth, async (req, res) => {
   try {
     const records = await db.getDataCarian();
@@ -1119,7 +3016,7 @@ app.get('/api/data-carian/tanggal-list', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/data-carian — Tambah satu record
+// POST /api/data-carian â€” Tambah satu record
 app.post('/api/data-carian', requireAuth, async (req, res) => {
   try {
     const { tanggal_carian, posisi, zona, batch, jumlah_toko, total_output } = req.body;
@@ -1142,7 +3039,7 @@ app.post('/api/data-carian', requireAuth, async (req, res) => {
   }
 });
 
-// PUT /api/data-carian/:id — Edit satu record
+// PUT /api/data-carian/:id â€” Edit satu record
 app.put('/api/data-carian/:id', requireAuth, async (req, res) => {
   try {
     const { total_output, jumlah_toko, posisi } = req.body;
@@ -1168,11 +3065,16 @@ app.put('/api/data-carian/:id', requireAuth, async (req, res) => {
   }
 });
 
-// DELETE /api/data-carian/:id — Hapus satu record
+// DELETE /api/data-carian/:id â€” Hapus satu record
 app.delete('/api/data-carian/:id', requireAuth, async (req, res) => {
   try {
+    const record = await db.getDataCarianById(req.params.id);
     await db.deleteDataCarian(req.params.id);
-    invalidateDcCache(null); // invalidate semua cache karena tidak tahu tanggalnya
+    if (record && record.tanggal_carian) {
+      invalidateDcCache(record.tanggal_carian);
+    } else {
+      invalidateDcCache(null);
+    }
     res.json({ success: true });
   } catch (err) {
     console.error('Delete data carian error:', err);
@@ -1180,7 +3082,7 @@ app.delete('/api/data-carian/:id', requireAuth, async (req, res) => {
   }
 });
 
-// DELETE /api/data-carian/tanggal/:tanggal — Hapus semua data carian untuk tanggal tertentu
+// DELETE /api/data-carian/tanggal/:tanggal â€” Hapus semua data carian untuk tanggal tertentu
 app.delete('/api/data-carian/tanggal/:tanggal', requireAuth, async (req, res) => {
   try {
     await db.deleteDataCarianByTanggal(req.params.tanggal);
@@ -1192,7 +3094,7 @@ app.delete('/api/data-carian/tanggal/:tanggal', requireAuth, async (req, res) =>
   }
 });
 
-// POST /api/data-carian/import-excel — Import dari file Excel
+// POST /api/data-carian/import-excel â€” Import dari file Excel
 app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
   uploadExcel.single('file')(req, res, (err) => {
     if (err instanceof multer.MulterError) {
@@ -1232,7 +3134,7 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
     // Detect "Lembar Fix Baru" format:
     // 1 sheet (Lembar1), row 2 = zona (F1/R1/...), row 3 = Picker/Shorter per zona,
     // row 6 = header (TANGGAL CARI, GROUP MOBIL, KODE, INS, NAMA TOKO, BATCH, QTY, ACT QTY, KONT, ACT KONT... per zona)
-    // data mulai row 7 → batch ada di kolom F (per zona group, 5 kolom: BATCH, QTY, ACT QTY, KONT, ACT KONT)
+    // data mulai row 7 â†’ batch ada di kolom F (per zona group, 5 kolom: BATCH, QTY, ACT QTY, KONT, ACT KONT)
     // Loader kolom terakhir: FREZZER KONT (col 51), CHILLER KONT (col 53), AMBIENT KONT (col 55) [1-based dari Excel]
     let isLembarFixFormat = false;
     let lembarFixHeaderRowIdx = -1; // idx baris yang berisi "TANGGAL CARI"
@@ -1267,7 +3169,7 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
 
       // juga deteksi berdasarkan struktur header jika tidak ada nama "Lembar"
       if (!isLembarFixFormat && !dataUploadSheet && !isSS08Format && sheetNames.length === 1) {
-        // Cek baris 3–8 (idx 3–8): ada yang berisi "TANGGAL CARI" di kolom 0?
+        // Cek baris 3â€“8 (idx 3â€“8): ada yang berisi "TANGGAL CARI" di kolom 0?
         try {
           const ws0 = workbook.Sheets[sheetNames[0]];
           const probe = XLSX.utils.sheet_to_json(ws0, { header: 1, defval: '', range: { s: {r:0,c:0}, e: {r:9,c:5} } });
@@ -1297,7 +3199,7 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
       }
     }
 
-    // Helper: parse single Picker sheet → array of records
+    // Helper: parse single Picker sheet â†’ array of records
     function parsePickerSheet(sheetName) {
       const raw = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: '' });
       const parsed = [];
@@ -1332,7 +3234,7 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
       return parsed;
     }
 
-    // Helper: parse single Sorter sheet → array of records
+    // Helper: parse single Sorter sheet â†’ array of records
     // Struktur: Row batch header (BATCH 1, BATCH 2...), lalu 30 baris data toko,
     // lalu 1 baris summary (nilai KONT total per batch), lalu NAMA SORTER / SHIFT / TOT KONT.
     // Setiap grup batch = 6 kolom: NO, KODE, INISIAL, KONT, RPS, (kosong).
@@ -1352,7 +3254,7 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
           break;
         }
       }
-      // Fallback: try to extract zona from sheet name (e.g. "Sorter R1" → "R1")
+      // Fallback: try to extract zona from sheet name (e.g. "Sorter R1" â†’ "R1")
       if (!zonaVal) {
         const mZona = sheetName.match(/([A-Z][0-9])\s*$/i);
         if (mZona) zonaVal = mZona[1].toUpperCase();
@@ -1426,7 +3328,7 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
             }
           }
           if (totalRps > 0) {
-            parsed.push({ tanggal_carian, posisi: 'Sorter', zona: zonaVal, batch: batchNum, total_output: totalRps, satuan: 'rps' });
+            parsed.push({ tanggal_carian, posisi: 'Sorter', zona: zonaVal, batch: batchNum, total_output: totalRps, satuan: 'kontainer' });
           } else {
             skipped.push(`Sorter (${sheetName}) ${batchName}: total RPS = 0, dilewati`);
           }
@@ -1440,10 +3342,10 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
       // ====================================================
       // FORMAT: LEMBAR FIX BARU (sheet Lembar1 atau 1 sheet dgn header TANGGAL CARI)
       // Struktur (bisa ada 1 baris kosong extra di atas, sehingga index bisa bergeser):
-      //   - Row X: Zona group — FREZZER, CHILLER, AMBIENT
-      //   - Row X+1: Zona code — F1, R1, R2, R3, T1..T5, ALL
-      //   - Row X+2: Posisi — Picker, Shorter, LOADER
-      //   - Row X+3: Label zona — "FREZZER ZONA F1 Picker", dll
+      //   - Row X: Zona group â€” FREZZER, CHILLER, AMBIENT
+      //   - Row X+1: Zona code â€” F1, R1, R2, R3, T1..T5, ALL
+      //   - Row X+2: Posisi â€” Picker, Shorter, LOADER
+      //   - Row X+3: Label zona â€” "FREZZER ZONA F1 Picker", dll
       //   - Row HEADER (auto-detect): TANGGAL CARI, GROUP MOBIL, KODE, ...
       //   - Row HEADER+1+: Data per toko
       // Setiap zona = 5 kolom: BATCH, QTY, ACT QTY, KONT, ACT KONT
@@ -1452,7 +3354,7 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
       const sheetName = lembarFixSheet || sheetNames[0];
       const raw = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: '' });
 
-      // Auto-detect baris header (TANGGAL CARI) — sudah ditemukan saat deteksi format
+      // Auto-detect baris header (TANGGAL CARI) â€” sudah ditemukan saat deteksi format
       // Jika belum ditemukan, cari lagi sekarang
       let headerRowIdx = lembarFixHeaderRowIdx;
       if (headerRowIdx === -1) {
@@ -1515,7 +3417,7 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
         if (LOADER_CLUSTERS.includes(tipeVal)) {
           cluster = tipeVal;
         } else {
-          // fallback: cari dari baris label (1 sebelum header) — berisi "FREZZER ALL ZONA LOADER"
+          // fallback: cari dari baris label (1 sebelum header) â€” berisi "FREZZER ALL ZONA LOADER"
           const labelRow = raw[headerRowIdx - 1] || [];
           for (let off = 0; off <= 2; off++) {
             const v = String(labelRow[col + off] || '').trim().toUpperCase();
@@ -1537,12 +3439,12 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
       }
 
       // Aggregate: per zona+batch untuk Picker & Sorter, per cluster untuk Loader
-      const pickerAgg  = {}; // `${tgl}|${zona}|${batch}` → total QTY
-      const sorterAgg  = {}; // `${tgl}|${zona}|${batch}` → total KONT
-      const loaderAgg  = {}; // `${tgl}|${cluster}|${groupMobil}` → total KONT
-      const pickerTokoCount  = {}; // `${tgl}|${zona}|${batch}` → jumlah toko unik
-      const sorterTokoCount  = {}; // `${tgl}|${zona}|${batch}` → jumlah toko unik
-      const loaderTokoCount  = {}; // `${tgl}|${cluster}|${groupMobil}` → jumlah toko unik
+      const pickerAgg  = {}; // `${tgl}|${zona}|${batch}` â†’ total QTY
+      const sorterAgg  = {}; // `${tgl}|${zona}|${batch}` â†’ total KONT
+      const loaderAgg  = {}; // `${tgl}|${cluster}|${groupMobil}` â†’ total KONT
+      const pickerTokoCount  = {}; // `${tgl}|${zona}|${batch}` â†’ jumlah toko unik
+      const sorterTokoCount  = {}; // `${tgl}|${zona}|${batch}` â†’ jumlah toko unik
+      const loaderTokoCount  = {}; // `${tgl}|${cluster}|${groupMobil}` â†’ jumlah toko unik
 
       // Per-toko records untuk rekap dashboard
       const tokoRecords = [];
@@ -1560,7 +3462,7 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
         
         let parsed = null;
         if (typeof tglVal === 'number') {
-          // Excel serial date → JS Date (Excel epoch = Jan 1 1900, tapi ada bug +2 hari)
+          // Excel serial date â†’ JS Date (Excel epoch = Jan 1 1900, tapi ada bug +2 hari)
           const jsDate = new Date(Math.round((tglVal - 25569) * 86400 * 1000));
           if (!isNaN(jsDate)) {
             const y = jsDate.getUTCFullYear();
@@ -1569,7 +3471,7 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
             parsed = `${y}-${m}-${d}`;
           }
         } else if (typeof tglVal === 'string' && tglVal.trim()) {
-          // Coba parse string tanggal — bisa "30-May-2026", "30/05/2026", "2026-05-30", dll.
+          // Coba parse string tanggal â€” bisa "30-May-2026", "30/05/2026", "2026-05-30", dll.
           const dt = new Date(tglVal.trim());
           if (!isNaN(dt)) {
             const y = dt.getFullYear();
@@ -1680,6 +3582,49 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
         }
       }
 
+      // â”€â”€ VALIDASI BATCH KOSONG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // Cek per zona: jika ada baris yang punya QTY/KONT tapi kolom BATCH kosong
+      const emptyBatchErrors   = []; // zona yang SEMUA barisnya batch kosong â†’ tolak upload
+      const emptyBatchWarnings = []; // zona yang SEBAGIAN barisnya batch kosong â†’ warning
+      for (const { zona, colBatch, colQty, colKont } of zonaGroups) {
+        let rowsWithData = 0;
+        let rowsWithEmptyBatch = 0;
+        for (let r = DATA_START; r < raw.length; r++) {
+          const row = raw[r];
+          const namaToko = String(row[4] || '').trim();
+          if (!namaToko) continue;
+          const qty  = parseFloat(row[colQty])  || 0;
+          const kont = parseFloat(row[colKont]) || 0;
+          if (qty > 0 || kont > 0) {
+            rowsWithData++;
+            const batchVal = row[colBatch];
+            const batch = (batchVal !== '' && batchVal !== null && batchVal !== undefined)
+              ? String(batchVal).trim() : '';
+            if (!batch || batch === '0') rowsWithEmptyBatch++;
+          }
+        }
+        if (rowsWithData > 0 && rowsWithEmptyBatch === rowsWithData) {
+          // Semua baris zona ini batch kosong â†’ ERROR, tolak
+          emptyBatchErrors.push(`Zona ${zona}: semua ${rowsWithData} baris punya data tapi kolom BATCH kosong`);
+        } else if (rowsWithEmptyBatch > 0) {
+          // Sebagian batch kosong â†’ WARNING, tetap proses
+          emptyBatchWarnings.push(`Zona ${zona}: ${rowsWithEmptyBatch} dari ${rowsWithData} baris dilewati karena kolom BATCH kosong`);
+        }
+      }
+      // Jika ada zona kritis (semua batch kosong) â†’ tolak upload sekarang
+      if (emptyBatchErrors.length > 0) {
+        return res.status(400).json({
+          error: `Upload dibatalkan: kolom BATCH kosong di semua baris data. Pastikan admin mengisi kolom BATCH sebelum upload.`,
+          empty_batch_errors: emptyBatchErrors,
+          hint: 'Cek file Excel dan pastikan kolom BATCH (kolom pertama tiap zona) sudah terisi untuk setiap baris toko.'
+        });
+      }
+      // Warning batch sebagian kosong â†’ tambahkan ke skipped agar tampil di UI
+      for (const w of emptyBatchWarnings) {
+        skipped.push(`âš ï¸ ${w}`);
+      }
+      // â”€â”€ END VALIDASI BATCH KOSONG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
       // Buat records Picker
       let pickerCount = 0;
@@ -1739,15 +3684,15 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
     } else if (dataUploadSheet) {
       // ====================================================
       // FORMAT: DATA UPLOAD SYSTEM (1 sheet, matrix besar)
-      // Row 1 (idx 0): Posisi — PICKER / SHORTER / LOADER
-      // Row 2 (idx 1): Zona  — F1, R1, R2, R3, T1..T5, FREZZER, CHILLER, AMBIENT
+      // Row 1 (idx 0): Posisi â€” PICKER / SHORTER / LOADER
+      // Row 2 (idx 1): Zona  â€” F1, R1, R2, R3, T1..T5, FREZZER, CHILLER, AMBIENT
       // Row 3 (idx 2): Batch number (angka)
-      // Row 4 (idx 3): Label lengkap — "PICKER ZONA F1 BATCH 1" / "LOADER ZONA FREZZER"
+      // Row 4 (idx 3): Label lengkap â€” "PICKER ZONA F1 BATCH 1" / "LOADER ZONA FREZZER"
       // Row 5 (idx 4): QTY / ACT (header sub-kolom, tiap batch = 2 kolom: QTY, ACT)
-      // Row 6+  (idx 5+): Data per toko — sum kolom QTY untuk total per batch
+      // Row 6+  (idx 5+): Data per toko â€” sum kolom QTY untuk total per batch
       //
       // OPTIMASI: Baca cell langsung via encode_cell, bukan sheet_to_json,
-      // karena sheet_to_json sangat lambat untuk 321 kolom × 2000 baris.
+      // karena sheet_to_json sangat lambat untuk 321 kolom Ã— 2000 baris.
       // ====================================================
       const ws = workbook.Sheets[dataUploadSheet];
       const wsRange = XLSX.utils.decode_range(ws['!ref'] || 'A1:A1');
@@ -1821,9 +3766,9 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
       if (batchColMap.length === 0) {
         skipped.push('DATA UPLOAD SYSTEM: Tidak menemukan kolom batch yang valid (pastikan Row 4 berisi label seperti "PICKER ZONA F1 BATCH 1")');
       } else {
-        // SUM kolom QTY langsung via cell address — mulai dari baris data pertama
-        const totals = {}; // col → total
-        const loaderClusterTotals = {}; // col → { cluster → sum }
+        // SUM kolom QTY langsung via cell address â€” mulai dari baris data pertama
+        const totals = {}; // col â†’ total
+        const loaderClusterTotals = {}; // col â†’ { cluster â†’ sum }
         const isDense = !!ws['!data'];
         
         for (let r = dataStart; r <= maxRow; r++) {
@@ -2055,7 +4000,7 @@ app.post('/api/data-carian/import-excel', requireAuth, (req, res, next) => {
   }
 });
 
-// GET /api/data-carian/template — Download template Excel
+// GET /api/data-carian/template â€” Download template Excel
 app.get('/api/data-carian/template', requireAuth, (req, res) => {
   try {
     const templateData = [
@@ -2080,11 +4025,11 @@ app.get('/api/data-carian/template', requireAuth, (req, res) => {
     res.send(buffer);
   } catch (err) {
     console.error('Template download error:', err);
-    res.status(500).send('Gagal membuat template.');
+    res.status(500).json({ success: false, error: 'Gagal membuat template.' });
   }
 });
 
-// GET /api/export-data-carian — Export data carian ke Excel (dengan kode toko/batch)
+// GET /api/export-data-carian â€” Export data carian ke Excel (dengan kode toko/batch)
 app.get('/api/export-data-carian', requireAuth, async (req, res) => {
   try {
     const { tanggal } = req.query;
@@ -2172,11 +4117,11 @@ app.get('/api/export-data-carian', requireAuth, async (req, res) => {
     res.send(buffer);
   } catch (err) {
     console.error('Export data carian error:', err);
-    res.status(500).send('Gagal mengekspor data carian.');
+    res.status(500).json({ success: false, error: 'Gagal mengekspor data carian.' });
   }
 });
 
-// POST /api/data-carian/push-sheets — Push data carian harian ke Google Sheets (append ke bawah)
+// POST /api/data-carian/push-sheets â€” Push data carian harian ke Google Sheets (append ke bawah)
 app.post('/api/data-carian/push-sheets', requireAuth, async (req, res) => {
   try {
     if (!googleSheets.isConfigured()) {
@@ -2202,7 +4147,7 @@ app.post('/api/data-carian/push-sheets', requireAuth, async (req, res) => {
 
 // ==================== USER MANAGEMENT ROUTES (Admin only) ====================
 
-// GET /api/users — List semua user operasional
+// GET /api/users â€” List semua user operasional
 app.get('/api/users', requirePermission('users'), async (req, res) => {
   try {
     const users = await db.getAllOperationalUsers();
@@ -2213,15 +4158,15 @@ app.get('/api/users', requirePermission('users'), async (req, res) => {
   }
 });
 
-// POST /api/users — Buat user operasional baru
+// POST /api/users â€” Buat user operasional baru
 app.post('/api/users', requirePermission('users'), async (req, res) => {
   try {
     const { username, nama_lengkap, nik, posisi, tipe_karyawan, nomor_hp } = req.body;
     if (!username || !nama_lengkap || !nik || !posisi) {
       return res.status(400).json({ error: 'Semua field (username, nama lengkap, NIK, posisi) wajib diisi.' });
     }
-    if (!['Picker', 'Sorter', 'Loader'].includes(posisi)) {
-      return res.status(400).json({ error: 'Posisi harus Picker, Sorter, atau Loader.' });
+    if (!['Picker', 'Sorter', 'Loader', 'Return'].includes(posisi)) {
+      return res.status(400).json({ error: 'Posisi harus Picker, Sorter, Loader, atau Return.' });
     }
     if (tipe_karyawan && !['Productivity', 'PHL'].includes(tipe_karyawan)) {
       return res.status(400).json({ error: 'Tipe Karyawan harus Productivity atau PHL.' });
@@ -2243,7 +4188,7 @@ app.post('/api/users', requirePermission('users'), async (req, res) => {
   }
 });
 
-// DELETE /api/users/:id — Hapus user operasional
+// DELETE /api/users/:id â€” Hapus user operasional
 app.delete('/api/users/:id', requirePermission('users'), async (req, res) => {
   try {
     const targetUser = await db.getUserById(req.params.id);
@@ -2258,7 +4203,7 @@ app.delete('/api/users/:id', requirePermission('users'), async (req, res) => {
   }
 });
 
-// PATCH /api/users/:id/toggle-status — Aktifkan/Nonaktifkan user operasional
+// PATCH /api/users/:id/toggle-status â€” Aktifkan/Nonaktifkan user operasional
 app.patch('/api/users/:id/toggle-status', requirePermission('users'), async (req, res) => {
   try {
     const updated = await db.toggleUserStatus(req.params.id);
@@ -2271,15 +4216,15 @@ app.patch('/api/users/:id/toggle-status', requirePermission('users'), async (req
   }
 });
 
-// PUT /api/users/:id — Edit user operasional
+// PUT /api/users/:id â€” Edit user operasional
 app.put('/api/users/:id', requirePermission('users'), async (req, res) => {
   try {
     const { username, nama_lengkap, nik, posisi, tipe_karyawan, nomor_hp } = req.body;
     if (!username || !nama_lengkap || !nik || !posisi) {
       return res.status(400).json({ error: 'Semua field (username, nama lengkap, NIK, posisi) wajib diisi.' });
     }
-    if (!['Picker', 'Sorter', 'Loader'].includes(posisi)) {
-      return res.status(400).json({ error: 'Posisi harus Picker, Sorter, atau Loader.' });
+    if (!['Picker', 'Sorter', 'Loader', 'Return'].includes(posisi)) {
+      return res.status(400).json({ error: 'Posisi harus Picker, Sorter, Loader, atau Return.' });
     }
     if (tipe_karyawan && !['Productivity', 'PHL'].includes(tipe_karyawan)) {
       return res.status(400).json({ error: 'Tipe Karyawan harus Productivity atau PHL.' });
@@ -2332,18 +4277,19 @@ app.get('/api/status-carian', requirePermission('status-carian'), async (req, re
     const allSubmissions = await db.getAllSubmissions();
     const submissionsHariIni = allSubmissions.filter(s => s.tanggal_carian === tanggal);
 
-    // Siapa yang sudah submit (berdasarkan username match)
-    const sudahSubmit = new Set(submissionsHariIni.map(s => s.username?.toLowerCase()));
+    // Siapa yang sudah submit (berdasarkan nama_lengkap match dengan nama di submissions)
+    const sudahSubmitNama = new Set(submissionsHariIni.map(s => s.nama?.toLowerCase().trim()));
 
     const sudah = [];
     const belum = [];
 
     pickerSorter.forEach(u => {
+      const userNama = (u.nama_lengkap || u.username || '').toLowerCase().trim();
       const waktuSubmit = submissionsHariIni
-        .filter(s => s.username?.toLowerCase() === u.username?.toLowerCase())
+        .filter(s => s.nama?.toLowerCase().trim() === userNama)
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
 
-      if (sudahSubmit.has(u.username?.toLowerCase())) {
+      if (sudahSubmitNama.has(userNama)) {
         sudah.push({
           id: u.id,
           nama: u.nama_lengkap || u.username,
@@ -2370,7 +4316,7 @@ app.get('/api/status-carian', requirePermission('status-carian'), async (req, re
   }
 });
 
-// POST /api/send-wa-reminder — Kirim notif WA via Fonnte ke yang belum input
+// POST /api/send-wa-reminder â€” Kirim notif WA via Fonnte ke yang belum input
 app.post('/api/send-wa-reminder', requirePermission('status-carian'), async (req, res) => {
   const FONNTE_TOKEN = process.env.FONNTE_TOKEN;
   if (!FONNTE_TOKEN || FONNTE_TOKEN === 'ISI_TOKEN_FONNTE_ANDA_DI_SINI') {
@@ -2401,11 +4347,11 @@ app.post('/api/send-wa-reminder', requirePermission('status-carian'), async (req
 
       // Format nomor HP (pastikan pakai format internasional)
       let nomor = target.nomor_hp.replace(/\D/g, ''); // hapus non-digit
-      if (nomor.startsWith('0')) nomor = '62' + nomor.slice(1); // 08xx → 628xx
+      if (nomor.startsWith('0')) nomor = '62' + nomor.slice(1); // 08xx â†’ 628xx
       if (!nomor.startsWith('62')) nomor = '62' + nomor;
 
       const pesan = pesan_custom ||
-        `Halo ${target.nama}! 👋\n\nKami ingatkan bahwa kamu *belum menginput data carian* untuk tanggal *${tanggalFormatted}*.\n\nMohon segera lakukan input sebelum hari ini berakhir ya.\n\nTerima kasih! 🙏\n- Tim SS08`;
+        `Halo ${target.nama}! ðŸ‘‹\n\nKami ingatkan bahwa kamu *belum menginput data carian* untuk tanggal *${tanggalFormatted}*.\n\nMohon segera lakukan input sebelum hari ini berakhir ya.\n\nTerima kasih! ðŸ™\n- Tim SS08`;
 
       try {
         const response = await fetch('https://api.fonnte.com/send', {
@@ -2454,7 +4400,7 @@ app.post('/api/send-wa-reminder', requirePermission('status-carian'), async (req
 // ==================== ADMIN ACCOUNT MANAGEMENT ROUTES ====================
 
 
-// GET /api/admin-accounts — List semua akun admin (Super Admin only)
+// GET /api/admin-accounts â€” List semua akun admin (Super Admin only)
 app.get('/api/admin-accounts', requireSuperAdmin, async (req, res) => {
   try {
     const admins = await db.getAllAdminUsers();
@@ -2465,7 +4411,7 @@ app.get('/api/admin-accounts', requireSuperAdmin, async (req, res) => {
   }
 });
 
-// POST /api/admin-accounts — Buat akun admin baru (Super Admin only)
+// POST /api/admin-accounts â€” Buat akun admin baru (Super Admin only)
 app.post('/api/admin-accounts', requireSuperAdmin, async (req, res) => {
   try {
     const { username, nama_lengkap, password, allowed_pages } = req.body;
@@ -2490,7 +4436,7 @@ app.post('/api/admin-accounts', requireSuperAdmin, async (req, res) => {
   }
 });
 
-// PUT /api/admin-accounts/:id/permissions — Update izin akses admin (Super Admin only)
+// PUT /api/admin-accounts/:id/permissions â€” Update izin akses admin (Super Admin only)
 app.put('/api/admin-accounts/:id/permissions', requireSuperAdmin, async (req, res) => {
   try {
     const { allowed_pages } = req.body;
@@ -2509,7 +4455,7 @@ app.put('/api/admin-accounts/:id/permissions', requireSuperAdmin, async (req, re
   }
 });
 
-// DELETE /api/admin-accounts/:id — Hapus akun admin (Super Admin only)
+// DELETE /api/admin-accounts/:id â€” Hapus akun admin (Super Admin only)
 app.delete('/api/admin-accounts/:id', requireSuperAdmin, async (req, res) => {
   try {
     const decoded = jwt.verify(req.cookies.token, JWT_SECRET);
@@ -2529,7 +4475,7 @@ app.delete('/api/admin-accounts/:id', requireSuperAdmin, async (req, res) => {
   }
 });
 
-// POST /api/admin-accounts/change-password — Ganti password sendiri
+// POST /api/admin-accounts/change-password â€” Ganti password sendiri
 app.post('/api/admin-accounts/change-password', requireAdmin, async (req, res) => {
   try {
     const decoded = jwt.verify(req.cookies.token, JWT_SECRET);
@@ -2550,7 +4496,7 @@ app.post('/api/admin-accounts/change-password', requireAdmin, async (req, res) =
   }
 });
 
-// POST /api/user/change-nik — Ganti password sendiri (khusus user operasional)
+// POST /api/user/change-nik â€” Ganti password sendiri (khusus user operasional)
 app.post('/api/user/change-nik', requireAuth, async (req, res) => {
   try {
     const user = req.user;
@@ -2565,6 +4511,23 @@ app.post('/api/user/change-nik', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Password baru minimal 4 karakter.' });
     }
     await db.changeUserNik(user.userId, currentNik, newNik);
+
+    // Reissue JWT token with same payload (or updated if needed)
+    const tokenPayload = {
+      userId: user.userId,
+      username: user.username,
+      nama_lengkap: user.nama_lengkap,
+      posisi: user.posisi,
+      role: 'operasional'
+    };
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '24h' });
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    });
+
     res.json({ success: true });
   } catch (err) {
     console.error('Change password error:', err);
@@ -2576,7 +4539,7 @@ app.post('/api/user/change-nik', requireAuth, async (req, res) => {
 
 // ==================== REKAP TOKO ROUTES ====================
 
-// GET /api/rekap-toko?tanggal=YYYY-MM-DD — Rekap per toko dengan actual dari submissions
+// GET /api/rekap-toko?tanggal=YYYY-MM-DD â€” Rekap per toko dengan actual dari submissions
 app.get('/api/rekap-toko', requireAuth, async (req, res) => {
   try {
     const { tanggal } = req.query;
@@ -2591,7 +4554,7 @@ app.get('/api/rekap-toko', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/rekap-toko/tanggal-list — Daftar tanggal yang punya data toko
+// GET /api/rekap-toko/tanggal-list â€” Daftar tanggal yang punya data toko
 app.get('/api/rekap-toko/tanggal-list', requireAuth, async (req, res) => {
   try {
     const dates = await db.getTokoDataTanggalList();
@@ -2602,7 +4565,7 @@ app.get('/api/rekap-toko/tanggal-list', requireAuth, async (req, res) => {
   }
 });
 
-// DELETE /api/rekap-toko/tanggal/:tanggal — Hapus data toko untuk tanggal tertentu
+// DELETE /api/rekap-toko/tanggal/:tanggal â€” Hapus data toko untuk tanggal tertentu
 app.delete('/api/rekap-toko/tanggal/:tanggal', requireAuth, async (req, res) => {
   try {
     await db.deleteTokoDataByTanggal(req.params.tanggal);
@@ -2615,7 +4578,7 @@ app.delete('/api/rekap-toko/tanggal/:tanggal', requireAuth, async (req, res) => 
 
 // ==================== ANNOUNCEMENTS ROUTES ====================
 
-// GET /api/announcements — Public: get active announcements only
+// GET /api/announcements â€” Public: get active announcements only
 app.get('/api/announcements', async (req, res) => {
   try {
     const data = await db.getActiveAnnouncements();
@@ -2626,7 +4589,7 @@ app.get('/api/announcements', async (req, res) => {
   }
 });
 
-// GET /api/announcements/all — Admin: get all (active + inactive)
+// GET /api/announcements/all â€” Admin: get all (active + inactive)
 app.get('/api/announcements/all', requireAuth, async (req, res) => {
   try {
     const data = await db.getAllAnnouncements();
@@ -2637,13 +4600,20 @@ app.get('/api/announcements/all', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/announcements — Admin: create new
-app.post('/api/announcements', requireAuth, async (req, res) => {
+// POST /api/announcements â€” Admin: create new
+app.post('/api/announcements', requireAuth, uploadLembar.single('image'), async (req, res) => {
   try {
     const { title, content, type, emoji } = req.body;
     if (!title || !content) return res.status(400).json({ error: 'Title dan content wajib diisi.' });
+    
+    let imageUrl = '';
+    if (req.file) {
+      const uniqueFilename = `announcement-${Date.now()}-${req.file.originalname}`;
+      imageUrl = await db.saveUploadedFile(uniqueFilename, req.file.buffer, req.file.mimetype);
+    }
+
     const record = await db.createAnnouncement({
-      title, content, type, emoji,
+      title, content, type, emoji, imageUrl,
       created_by: req.user?.username || 'admin'
     });
     await db.insertAuditLog(req.user?.username, 'CREATE_ANNOUNCEMENT', `Buat pengumuman: ${title}`);
@@ -2654,11 +4624,18 @@ app.post('/api/announcements', requireAuth, async (req, res) => {
   }
 });
 
-// PUT /api/announcements/:id — Admin: update
-app.put('/api/announcements/:id', requireAuth, async (req, res) => {
+// PUT /api/announcements/:id â€” Admin: update
+app.put('/api/announcements/:id', requireAuth, uploadLembar.single('image'), async (req, res) => {
   try {
     const { title, content, type, emoji, is_active } = req.body;
-    const record = await db.updateAnnouncement(req.params.id, { title, content, type, emoji, is_active });
+    let imageUrl = req.body.image_url;
+
+    if (req.file) {
+      const uniqueFilename = `announcement-${Date.now()}-${req.file.originalname}`;
+      imageUrl = await db.saveUploadedFile(uniqueFilename, req.file.buffer, req.file.mimetype);
+    }
+
+    const record = await db.updateAnnouncement(req.params.id, { title, content, type, emoji, is_active, imageUrl });
     await db.insertAuditLog(req.user?.username, 'UPDATE_ANNOUNCEMENT', `Update pengumuman: ${title}`);
     res.json(record);
   } catch (err) {
@@ -2667,7 +4644,7 @@ app.put('/api/announcements/:id', requireAuth, async (req, res) => {
   }
 });
 
-// PATCH /api/announcements/:id/toggle — Admin: toggle active/inactive
+// PATCH /api/announcements/:id/toggle â€” Admin: toggle active/inactive
 app.patch('/api/announcements/:id/toggle', requireAuth, async (req, res) => {
   try {
     const record = await db.toggleAnnouncement(req.params.id);
@@ -2678,7 +4655,7 @@ app.patch('/api/announcements/:id/toggle', requireAuth, async (req, res) => {
   }
 });
 
-// DELETE /api/announcements/:id — Admin: delete
+// DELETE /api/announcements/:id â€” Admin: delete
 app.delete('/api/announcements/:id', requireAuth, async (req, res) => {
   try {
     await db.deleteAnnouncement(req.params.id);
@@ -2693,7 +4670,7 @@ app.delete('/api/announcements/:id', requireAuth, async (req, res) => {
 // ==================== LOADER ENTRIES ROUTES ====================
 
 
-// GET /api/loader-entries — Semua atau filter per tanggal (lengkap dengan info file/foto)
+// GET /api/loader-entries â€” Semua atau filter per tanggal (lengkap dengan info file/foto)
 app.get('/api/loader-entries', requireAuth, async (req, res) => {
   try {
     const { tanggal_carian } = req.query;
@@ -2712,7 +4689,7 @@ app.get('/api/loader-entries', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/loader-entries/:id — Detail loader entry lengkap dengan file/foto
+// GET /api/loader-entries/:id â€” Detail loader entry lengkap dengan file/foto
 app.get('/api/loader-entries/:id', requireAuth, async (req, res) => {
   try {
     const entry = await db.getLoaderEntryById(req.params.id);
@@ -2726,7 +4703,7 @@ app.get('/api/loader-entries/:id', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/loader-entries — Submit entry loader baru (multipart/form-data + optional file upload)
+// POST /api/loader-entries â€” Submit entry loader baru (multipart/form-data + optional file upload)
 app.post('/api/loader-entries', requireAuth, (req, res, next) => {
   uploadLembar.array('lembar_register', 5)(req, res, (err) => {
     if (err instanceof multer.MulterError) {
@@ -2743,6 +4720,25 @@ app.post('/api/loader-entries', requireAuth, (req, res, next) => {
     const { tanggal_carian, tanggal_kirim, nama, zona, no_polisi, catatan } = req.body;
     if (!tanggal_carian || !tanggal_kirim || !nama || !no_polisi) {
       return res.status(400).json({ error: 'Tanggal carian, tanggal kirim, nama, dan no. polisi wajib diisi.' });
+    }
+
+    // ===== CEK ABSENSI LOADER =====
+    const { user_id: submittedUserId } = req.body;
+    if (submittedUserId) {
+      try {
+        const absensiActive = await db.getSetting('absensi_required');
+        if (absensiActive === 'true') {
+          const isHadir = await db.checkUserAbsensi(submittedUserId, tanggal_carian);
+          if (!isHadir) {
+            return res.status(403).json({
+              error: `Anda belum diabsen hadir untuk tanggal carian ${tanggal_carian}. Silakan hubungi Leader/Admin.`,
+              code: 'NOT_ABSEN'
+            });
+          }
+        }
+      } catch(absErr) {
+        console.error('Check absensi loader error:', absErr);
+      }
     }
 
     // Validasi: lembar register wajib diupload - REMOVED
@@ -2776,26 +4772,27 @@ app.post('/api/loader-entries', requireAuth, (req, res, next) => {
       tanggal_carian, tanggal_kirim, nama, zona, no_polisi,
       clusters: clusters || [],
       cluster_outputs: cluster_outputs || {},
+      cluster_outbound_outputs: {},
       non_group: non_group || { gacoan: 0, dikichi: 0, benfarm: 0 },
       jumlah_kontainer,
       catatan: catatan || ''
     });
 
     // Simpan files ke tabel files (linked ke loader entry)
-    // Catatan: jika FK constraint ada (files.submission_id → submissions), ini akan fail
-    // → gunakan try/catch agar entry tetap tersimpan, URL disimpan ke catatan sebagai fallback
+    // Catatan: jika FK constraint ada (files.submission_id â†’ submissions), ini akan fail
+    // â†’ gunakan try/catch agar entry tetap tersimpan, URL disimpan ke catatan sebagai fallback
     let photoUrlsFallback = [];
     for (const f of uploadedFiles) {
       try {
         await db.insertFile({
           id: uuidv4(),
-          submission_id: entry.id,
+          loader_entry_id: entry.id,
           filename: f.filename,
           original_name: f.original_name,
           file_path: f.file_path
         });
       } catch (fileErr) {
-        // FK constraint violation — simpan URL ke array fallback
+        // FK constraint violation â€” simpan URL ke array fallback
         console.warn('[LoaderFiles] insertFile failed (FK constraint?), URL akan disimpan ke catatan:', fileErr.message);
         photoUrlsFallback.push(f.file_path);
       }
@@ -2814,24 +4811,18 @@ app.post('/api/loader-entries', requireAuth, (req, res, next) => {
     }
 
     invalidateDcCache(tanggal_carian); // clear cache setelah submit baru
-    res.json({ success: true, data: entry });
+
+    // Beri tahu client jika ada foto yang gagal tersimpan ke tabel files
+    const photoWarning = photoUrlsFallback.length > 0
+      ? `${photoUrlsFallback.length} foto tidak tersimpan ke galeri (FK constraint). URL disimpan di catatan.`
+      : null;
+
+    res.json({ success: true, data: entry, warning: photoWarning });
 
     // ===== AUTO-SYNC ke Google Sheets (fire-and-forget, tidak block response) =====
-    if (googleSheets.isConfigured()) {
-      setImmediate(async () => {
-        try {
-          const allEntries = await db.getAllLoaderEntries();
-          const filesMap = new Map();
-          await Promise.all(allEntries.map(async (e) => {
-            const files = await db.getFilesBySubmissionId(e.id);
-            if (files && files.length > 0) filesMap.set(e.id, files);
-          }));
-          await googleSheets.pushAllLoaderEntries(allEntries, filesMap);
-        } catch(e) {
-          console.error('[AutoSync Loader] Google Sheets sync error:', e.message);
-        }
-      });
-    }
+    setImmediate(() => {
+      syncLoaderEntriesToSheets();
+    });
 
   } catch (err) {
     console.error('Insert loader entry error:', err);
@@ -2839,7 +4830,7 @@ app.post('/api/loader-entries', requireAuth, (req, res, next) => {
   }
 });
 
-// DELETE /api/loader-entries/:id — Hapus entry loader
+// DELETE /api/loader-entries/:id â€” Hapus entry loader
 app.delete('/api/loader-entries/:id', requirePermission('loader'), async (req, res) => {
   try {
     const entry = await db.getLoaderEntryById(req.params.id);
@@ -2849,22 +4840,9 @@ app.delete('/api/loader-entries/:id', requirePermission('loader'), async (req, r
     res.json({ success: true });
 
     // ===== AUTO-SYNC ke Google Sheets setelah hapus (fire-and-forget) =====
-    if (googleSheets.isConfigured()) {
-      setImmediate(async () => {
-        try {
-          const allEntries = await db.getAllLoaderEntries();
-          const filesMap = new Map();
-          await Promise.all(allEntries.map(async (e) => {
-            const files = await db.getFilesBySubmissionId(e.id);
-            if (files && files.length > 0) filesMap.set(e.id, files);
-          }));
-          await googleSheets.pushAllLoaderEntries(allEntries, filesMap);
-          console.log(`[AutoSync] Loader entry ${req.params.id} dihapus — Sheets berhasil diperbarui.`);
-        } catch(e) {
-          console.error('[AutoSync] Gagal sync hapus loader ke Google Sheets:', e.message);
-        }
-      });
-    }
+    setImmediate(() => {
+      syncLoaderEntriesToSheets();
+    });
     // ======================================================================
 
   } catch (err) {
@@ -2873,7 +4851,7 @@ app.delete('/api/loader-entries/:id', requirePermission('loader'), async (req, r
   }
 });
 
-// GET /api/export-loader — Export loader entries ke Excel
+// GET /api/export-loader â€” Export loader entries ke Excel
 app.get('/api/export-loader', requirePermission('loader'), async (req, res) => {
   try {
     const { tanggal_carian } = req.query;
@@ -2897,6 +4875,14 @@ app.get('/api/export-loader', requirePermission('loader'), async (req, res) => {
       } else if (e.clusters && typeof e.clusters === 'object') {
         clusterList = e.clusters.list || [];
       }
+      // Hitung Outbound dari cluster_outbound_outputs
+      const outboundOutputs = e.cluster_outbound_outputs || {};
+      const jumlahKontainerOutbound = Object.values(outboundOutputs).reduce((sum, v) => sum + (parseInt(v) || 0), 0);
+
+      // Detail per cluster (outbound)
+      const clusterDetail = Object.entries(outboundOutputs)
+        .map(([gm, qty]) => `${gm}: ${qty}`).join(', ');
+
       return {
         'No': i + 1,
         'Tanggal Carian': e.tanggal_carian,
@@ -2906,10 +4892,12 @@ app.get('/api/export-loader', requirePermission('loader'), async (req, res) => {
         'Zona': e.zona,
         'No. Polisi': e.no_polisi,
         'Clusters': clusterList.join(', '),
+        'Detail Outbound per Cluster': clusterDetail,
         'Gacoan': (e.non_group || {}).gacoan || 0,
         'Dikichi': (e.non_group || {}).dikichi || 0,
         'Benfarm': (e.non_group || {}).benfarm || 0,
-        'Jumlah Kontainer': e.jumlah_kontainer,
+        'Jumlah Kontainer (RPS)': e.jumlah_kontainer || 0,
+        'Jumlah Kontainer (Outbound)': jumlahKontainerOutbound,
         'Catatan': e.catatan,
         'Waktu Submit': e.created_at
       };
@@ -2917,7 +4905,7 @@ app.get('/api/export-loader', requirePermission('loader'), async (req, res) => {
 
     const ws = XLSX.utils.json_to_sheet(data);
     ws['!cols'] = [
-      {wch:5},{wch:15},{wch:15},{wch:30},{wch:16},{wch:8},{wch:14},{wch:50},{wch:10},{wch:10},{wch:10},{wch:16},{wch:25},{wch:22}
+      {wch:5},{wch:15},{wch:15},{wch:30},{wch:16},{wch:8},{wch:14},{wch:40},{wch:50},{wch:10},{wch:10},{wch:10},{wch:20},{wch:22},{wch:25},{wch:22}
     ];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Loader Entries');
@@ -2928,17 +4916,21 @@ app.get('/api/export-loader', requirePermission('loader'), async (req, res) => {
     res.send(buffer);
   } catch (err) {
     console.error('Export loader error:', err);
-    res.status(500).send('Gagal export data loader.');
+    res.status(500).json({ success: false, error: 'Gagal export data loader.' });
   }
 });
 
 // ==================== USER DASHBOARD ====================
 
-// GET /api/my-achievements — Pencapaian user yang sedang login (Picker/Sorter + Loader)
+// GET /api/my-achievements â€” Pencapaian user yang sedang login (Picker/Sorter + Loader)
 app.get('/api/my-achievements', requireAuth, async (req, res) => {
   try {
     const namaUser = req.user.nama_lengkap;
     const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jakarta' }); // YYYY-MM-DD
+
+    // Ambil tanggal mulai periode aktif (tutup buku)
+    const periodeSettings = await db.getPeriodeAktif();
+    const periodeStart = periodeSettings.tanggal_mulai || null; // null = semua waktu
 
     // ===== PICKER / SORTER SUBMISSIONS =====
     let allSubmissions = [];
@@ -2948,21 +4940,29 @@ app.get('/api/my-achievements', requireAuth, async (req, res) => {
       const { data } = await supa.from('submissions').select('*').eq('nama', namaUser).order('created_at', { ascending: false });
       allSubmissions = (data || []).map(s => ({ ...s, batch_cluster: typeof s.batch_cluster === 'string' ? s.batch_cluster : JSON.stringify(s.batch_cluster) }));
     } else {
-      const allSubs = await db.getAllSubmissions();
-      allSubmissions = allSubs.filter(s => s.nama === namaUser);
+      allSubmissions = await db.getAllSubmissions({ nama: namaUser });
     }
 
-    // Filter hari ini berdasarkan tanggal_pengerjaan
+    // Filter hari ini berdasarkan tanggal_carian atau tanggal_pengerjaan
     const todaySubmissions = allSubmissions.filter(s => {
-      const tgl = (s.tanggal_pengerjaan || '').slice(0, 10);
+      const tgl = (s.tanggal_carian || s.tanggal_pengerjaan || '').slice(0, 10);
       return tgl === today;
     });
+
+    // Filter untuk periode aktif (ALL = sejak tanggal mulai periode)
+    const filterByPeriode = (arr, dateField1 = 'tanggal_pengerjaan', dateField2 = 'tanggal_carian') => {
+      if (!periodeStart) return arr;
+      return arr.filter(s => {
+        const tgl = (s[dateField1] || s[dateField2] || '').slice(0, 10);
+        return tgl >= periodeStart;
+      });
+    };
 
     // Hitung summary Picker
     const pickerTodaySubs = todaySubmissions.filter(s => s.posisi === 'Picker');
     const sorterTodaySubs = todaySubmissions.filter(s => s.posisi === 'Sorter');
-    const pickerAllSubs   = allSubmissions.filter(s => s.posisi === 'Picker');
-    const sorterAllSubs   = allSubmissions.filter(s => s.posisi === 'Sorter');
+    const pickerAllSubs   = filterByPeriode(allSubmissions.filter(s => s.posisi === 'Picker'));
+    const sorterAllSubs   = filterByPeriode(allSubmissions.filter(s => s.posisi === 'Sorter'));
 
     const sumOutput = (arr) => arr.reduce((acc, s) => acc + (parseInt(s.jumlah_output) || 0), 0);
     const countStatus = (arr, status) => arr.filter(s => s.status === status).length;
@@ -2984,10 +4984,14 @@ app.get('/api/my-achievements', requireAuth, async (req, res) => {
       return tgl === today;
     });
 
+    const allLoaderFiltered = filterByPeriode(allLoaderEntries, 'tanggal_kirim', 'tanggal_carian');
+
     const sumKontainer = (arr) => arr.reduce((acc, e) => acc + (parseInt(e.jumlah_kontainer) || 0), 0);
 
     res.json({
       today_date: today,
+      tipe_karyawan: req.user.tipe_karyawan || 'Productivity',
+      periode_start: periodeStart, // null = semua waktu
       picker: {
         all_submissions: pickerAllSubs,
         today: {
@@ -3017,15 +5021,15 @@ app.get('/api/my-achievements', requireAuth, async (req, res) => {
         }
       },
       loader: {
-        all_entries: allLoaderEntries,
+        all_entries: allLoaderFiltered,
         today: {
           entries: todayLoader,
           total_trip: todayLoader.length,
           total_kontainer: sumKontainer(todayLoader)
         },
         all: {
-          total_trip: allLoaderEntries.length,
-          total_kontainer: sumKontainer(allLoaderEntries)
+          total_trip: allLoaderFiltered.length,
+          total_kontainer: sumKontainer(allLoaderFiltered)
         }
       }
     });
@@ -3035,12 +5039,30 @@ app.get('/api/my-achievements', requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/my-absensi â€” Riwayat absensi user yang sedang login
+app.get('/api/my-absensi', requireAuth, async (req, res) => {
+  try {
+    const { tanggal_mulai, tanggal_akhir } = req.query;
+    if (!tanggal_mulai || !tanggal_akhir) {
+      return res.status(400).json({ error: 'Parameter tanggal_mulai dan tanggal_akhir diperlukan.' });
+    }
+    if (tanggal_akhir < tanggal_mulai) {
+      return res.status(400).json({ error: 'tanggal_akhir tidak boleh lebih awal dari tanggal_mulai.' });
+    }
+    const data = await db.getAbsensiRiwayatUser(req.user.userId, tanggal_mulai, tanggal_akhir);
+    res.json(data);
+  } catch (err) {
+    console.error('GET /api/my-absensi error:', err);
+    res.status(500).json({ error: 'Gagal memuat riwayat absensi Anda.' });
+  }
+});
+
 // SPA fallback routes
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 // ============= KETENTUAN HARGA API =============
 
-// GET /api/ketentuan-harga — ambil semua ketentuan harga
+// GET /api/ketentuan-harga â€” ambil semua ketentuan harga
 app.get('/api/ketentuan-harga', requireAuth, async (req, res) => {
   try {
     const data = await db.getKetentuanHarga();
@@ -3051,14 +5073,14 @@ app.get('/api/ketentuan-harga', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/ketentuan-harga — tambah ketentuan harga baru
+// POST /api/ketentuan-harga â€” tambah ketentuan harga baru
 app.post('/api/ketentuan-harga', requireAuth, async (req, res) => {
   try {
     const { posisi, zona, harga, keterangan } = req.body;
     if (!posisi || !zona || harga === undefined || harga === null || harga === '') {
       return res.status(400).json({ error: 'Posisi, zona, dan harga wajib diisi.' });
     }
-    if (!['Picker', 'Sorter', 'Loader'].includes(posisi)) {
+    if (!['Picker', 'Sorter', 'Loader', 'Return'].includes(posisi)) {
       return res.status(400).json({ error: 'Posisi tidak valid.' });
     }
     const finalSatuan = posisi === 'Picker' ? 'pcs' : 'kontainer';
@@ -3073,7 +5095,7 @@ app.post('/api/ketentuan-harga', requireAuth, async (req, res) => {
   }
 });
 
-// PUT /api/ketentuan-harga/:id — edit harga
+// PUT /api/ketentuan-harga/:id â€” edit harga
 app.put('/api/ketentuan-harga/:id', requireAuth, async (req, res) => {
   try {
     const { harga, keterangan } = req.body;
@@ -3088,7 +5110,7 @@ app.put('/api/ketentuan-harga/:id', requireAuth, async (req, res) => {
   }
 });
 
-// DELETE /api/ketentuan-harga/:id — hapus ketentuan harga
+// DELETE /api/ketentuan-harga/:id â€” hapus ketentuan harga
 app.delete('/api/ketentuan-harga/:id', requireAuth, async (req, res) => {
   try {
     await db.deleteKetentuanHarga(req.params.id);
@@ -3108,7 +5130,7 @@ app.get('/api/rekap-pendapatan', requirePermission('rekap-pendapatan'), async (r
     let tanggalMulai, tanggalAkhir;
 
     if (req.query.bulan) {
-      // Dari bulan: misal 2026-07 → 2026-07-01 s/d 2026-07-31
+      // Dari bulan: misal 2026-07 â†’ 2026-07-01 s/d 2026-07-31
       const [y, m] = req.query.bulan.split('-').map(Number);
       const firstDay = new Date(y, m - 1, 1);
       const lastDay  = new Date(y, m, 0);
@@ -3149,10 +5171,13 @@ app.get('/api/rekap-pendapatan/export', requirePermission('rekap-pendapatan'), a
     let data = await db.getRekapPendapatan(tanggalMulai, tanggalAkhir);
     let pekerja = data.pekerja || [];
 
-    // Terapkan filter posisi & search
-    const { posisi, search } = req.query;
+    // Terapkan filter posisi, tipe, & search
+    const { posisi, tipe, search } = req.query;
     if (posisi) {
       pekerja = pekerja.filter(p => p.posisi === posisi);
+    }
+    if (tipe) {
+      pekerja = pekerja.filter(p => p.tipe_karyawan === tipe);
     }
     if (search) {
       const q = search.toLowerCase().trim();
@@ -3269,6 +5294,7 @@ app.get('/api/rekap-pendapatan/export', requirePermission('rekap-pendapatan'), a
       { header: 'No',                key: 'no',         width: 8  },
       { header: 'Nama Pekerja',      key: 'nama',       width: 32 },
       { header: 'Posisi',            key: 'posisi',     width: 16 },
+      { header: 'Tipe',              key: 'tipe',       width: 16 },
       { header: 'Total Pencapaian',  key: 'output',     width: 20 },
       { header: 'Total Nilai (Rp)',  key: 'nilai',      width: 22 },
       { header: '% Dari Grand Total',key: 'persen',     width: 20 },
@@ -3308,6 +5334,7 @@ app.get('/api/rekap-pendapatan/export', requirePermission('rekap-pendapatan'), a
         no: index + 1,
         nama: p.nama || '',
         posisi: p.posisi || '',
+        tipe: p.tipe_karyawan || 'Productivity',
         output: p.total_pencapaian || 0,
         nilai: p.total_nilai || 0,
         persen: pct
@@ -3318,6 +5345,7 @@ app.get('/api/rekap-pendapatan/export', requirePermission('rekap-pendapatan'), a
       addedRow.getCell('no').alignment = { horizontal: 'center', vertical: 'middle' };
       addedRow.getCell('nama').alignment = { horizontal: 'left', vertical: 'middle' };
       addedRow.getCell('posisi').alignment = { horizontal: 'center', vertical: 'middle' };
+      addedRow.getCell('tipe').alignment = { horizontal: 'center', vertical: 'middle' };
       addedRow.getCell('output').alignment = { horizontal: 'right', vertical: 'middle' };
       addedRow.getCell('nilai').alignment = { horizontal: 'right', vertical: 'middle' };
       addedRow.getCell('persen').alignment = { horizontal: 'right', vertical: 'middle' };
@@ -3342,13 +5370,13 @@ app.get('/api/rekap-pendapatan/export', requirePermission('rekap-pendapatan'), a
 
       // Special styling for top 3 in rank column
       if (index === 0) {
-        addedRow.getCell('no').value = '🥇 1';
+        addedRow.getCell('no').value = 'ðŸ¥‡ 1';
         addedRow.getCell('no').font = { bold: true };
       } else if (index === 1) {
-        addedRow.getCell('no').value = '🥈 2';
+        addedRow.getCell('no').value = 'ðŸ¥ˆ 2';
         addedRow.getCell('no').font = { bold: true };
       } else if (index === 2) {
-        addedRow.getCell('no').value = '🥉 3';
+        addedRow.getCell('no').value = 'ðŸ¥‰ 3';
         addedRow.getCell('no').font = { bold: true };
       }
     });
@@ -3358,6 +5386,7 @@ app.get('/api/rekap-pendapatan/export', requirePermission('rekap-pendapatan'), a
       no: '',
       nama: 'GRAND TOTAL',
       posisi: '',
+      tipe: '',
       output: pekerja.reduce((sum, p) => sum + (p.total_pencapaian || 0), 0),
       nilai: filteredGrandTotal,
       persen: 1.0
@@ -3415,7 +5444,7 @@ app.get('/api/rekap-pendapatan/export', requirePermission('rekap-pendapatan'), a
     res.send(buffer);
   } catch (err) {
     console.error('Export Rekap Pendapatan Excel error:', err);
-    res.status(500).send('Gagal mengekspor rekap pendapatan.');
+    res.status(500).json({ success: false, error: 'Gagal mengekspor rekap pendapatan.' });
   }
 });
 
@@ -3441,14 +5470,414 @@ app.get('/api/monitoring-mpp', requireAuth, async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
+// ===================== RETURN ENTRIES ROUTES =====================
+
+// GET /api/return-entries â€” Semua return entries, filter opsional
+app.get('/api/return-entries', requireAuth, async (req, res) => {
+  try {
+    const { tanggal_return, tanggal_referensi, status } = req.query;
+    const entries = await db.getAllReturnEntries({ tanggal_return, tanggal_referensi, status });
+    res.json(entries);
+  } catch(err) {
+    console.error('GET return-entries error:', err);
+    res.status(500).json({ error: 'Gagal memuat data return.' });
+  }
+});
+
+// POST /api/return-entries â€” Submit entry return baru
+app.post('/api/return-entries', requireAuth, async (req, res) => {
+  try {
+    const decoded = jwt.verify(req.cookies.token, JWT_SECRET);
+    const {
+      tanggal_return, tanggal_referensi, loader_entry_id, no_polisi,
+      cluster_return_outputs, total_outbound, total_kembali, total_selisih, catatan
+    } = req.body;
+
+    if (!tanggal_return || !tanggal_referensi) {
+      return res.status(400).json({ error: 'Tanggal return dan referensi wajib diisi.' });
+    }
+
+    const entry = await db.insertReturnEntry({
+      tanggal_return, tanggal_referensi,
+      loader_entry_id: loader_entry_id || null,
+      no_polisi: no_polisi || '',
+      nama_return: decoded.nama_lengkap || decoded.username || '',
+      cluster_return_outputs: cluster_return_outputs || {},
+      total_outbound: parseInt(total_outbound) || 0,
+      total_kembali: parseInt(total_kembali) || 0,
+      total_selisih: parseInt(total_selisih) || 0,
+      catatan: catatan || ''
+    });
+
+    res.json({ success: true, entry });
+
+    // ===== AUTO-SYNC ke Google Sheets setelah submit return (fire-and-forget) =====
+    setImmediate(async () => {
+      try {
+        if (googleSheets.isConfigured()) {
+          const allReturn = await db.getAllReturnEntries({});
+          await googleSheets.pushAllReturnEntries(allReturn);
+        }
+      } catch(syncErr) {
+        console.error('[AutoSync Return] Google Sheets sync error:', syncErr.message);
+      }
+    });
+    // ============================================================================
+
+  } catch(err) {
+    console.error('POST return-entries error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan entry return.' });
+  }
+});
+
+// PATCH /api/return-entries/:id/validate â€” Admin validasi return entry
+app.patch('/api/return-entries/:id/validate', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action, catatan_admin } = req.body; // action: 'validate' | 'revise'
+    const decoded = jwt.verify(req.cookies.token, JWT_SECRET);
+    const validatedBy = decoded.username || 'admin';
+
+    const newStatus = action === 'revise' ? 'revised' : 'validated';
+    const entry = await db.validateReturnEntry(id, newStatus, validatedBy, catatan_admin || '');
+    res.json({ success: true, entry });
+
+    // ===== AUTO-SYNC ke Google Sheets setelah validasi (fire-and-forget) =====
+    setImmediate(async () => {
+      try {
+        if (googleSheets.isConfigured()) {
+          const allReturn = await db.getAllReturnEntries({});
+          await googleSheets.pushAllReturnEntries(allReturn);
+        }
+      } catch(syncErr) {
+        console.error('[AutoSync Return Validate] Google Sheets sync error:', syncErr.message);
+      }
+    });
+    // =========================================================================
+
+  } catch(err) {
+    console.error('PATCH return-entries validate error:', err);
+    res.status(500).json({ error: 'Gagal memvalidasi entry return.' });
+  }
+});
+
+// GET /api/return-entries/:id â€” Detail satu return entry
+app.get('/api/return-entries/:id', requireAuth, async (req, res) => {
+  try {
+    const entry = await db.getReturnEntryById(req.params.id);
+    if (!entry) return res.status(404).json({ error: 'Entry tidak ditemukan.' });
+    res.json(entry);
+  } catch(err) {
+    console.error('GET return-entry by id error:', err);
+    res.status(500).json({ error: 'Gagal memuat entry return.' });
+  }
+});
+
+// GET /api/export-return â€” Export return entries ke Excel dengan Styling Penuh
+app.get('/api/export-return', requirePermission('loader'), async (req, res) => {
+  try {
+    const { tanggal_return, tanggal_referensi, status } = req.query;
+    const entries = await db.getAllReturnEntries({ tanggal_return, tanggal_referensi, status });
+
+    const timeStr = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
+    let totalOutK = 0, totalOutS = 0, totalOutD = 0;
+    let totalRetK = 0, totalRetS = 0, totalRetD = 0;
+
+    const parsePkg = (val) => {
+      if (typeof val === 'number') return { kontainer: val, styrofoam: 0, dus: 0 };
+      if (typeof val === 'object' && val !== null) {
+        return {
+          kontainer: parseInt(val.kontainer || val.kont) || 0,
+          styrofoam: parseInt(val.styrofoam || val.stero) || 0,
+          dus:       parseInt(val.dus || val.box) || 0
+        };
+      }
+      const p = parseInt(val) || 0;
+      return { kontainer: p, styrofoam: 0, dus: 0 };
+    };
+
+    const rowsHtml = entries.map((e, i) => {
+      let clusterDetail = '';
+      let rK = 0, rS = 0, rD = 0;
+
+      try {
+        const outputs = typeof e.cluster_return_outputs === 'string'
+          ? JSON.parse(e.cluster_return_outputs)
+          : (e.cluster_return_outputs || {});
+        
+        const details = [];
+        Object.entries(outputs).forEach(([gm, val]) => {
+          const pkg = parsePkg(val);
+          rK += pkg.kontainer;
+          rS += pkg.styrofoam;
+          rD += pkg.dus;
+          details.push(`${gm}: ${pkg.kontainer} Kont, ${pkg.styrofoam} Stero, ${pkg.dus} Dus`);
+        });
+        clusterDetail = details.join('; ');
+      } catch(_) { clusterDetail = ''; }
+
+      let oK = 0, oS = 0, oD = 0;
+      if (typeof e.outbound_breakdown === 'object' && e.outbound_breakdown !== null) {
+        oK = parseInt(e.outbound_breakdown.kontainer) || 0;
+        oS = parseInt(e.outbound_breakdown.styrofoam) || 0;
+        oD = parseInt(e.outbound_breakdown.dus) || 0;
+      } else {
+        oK = e.total_outbound || 0;
+      }
+
+      totalOutK += oK; totalOutS += oS; totalOutD += oD;
+      totalRetK += rK; totalRetS += rS; totalRetD += rD;
+
+      const sK = oK - rK;
+      const sS = oS - rS;
+      const sD = oD - rD;
+      const totalSel = (oK + oS + oD) - (rK + rS + rD);
+
+      const statusBg = e.status === 'validated' ? '#D1FAE5' : e.status === 'revised' ? '#FEE2E2' : '#FEF3C7';
+      const statusFg = e.status === 'validated' ? '#047857' : e.status === 'revised' ? '#B91C1C' : '#B45309';
+      const statusLabel = e.status === 'validated' ? 'Tervalidasi' : e.status === 'revised' ? 'Perlu Revisi' : 'Menunggu Validasi';
+
+      const selBg = totalSel === 0 ? '#ECFDF5' : totalSel > 0 ? '#FEF3C7' : '#FEE2E2';
+      const selFg = totalSel === 0 ? '#059669' : totalSel > 0 ? '#D97706' : '#DC2626';
+      const selText = totalSel === 0 ? 'Sesuai (Lengkap)' : totalSel > 0 ? `âˆ’${totalSel} (Kurang)` : `+${Math.abs(totalSel)} (Lebih)`;
+
+      const rowBg = i % 2 === 1 ? '#F8FAFC' : '#FFFFFF';
+
+      return `
+        <tr style="background-color: ${rowBg};">
+          <td style="text-align: center; border: 1px solid #CBD5E1; padding: 7px;">${i + 1}</td>
+          <td style="border: 1px solid #CBD5E1; padding: 7px; font-weight: bold; text-align: center;">${e.tanggal_return || 'â€”'}</td>
+          <td style="border: 1px solid #CBD5E1; padding: 7px; text-align: center;">${e.tanggal_referensi || 'â€”'}</td>
+          <td style="border: 1px solid #CBD5E1; padding: 7px; font-weight: bold; color: #1E293B;">${e.no_polisi || 'â€”'}</td>
+          <td style="border: 1px solid #CBD5E1; padding: 7px;">${e.nama_return || 'â€”'}</td>
+          
+          <!-- Outbound Breakdown -->
+          <td style="text-align: center; border: 1px solid #CBD5E1; padding: 7px; color: #6D28D9; background-color: #F5F3FF;">${oK}</td>
+          <td style="text-align: center; border: 1px solid #CBD5E1; padding: 7px; color: #0284C7; background-color: #F0F9FF;">${oS}</td>
+          <td style="text-align: center; border: 1px solid #CBD5E1; padding: 7px; color: #D97706; background-color: #FEF3C7;">${oD}</td>
+          <td style="text-align: center; border: 1px solid #CBD5E1; padding: 7px; font-weight: bold; color: #5B21B6; background-color: #EDE9FE;">${oK + oS + oD}</td>
+
+          <!-- Kembali DC Breakdown -->
+          <td style="text-align: center; border: 1px solid #CBD5E1; padding: 7px; color: #0F766E; background-color: #F0FDF4;">${rK}</td>
+          <td style="text-align: center; border: 1px solid #CBD5E1; padding: 7px; color: #0284C7; background-color: #F0F9FF;">${rS}</td>
+          <td style="text-align: center; border: 1px solid #CBD5E1; padding: 7px; color: #D97706; background-color: #FEF3C7;">${rD}</td>
+          <td style="text-align: center; border: 1px solid #CBD5E1; padding: 7px; font-weight: bold; color: #0F766E; background-color: #CCFBF1;">${rK + rS + rD}</td>
+
+          <!-- Selisih Breakdown -->
+          <td style="text-align: center; border: 1px solid #CBD5E1; padding: 7px; font-weight: bold; color: ${selFg}; background-color: ${selBg};">${selText}</td>
+          
+          <td style="border: 1px solid #CBD5E1; padding: 7px; font-size: 9pt;">${clusterDetail || 'â€”'}</td>
+          <td style="border: 1px solid #CBD5E1; padding: 7px; font-style: italic;">${e.catatan || 'â€”'}</td>
+          <td style="text-align: center; border: 1px solid #CBD5E1; padding: 7px; font-weight: bold; background-color: ${statusBg}; color: ${statusFg};">${statusLabel}</td>
+          <td style="border: 1px solid #CBD5E1; padding: 7px;">${e.validated_by || 'â€”'}</td>
+          <td style="border: 1px solid #CBD5E1; padding: 7px; font-size: 9pt; text-align: center;">${e.created_at ? new Date(e.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : ''}</td>
+        </tr>`;
+    }).join('');
+
+    const htmlContent = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <!--[if gte mso 9]>
+        <xml>
+          <x:ExcelWorkbook>
+            <x:ExcelWorksheets>
+              <x:ExcelWorksheet>
+                <x:Name>Entry Return</x:Name>
+                <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+              </x:ExcelWorksheet>
+            </x:ExcelWorksheets>
+          </x:ExcelWorkbook>
+        </xml>
+        <![endif]-->
+        <style>
+          body { font-family: 'Calibri', 'Segoe UI', sans-serif; font-size: 10pt; }
+          .hdr-title { font-size: 16pt; font-weight: bold; color: #0F766E; }
+          .hdr-sub { font-size: 10pt; color: #64748B; margin-bottom: 12px; }
+          table { border-collapse: collapse; width: 100%; }
+          th { background-color: #0D9488; color: #FFFFFF; font-weight: bold; padding: 10px 6px; border: 1px solid #0F766E; text-align: center; font-size: 9.5pt; }
+          td { border: 1px solid #CBD5E1; padding: 6px 8px; font-size: 9.5pt; }
+          .tot-row td { background-color: #F0FDF4; font-weight: bold; border-top: 2.5px solid #0D9488; font-size: 10.5pt; }
+        </style>
+      </head>
+      <body>
+        <div class="hdr-title">REKAPITULASI ENTRY RETURN KONTAINER, STYROFOAM &amp; DUS (TOKO KE DC)</div>
+        <div class="hdr-sub">Sistem Manajemen Pencapaian Kerja SS08 &bull; Waktu Export: ${timeStr} &bull; Total: ${entries.length} Armada Record</div>
+        <table border="1">
+          <thead>
+            <tr>
+              <th rowspan="2" style="width:40px;">NO</th>
+              <th rowspan="2" style="width:100px;">TGL RETURN</th>
+              <th rowspan="2" style="width:100px;">TGL OUTBOUND</th>
+              <th rowspan="2" style="width:110px;">NO. POLISI</th>
+              <th rowspan="2" style="width:150px;">DIINPUT OLEH</th>
+              <th colspan="4" style="background-color:#5B21B6;">OUTBOUND DIKIRIM LOADER</th>
+              <th colspan="4" style="background-color:#065F46;">KEMBALI KE DC (RETURN)</th>
+              <th rowspan="2" style="width:140px;">STATUS SELISIH</th>
+              <th rowspan="2" style="width:250px;">DETAIL PER CLUSTER</th>
+              <th rowspan="2" style="width:140px;">CATATAN</th>
+              <th rowspan="2" style="width:120px;">STATUS</th>
+              <th rowspan="2" style="width:120px;">VALIDATOR</th>
+              <th rowspan="2" style="width:140px;">WAKTU SUBMIT</th>
+            </tr>
+            <tr>
+              <th style="background-color:#6D28D9; width:70px;">Kontainer</th>
+              <th style="background-color:#0284C7; width:70px;">Styrofoam</th>
+              <th style="background-color:#D97706; width:70px;">Dus</th>
+              <th style="background-color:#4C1D95; width:80px;">Total Out</th>
+
+              <th style="background-color:#0F766E; width:70px;">Kontainer</th>
+              <th style="background-color:#0284C7; width:70px;">Styrofoam</th>
+              <th style="background-color:#D97706; width:70px;">Dus</th>
+              <th style="background-color:#047857; width:80px;">Total DC</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+            <tr class="tot-row">
+              <td colspan="5" style="text-align: right; padding-right: 12px;">TOTAL KESELURUHAN:</td>
+              <td style="text-align: center; color: #6D28D9;">${totalOutK}</td>
+              <td style="text-align: center; color: #0284C7;">${totalOutS}</td>
+              <td style="text-align: center; color: #D97706;">${totalOutD}</td>
+              <td style="text-align: center; color: #5B21B6;">${totalOutK + totalOutS + totalOutD}</td>
+
+              <td style="text-align: center; color: #0F766E;">${totalRetK}</td>
+              <td style="text-align: center; color: #0284C7;">${totalRetS}</td>
+              <td style="text-align: center; color: #D97706;">${totalRetD}</td>
+              <td style="text-align: center; color: #047857;">${totalRetK + totalRetS + totalRetD}</td>
+
+              <td style="text-align: center;">${(totalOutK + totalOutS + totalOutD) === (totalRetK + totalRetS + totalRetD) ? 'âœ“ Sesuai' : 'Ada Selisih'}</td>
+              <td colspan="5"></td>
+            </tr>
+          </tbody>
+        </table>
+      </body>
+      </html>`;
+
+    const filename = `entry-return-${new Date().toISOString().slice(0,10)}.xls`;
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/vnd.ms-excel; charset=utf-8');
+  } catch (err) {
+    console.error('Export return error:', err);
+    res.status(500).json({ success: false, error: 'Gagal export data return.' });
+  }
+});
+
+// ===================== END RETURN ENTRIES =====================
+
+
+// ==================== QC OUTBOUND ROUTES ====================
+
+// GET /api/qc-outbound - Ambil semua atau filter per tanggal
+app.get('/api/qc-outbound', requireQcOutbound, async (req, res) => {
+  try {
+    const { tanggal } = req.query;
+    const entries = await db.getAllQcOutbound(tanggal || null);
+    res.json({ success: true, data: entries });
+  } catch (err) {
+    console.error('Get QC Outbound error:', err);
+    res.status(500).json({ error: 'Gagal mengambil data QC Outbound.' });
+  }
+});
+
+// POST /api/qc-outbound - Simpan entry QC Outbound baru
+app.post('/api/qc-outbound', requireQcOutbound, async (req, res) => {
+  try {
+    const { tanggal, no_polisi, kontainer, styrofoam, dus, catatan } = req.body;
+
+    // Validasi field wajib
+    if (!tanggal || !no_polisi) {
+      return res.status(400).json({ error: 'Tanggal dan No. Polisi wajib diisi.' });
+    }
+    if ((parseInt(kontainer) || 0) + (parseInt(styrofoam) || 0) + (parseInt(dus) || 0) === 0) {
+      return res.status(400).json({ error: 'Minimal satu jenis item harus diisi (kontainer, styrofoam, atau dus).' });
+    }
+
+    // Validasi duplikat: 1 nopol hanya boleh 1 entry per hari
+    const existing = await db.getQcOutboundByNopolAndTanggal(no_polisi.trim(), tanggal);
+    if (existing) {
+      return res.status(409).json({
+        error: `Armada ${no_polisi} sudah memiliki data QC Outbound untuk tanggal ${tanggal}. Hapus data lama terlebih dahulu jika ingin menggantinya.`
+      });
+    }
+
+    const entry = await db.insertQcOutbound({
+      tanggal,
+      no_polisi: no_polisi.trim().toUpperCase(),
+      kontainer: parseInt(kontainer) || 0,
+      styrofoam: parseInt(styrofoam) || 0,
+      dus: parseInt(dus) || 0,
+      catatan: catatan || '',
+      created_by: req.user?.username || req.user?.nama_lengkap || 'unknown'
+    });
+
+    res.json({ success: true, data: entry });
+
+    // ===== AUTO-SYNC ke Google Sheets (fire-and-forget) =====
+    setImmediate(() => {
+      syncQcOutboundToSheets();
+    });
+
+  } catch (err) {
+    console.error('Insert QC Outbound error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan data QC Outbound.' });
+  }
+});
+
+// DELETE /api/qc-outbound/:id - Hapus entry QC Outbound
+app.delete('/api/qc-outbound/:id', requireQcOutbound, async (req, res) => {
+  try {
+    await db.deleteQcOutbound(req.params.id);
+    res.json({ success: true });
+
+    // ===== AUTO-SYNC ke Google Sheets setelah hapus =====
+    setImmediate(() => {
+      syncQcOutboundToSheets();
+    });
+
+  } catch (err) {
+    console.error('Delete QC Outbound error:', err);
+    res.status(500).json({ error: 'Gagal menghapus data QC Outbound.' });
+  }
+});
+
+// GET /api/qc-outbound/loader-armada - Ambil daftar armada (nopol) dari loader entries per tanggal
+// Digunakan sebagai dropdown saat input QC Outbound
+app.get('/api/qc-outbound/loader-armada', requireQcOutbound, async (req, res) => {
+  try {
+    const { tanggal } = req.query;
+    if (!tanggal) return res.status(400).json({ error: 'Parameter tanggal wajib diisi.' });
+    const entries = await db.getAllLoaderEntries(tanggal);
+    // Ambil nopol unik yang belum punya QC Outbound
+    const existingQc = await db.getAllQcOutbound(tanggal);
+    const existingNopol = new Set(existingQc.map(e => e.no_polisi));
+    const armadaList = entries
+      .filter(e => e.no_polisi)
+      .map(e => ({
+        no_polisi: e.no_polisi,
+        nama: e.nama,
+        zona: e.zona || '',
+        sudah_ada_qc: existingNopol.has(e.no_polisi)
+      }))
+      .filter((v, i, arr) => arr.findIndex(x => x.no_polisi === v.no_polisi) === i); // deduplicate
+    res.json({ success: true, data: armadaList });
+  } catch (err) {
+    console.error('Get loader armada error:', err);
+    res.status(500).json({ error: 'Gagal mengambil data armada.' });
+  }
+});
+
+// ===================== END QC OUTBOUND =====================
+
 
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`\n🚀 Server berjalan di http://localhost:${PORT}`);
-    console.log(`📝 Form: http://localhost:${PORT}`);
-    console.log(`🔐 Admin: http://localhost:${PORT}/admin`);
-    console.log(`👤 Login: admin / admin123\n`);
+    console.log(`\nðŸš€ Server berjalan di http://localhost:${PORT}`);
+    console.log(`ðŸ“ Form: http://localhost:${PORT}`);
+    console.log(`ðŸ” Admin: http://localhost:${PORT}/admin`);
+    console.log(`ðŸ‘¤ Login: admin / admin123\n`);
   });
 }
 
 module.exports = app;
+

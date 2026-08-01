@@ -8,11 +8,21 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="dns-prefetch" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/index.css?v=1.2">
+  <link rel="stylesheet" href="/css/index.css?v=1.4">
   <script>
-    if (localStorage.getItem('theme') === 'dark') {
-      document.body.classList.add('dark-mode');
-    }
+    document.addEventListener('DOMContentLoaded', function() {
+      if (localStorage.getItem('theme') === 'dark' && document.body) {
+        document.body.classList.add('dark-mode');
+      }
+    });
+    // Fail-safe auto hide pageLoader after max 1.2s
+    setTimeout(function() {
+      var loader = document.getElementById('pageLoader');
+      if (loader) {
+        loader.classList.add('hidden');
+        setTimeout(function() { if (loader && loader.parentNode) loader.parentNode.removeChild(loader); }, 400);
+      }
+    }, 1200);
   </script>
 </head>
 <body class="">
@@ -22,6 +32,20 @@
   <div class="loader-content">
     <div class="loader-spin"></div>
     <div class="loader-text">SS08</div>
+  </div>
+</div>
+
+<!-- Impersonate Floating Banner (Visible only when in admin impersonation mode) -->
+<div id="impersonateBanner" class="impersonate-banner" style="display:none;">
+  <div class="impersonate-content">
+    <div class="impersonate-badge">
+      <span class="impersonate-icon">👁️</span>
+      <span class="impersonate-text">Mode Penyamaran Admin: <strong id="impersonateTargetName">-</strong></span>
+    </div>
+    <button class="btn-switch-back" onclick="switchBackToAdmin()" title="Kembali ke Dashboard Admin">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/></svg>
+      <span>Kembali ke Admin</span>
+    </button>
   </div>
 </div>
 
@@ -41,96 +65,147 @@
       </div>
     </div>
 
-    <div class="sidebar-section-label">MENU</div>
-    <nav class="sidebar-nav">
-      <button class="tab-btn sidebar-item active-green" id="tab-dashboard" onclick="switchTab('dashboard')">
-        <span class="sidebar-item-icon">
-          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-          </svg>
-        </span>
-        <div class="sidebar-item-text">
-          <div class="sidebar-item-label">Dashboard</div>
-          <div class="sidebar-item-sub">Pencapaian harian Anda</div>
-        </div>
-      </button>
-      <button class="tab-btn sidebar-item" id="tab-riwayat" onclick="switchTab('riwayat')">
-        <span class="sidebar-item-icon">
-          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/>
-          </svg>
-        </span>
-        <div class="sidebar-item-text">
-          <div class="sidebar-item-label">Riwayat</div>
-          <div class="sidebar-item-sub">Semua history kinerja</div>
-        </div>
-      </button>
-      <button class="tab-btn sidebar-item" id="tab-pendapatan" onclick="switchTab('pendapatan')" style="position:relative;">
-        <span class="sidebar-item-icon">
-          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-        </span>
-        <div class="sidebar-item-text">
-          <div class="sidebar-item-label">Pendapatan</div>
-          <div class="sidebar-item-sub">Estimasi nilai kerjamu</div>
-        </div>
-        <span style="position:absolute; top:8px; right:10px; background:linear-gradient(135deg,#f59e0b,#ef4444); color:#fff; font-size:9px; font-weight:700; padding:2px 6px; border-radius:20px; letter-spacing:0.5px;">SOON</span>
-      </button>
-    </nav>
+    <div class="sidebar-body">
+      <div class="sidebar-section-label">MENU</div>
+      <nav class="sidebar-nav">
+        <button class="tab-btn sidebar-item active-green" id="tab-dashboard" onclick="switchTab('dashboard')">
+          <span class="sidebar-item-icon">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+            </svg>
+          </span>
+          <div class="sidebar-item-text">
+            <div class="sidebar-item-label">Dashboard</div>
+            <div class="sidebar-item-sub">Pencapaian harian Anda</div>
+          </div>
+        </button>
+        <button class="tab-btn sidebar-item" id="tab-riwayat" onclick="switchTab('riwayat')">
+          <span class="sidebar-item-icon">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/>
+            </svg>
+          </span>
+          <div class="sidebar-item-text">
+            <div class="sidebar-item-label">Riwayat</div>
+            <div class="sidebar-item-sub">Semua history kinerja</div>
+          </div>
+        </button>
+        <button class="tab-btn sidebar-item" id="tab-calendar" onclick="switchTab('calendar')">
+          <span class="sidebar-item-icon">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+          </span>
+          <div class="sidebar-item-text">
+            <div class="sidebar-item-label">Kalender Kerja</div>
+            <div class="sidebar-item-sub">Riwayat masuk & off Anda</div>
+          </div>
+        </button>
+        <button class="tab-btn sidebar-item" id="tab-pendapatan" onclick="switchTab('pendapatan')" style="position:relative;">
+          <span class="sidebar-item-icon">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </span>
+          <div class="sidebar-item-text">
+            <div class="sidebar-item-label">Pendapatan</div>
+            <div class="sidebar-item-sub">Estimasi nilai kerjamu</div>
+          </div>
+          <span style="position:absolute; top:8px; right:10px; background:linear-gradient(135deg,#f59e0b,#ef4444); color:#fff; font-size:9px; font-weight:700; padding:2px 6px; border-radius:20px; letter-spacing:0.5px;">SOON</span>
+        </button>
+      </nav>
 
-    <div class="sidebar-section-label">FORMULIR</div>
-    <nav class="sidebar-nav">
-      <button class="tab-btn sidebar-item" id="tab-picker" onclick="switchTab('picker')">
-        <span class="sidebar-item-icon">
-          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/>
-          </svg>
-        </span>
-        <div class="sidebar-item-text">
-          <div class="sidebar-item-label">Entry Picker & Sorter</div>
-          <div class="sidebar-item-sub">Carian & output picker</div>
-        </div>
-      </button>
-      <button class="tab-btn sidebar-item" id="tab-loader" onclick="switchTab('loader')">
-        <span class="sidebar-item-icon">
-          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h11a2 2 0 012 2v3m-6 12a2 2 0 002 2h6a2 2 0 002-2v-7a2 2 0 00-2-2h-6a2 2 0 00-2 2v7z"/>
-          </svg>
-        </span>
-        <div class="sidebar-item-text">
-          <div class="sidebar-item-label">Entry Loader</div>
-          <div class="sidebar-item-sub">Armada & kontainer</div>
-        </div>
-      </button>
-    </nav>
+      <div class="sidebar-section-label">FORMULIR</div>
+      <nav class="sidebar-nav">
+        <button class="tab-btn sidebar-item" id="tab-picker" onclick="switchTab('picker')">
+          <span class="sidebar-item-icon">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/>
+            </svg>
+          </span>
+          <div class="sidebar-item-text">
+            <div class="sidebar-item-label">Entry Picker & Sorter</div>
+            <div class="sidebar-item-sub">Carian & output picker</div>
+          </div>
+        </button>
+        <button class="tab-btn sidebar-item" id="tab-loader" onclick="switchTab('loader')">
+          <span class="sidebar-item-icon">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h11a2 2 0 012 2v3m-6 12a2 2 0 002 2h6a2 2 0 002-2v-7a2 2 0 00-2-2h-6a2 2 0 00-2 2v7z"/>
+            </svg>
+          </span>
+          <div class="sidebar-item-text">
+            <div class="sidebar-item-label">Entry Loader</div>
+            <div class="sidebar-item-sub">Armada & kontainer</div>
+          </div>
+        </button>
+        <button class="tab-btn sidebar-item" id="tab-return" onclick="switchTab('return')" style="display:none;">
+          <span class="sidebar-item-icon">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+            </svg>
+          </span>
+          <div class="sidebar-item-text">
+            <div class="sidebar-item-label">Entry Return</div>
+            <div class="sidebar-item-sub">Validasi kontainer kembali</div>
+          </div>
+        </button>
+        <button class="tab-btn sidebar-item" id="tab-qc-outbound" onclick="switchTab('qc-outbound')" style="display:none;">
+          <span class="sidebar-item-icon">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+            </svg>
+          </span>
+          <div class="sidebar-item-text">
+            <div class="sidebar-item-label">QC Outbound</div>
+            <div class="sidebar-item-sub">Input barang ke armada</div>
+          </div>
+        </button>
+      </nav>
+    </div>
 
     <div class="sidebar-footer">
-      <div class="sidebar-user">
+      <div class="sidebar-user-card" id="sidebarUserCard" onclick="toggleUserProfileMenu(event)" title="Klik untuk opsi akun & tema">
         <div class="sidebar-avatar" id="headerAvatar">?</div>
         <div class="sidebar-user-info">
           <div class="sidebar-user-name" id="headerName">Memuat...</div>
-          <span class="header-posisi-badge" id="headerPosisiBadge">—</span>
+          <div class="sidebar-badges">
+            <span class="header-posisi-badge" id="headerPosisiBadge">—</span>
+            <span class="header-tipe-badge" id="headerTipeBadge" style="display:none;"></span>
+          </div>
+        </div>
+        <div class="sidebar-user-more">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/>
+          </svg>
+        </div>
+
+        <!-- Floating Popover Menu -->
+        <div class="user-popover-menu" id="userPopoverMenu" onclick="event.stopPropagation()">
+          <button type="button" class="popover-item" id="btnThemeToggle" onclick="toggleDarkMode(); toggleUserProfileMenu(event);">
+            <svg id="themeToggleIcon" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707.707M12 7a5 5 0 100 10 5 5 0 000-10z"/>
+            </svg>
+            <span id="themeToggleText">Mode Gelap</span>
+          </button>
+          <button type="button" class="popover-item" id="btnChangePassword" onclick="openChangePasswordModal(); toggleUserProfileMenu(event);">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+            </svg>
+            <span>Ganti Password</span>
+          </button>
+          <div class="popover-divider"></div>
+          <button type="button" class="popover-item danger" onclick="logout()">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+            </svg>
+            <span>Keluar Akun</span>
+          </button>
         </div>
       </div>
-      <button class="btn-theme-toggle" id="btnThemeToggle" onclick="toggleDarkMode()">
-        <svg id="themeToggleIcon" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707.707M12 7a5 5 0 100 10 5 5 0 000-10z"/>
-        </svg>
-        <span id="themeToggleText">Mode Gelap</span>
-      </button>
-      <button class="btn-change-password" id="btnChangePassword" onclick="openChangePasswordModal()">
-        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
-        </svg>
-        Ganti Password
-      </button>
-      <button class="btn-logout" onclick="logout()">
-        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-        </svg>
-        Keluar
-      </button>
     </div>
   </aside>
 
@@ -139,7 +214,7 @@
 
     <!-- Mobile topbar -->
     <header class="mobile-topbar">
-      <button class="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">
+      <button class="mobile-menu-btn" onclick="toggleSidebar()">
         <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
           <path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/>
         </svg>
@@ -156,7 +231,7 @@
     </header>
 
     <!-- Mobile sidebar overlay -->
-    <div class="sidebar-overlay" onclick="document.getElementById('sidebar').classList.remove('open')"></div>
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
     <div class="content-area">
 
@@ -217,12 +292,12 @@
                   <div class="dash-stat-sub">pcs</div>
                 </div>
                 <div class="dash-stat-card purple-light">
-                  <div class="dash-stat-label">Total Batch (All)</div>
+                  <div class="dash-stat-label">Total Batch (<span class="dash-all-label">Sepanjang Waktu</span>)</div>
                   <div class="dash-stat-value" id="dashPickerBatchAll">0</div>
-                  <div class="dash-stat-sub">sepanjang waktu</div>
+                  <div class="dash-stat-sub dash-all-sub">semua waktu</div>
                 </div>
                 <div class="dash-stat-card purple-light">
-                  <div class="dash-stat-label">Total Output (All)</div>
+                  <div class="dash-stat-label">Total Output (<span class="dash-all-label">Sepanjang Waktu</span>)</div>
                   <div class="dash-stat-value" id="dashPickerOutputAll">0</div>
                   <div class="dash-stat-sub">pcs</div>
                 </div>
@@ -259,12 +334,12 @@
                   <div class="dash-stat-sub">kontainer</div>
                 </div>
                 <div class="dash-stat-card cyan-light">
-                  <div class="dash-stat-label">Total Batch (All)</div>
+                  <div class="dash-stat-label">Total Batch (<span class="dash-all-label">Sepanjang Waktu</span>)</div>
                   <div class="dash-stat-value" id="dashSorterBatchAll">0</div>
-                  <div class="dash-stat-sub">sepanjang waktu</div>
+                  <div class="dash-stat-sub dash-all-sub">semua waktu</div>
                 </div>
                 <div class="dash-stat-card cyan-light">
-                  <div class="dash-stat-label">Total Output (All)</div>
+                  <div class="dash-stat-label">Total Output (<span class="dash-all-label">Sepanjang Waktu</span>)</div>
                   <div class="dash-stat-value" id="dashSorterOutputAll">0</div>
                   <div class="dash-stat-sub">kontainer</div>
                 </div>
@@ -299,12 +374,12 @@
                   <div class="dash-stat-sub">kontainer</div>
                 </div>
                 <div class="dash-stat-card blue-light">
-                  <div class="dash-stat-label">Total Trip (All)</div>
+                  <div class="dash-stat-label">Total Trip (<span class="dash-all-label">Sepanjang Waktu</span>)</div>
                   <div class="dash-stat-value" id="dashLoaderTripAll">0</div>
-                  <div class="dash-stat-sub">sepanjang waktu</div>
+                  <div class="dash-stat-sub dash-all-sub">semua waktu</div>
                 </div>
                 <div class="dash-stat-card blue-light">
-                  <div class="dash-stat-label">Total Kontainer (All)</div>
+                  <div class="dash-stat-label">Total Kontainer (<span class="dash-all-label">Sepanjang Waktu</span>)</div>
                   <div class="dash-stat-value" id="dashLoaderKontainerAll">0</div>
                   <div class="dash-stat-sub">kontainer</div>
                 </div>
@@ -320,7 +395,7 @@
               </svg>
               <div class="dash-empty-title">Belum ada pencapaian hari ini</div>
               <div class="dash-empty-sub">Mulai isi formulir untuk mencatat pencapaian kerja Anda!</div>
-              <button class="dash-empty-btn" onclick="switchTab('picker')">
+              <button class="dash-empty-btn" onclick="openFormTab()">
                 Isi Formulir Sekarang →
               </button>
             </div>
@@ -343,18 +418,60 @@
           </div>
         </div>
 
-        <!-- Filter & Stats bar -->
+        <!-- Filter Toggle Button in topbar -->
         <div class="rw-topbar">
           <div class="rw-total-chips" id="rwTotalChips">
             <div class="rw-chip green"><span class="rw-chip-val" id="rwTotalHari">—</span><span class="rw-chip-lbl">Hari Kerja</span></div>
             <div class="rw-chip purple"><span class="rw-chip-val" id="rwTotalBatch">—</span><span class="rw-chip-lbl">Total Batch</span></div>
             <div class="rw-chip cyan"><span class="rw-chip-val" id="rwTotalOutput">—</span><span class="rw-chip-lbl">Total Output</span></div>
           </div>
-          <button class="rw-refresh-btn" onclick="loadRiwayat()" title="Refresh">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-            </svg>
-            Refresh
+          <div style="display:flex;gap:8px;">
+            <button class="rw-filter-btn" id="rwFilterToggle" onclick="rwToggleFilter()" title="Filter">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
+              Filter
+              <span class="rw-filter-active-dot" id="rwFilterDot" style="display:none;"></span>
+            </button>
+            <button class="rw-refresh-btn" onclick="loadRiwayat()" title="Refresh">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              Refresh
+            </button>
+          </div>
+        </div>
+
+
+        <!-- Filter Bar -->
+        <div class="rw-filter-bar" id="rwFilterBar" style="display:none;">
+          <div class="rw-filter-group">
+            <label class="rw-filter-label" for="rwFilterFrom">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Dari Tanggal
+            </label>
+            <input type="date" id="rwFilterFrom" class="rw-filter-input" oninput="rwApplyFilter()">
+          </div>
+          <div class="rw-filter-group">
+            <label class="rw-filter-label" for="rwFilterTo">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Sampai Tanggal
+            </label>
+            <input type="date" id="rwFilterTo" class="rw-filter-input" oninput="rwApplyFilter()">
+          </div>
+          <div class="rw-filter-group">
+            <label class="rw-filter-label" for="rwFilterPosisi">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Posisi
+            </label>
+            <select id="rwFilterPosisi" class="rw-filter-select" onchange="rwApplyFilter()">
+              <option value="">Semua Posisi</option>
+              <option value="picker">Picker</option>
+              <option value="sorter">Sorter</option>
+              <option value="loader">Loader</option>
+            </select>
+          </div>
+          <button class="rw-filter-reset" onclick="rwResetFilter()" title="Reset Filter">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            Reset
           </button>
         </div>
 
@@ -373,12 +490,133 @@
             </svg>
             <div class="dash-empty-title">Belum ada riwayat</div>
             <div class="dash-empty-sub">Mulai isi formulir untuk mencatat pencapaian kerja Anda!</div>
-            <button class="dash-empty-btn" onclick="switchTab('picker')">Isi Formulir Sekarang →</button>
+            <button class="dash-empty-btn" onclick="openFormTab()">Isi Formulir Sekarang →</button>
+          </div>
+          <!-- Empty filtered state -->
+          <div id="rwFilterEmpty" class="dash-empty" style="display:none;">
+            <svg width="48" height="48" fill="none" stroke="#CBD5E1" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/>
+            </svg>
+            <div class="dash-empty-title">Tidak ada data untuk filter ini</div>
+            <div class="dash-empty-sub">Coba ubah rentang tanggal atau posisi yang dipilih.</div>
           </div>
           <!-- List grouped by date -->
           <div id="rwList"></div>
         </div>
       </div><!-- end panel-riwayat -->
+
+      <!-- ===== TAB KALENDER KERJA ===== -->
+      <div class="tab-panel" id="panel-calendar">
+        <div class="page-header" style="justify-content: space-between; display: flex; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <div class="page-header-icon" style="background:linear-gradient(135deg,#3B82F6,#2563EB);">
+              <svg width="22" height="22" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+            </div>
+            <div>
+              <h1 class="page-title">Kalender Kerja</h1>
+              <p class="page-subtitle">Pantau kehadiran dan status kerja Anda setiap bulan</p>
+            </div>
+          </div>
+          <button class="cal-refresh-btn" onclick="loadCalendarData()" title="Refresh" style="margin-left: auto;">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+            </svg>
+            Refresh
+          </button>
+        </div>
+
+        <div class="calendar-backdrop" id="calendar-backdrop" onclick="closeDayDetails()"></div>
+
+        <div class="calendar-card-container">
+          <div class="calendar-card">
+            <div class="calendar-header">
+              <button class="cal-nav-btn" onclick="changeCalendarMonth(-1)">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                </svg>
+              </button>
+              <h2 id="calendar-month-year" class="calendar-month-year">Januari 2026</h2>
+              <button class="cal-nav-btn" onclick="changeCalendarMonth(1)">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- Grid Hari Kerja -->
+            <div class="calendar-grid-header">
+              <div>Min</div><div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div>
+            </div>
+            <div id="calendar-days-grid" class="calendar-days-grid">
+              <!-- Generated by JS -->
+            </div>
+
+            <!-- Legend -->
+            <div class="calendar-legend">
+              <div class="legend-item">
+                <span class="legend-dot dot-hadir"></span>
+                <span class="legend-label">Hadir Resmi (Absen Admin)</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-dot dot-isi-form"></span>
+                <span class="legend-label">Mengisi Formulir Kerja</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-dot dot-off"></span>
+                <span class="legend-label">Off / Belum Hadir</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sidebar Panel: Stats & Details -->
+          <div class="calendar-sidebar-panel">
+            <div class="calendar-stats-row">
+              <div class="cal-stat-card stat-hadir">
+                <div class="cal-stat-icon">✅</div>
+                <div class="cal-stat-info">
+                  <div id="cal-stat-total-hadir" class="cal-stat-num">0</div>
+                  <div class="cal-stat-label">Hadir Resmi</div>
+                </div>
+              </div>
+              <div class="cal-stat-card stat-isi-form">
+                <div class="cal-stat-icon">📝</div>
+                <div class="cal-stat-info">
+                  <div id="cal-stat-total-form" class="cal-stat-num">0</div>
+                  <div class="cal-stat-label">Mengisi Formulir</div>
+                </div>
+              </div>
+              <div class="cal-stat-card stat-off">
+                <div class="cal-stat-icon">😴</div>
+                <div class="cal-stat-info">
+                  <div id="cal-stat-total-off" class="cal-stat-num">0</div>
+                  <div class="cal-stat-label">Off / Libur</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Detail Hari yang Dipilih -->
+            <div class="calendar-details-card" id="calendar-day-details-card">
+              <div class="details-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div id="details-date-title" class="details-date-title">Pilih Tanggal</div>
+                <button class="details-close-btn" onclick="closeDayDetails()" title="Tutup" style="background: none; border: none; color: var(--text-muted); cursor: pointer; display: none; align-items: center; justify-content: center; padding: 4px; border-radius: 50%;">
+                  <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div class="details-body" id="details-body-content">
+                Silakan klik salah satu tanggal pada kalender di sebelah kiri untuk melihat rincian aktivitas Anda.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- end panel-calendar -->
+
 
       <!-- ===== TAB 1: PICKER & SORTER ===== -->
       <div class="tab-panel" id="panel-picker">
@@ -695,6 +933,62 @@
             50% { transform: scale(1.06); box-shadow: 0 28px 70px rgba(245,158,11,0.5); }
           }
         </style>
+        <!-- Tampilan PHL Aktif -->
+        <div id="pendapatan-phl-view" style="display: none; padding: 20px 0;">
+          <!-- Header badge status -->
+          <div style="margin-bottom:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 16px;background:linear-gradient(135deg,rgba(124,58,237,0.1),rgba(167,139,250,0.08));border:1.5px solid rgba(124,58,237,0.25);border-radius:12px;">
+              <div style="width:8px;height:8px;border-radius:50%;background:#7c3aed;"></div>
+              <span style="font-size:12px;font-weight:700;color:#7c3aed;">STATUS: PHL</span>
+            </div>
+            <div id="phl-upah-badge" style="font-size:12px;color:var(--text-secondary);padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:12px;">Upah Harian: Memuat...</div>
+          </div>
+
+          <!-- Summary Cards PHL -->
+          <div class="dash-stats-grid" style="margin-bottom: 24px;">
+            <div class="dash-stat-card" style="background:linear-gradient(135deg,rgba(124,58,237,0.08),rgba(167,139,250,0.05));border:1.5px solid rgba(124,58,237,0.2);">
+              <div class="stat-icon">📅</div>
+              <div class="stat-info">
+                <div class="stat-label">Hadir Bulan Ini</div>
+                <div class="stat-value" id="phl-val-hadir-bulan" style="color:#7c3aed;">0 hari</div>
+              </div>
+            </div>
+            <div class="dash-stat-card" style="background:linear-gradient(135deg,rgba(124,58,237,0.08),rgba(167,139,250,0.05));border:1.5px solid rgba(124,58,237,0.2);">
+              <div class="stat-icon">💰</div>
+              <div class="stat-info">
+                <div class="stat-label">Estimasi Bulan Ini</div>
+                <div class="stat-value" id="phl-val-bulan" style="color:#7c3aed;">Rp 0</div>
+              </div>
+            </div>
+            <div class="dash-stat-card" style="background:linear-gradient(135deg,rgba(124,58,237,0.08),rgba(167,139,250,0.05));border:1.5px solid rgba(124,58,237,0.2);">
+              <div class="stat-icon">🏆</div>
+              <div class="stat-info">
+                <div class="stat-label">Total Estimasi</div>
+                <div class="stat-value" id="phl-val-total" style="color:#7c3aed;">Rp 0</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Info Banner -->
+          <div style="background:linear-gradient(135deg,rgba(124,58,237,0.06),rgba(167,139,250,0.04));border:1.5px solid rgba(124,58,237,0.15);border-radius:14px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:flex-start;gap:12px;">
+            <div style="font-size:18px;flex-shrink:0;">ℹ️</div>
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.7;">
+              Estimasi pendapatan dihitung berdasarkan <strong>hari kehadiran resmi × upah harian</strong> yang ditetapkan oleh Admin.
+              Kamu tetap bisa mengisi formulir untuk pencatatan kerja — namun formulir tidak dihitung dalam estimasi ini.
+            </div>
+          </div>
+
+          <!-- Rincian Per Bulan -->
+          <div class="table-card">
+            <div class="table-header" style="padding: 16px 20px; border-bottom: 1px solid var(--border);">
+              <div class="table-title">📊 Rincian Kehadiran & Estimasi Per Bulan</div>
+            </div>
+            <div id="phl-monthly-list" style="padding:0;">
+              <div style="text-align:center;padding:32px;color:var(--text-secondary);font-size:13px;">Memuat data...</div>
+            </div>
+          </div>
+        </div>
+
       </div><!-- end panel-pendapatan -->
 
 
@@ -770,12 +1064,6 @@
                 <div>
                   <div class="section-title">Daftar Armada <span class="required">*</span></div>
                   <div class="section-subtitle">No. Polisi & muatan tiap armada</div>
-                </div>
-                <div class="section-header-actions">
-                  <button type="button" class="btn-add-armada" onclick="ldAddArmada()">
-                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
-                    Tambah Armada
-                  </button>
                 </div>
               </div>
               <div class="section-body">
@@ -920,7 +1208,7 @@
                 </div>
 
                 <!-- Hidden file inputs -->
-                <input type="file" id="ldCameraInput" accept="image/*" capture="environment" multiple style="display:none">
+                <input type="file" id="ldCameraInput" accept="image/*" capture="environment" style="display:none">
                 <input type="file" id="ldFileInput" accept="image/*" multiple style="display:none">
 
                 <!-- Foto count info -->
@@ -956,7 +1244,282 @@
         </form>
       </div><!-- end panel-loader -->
 
+      <!-- ===== TAB QC OUTBOUND ===== -->
+      <div class="tab-panel" id="panel-qc-outbound">
+        <div class="page-header">
+          <div class="page-header-icon" style="background: linear-gradient(135deg, #7C3AED, #5B21B6);">
+            <svg width="22" height="22" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+            </svg>
+          </div>
+          <div>
+            <h1 class="page-title">QC Outbound</h1>
+            <p class="page-subtitle">Input kontainer, styrofoam &amp; dus actual yang masuk ke armada. <span class="required-note">* wajib diisi</span></p>
+          </div>
+        </div>
+
+        <form id="qcOutboundForm" onsubmit="event.preventDefault();" novalidate>
+
+          <!-- SECTION 1: Tanggal & Armada -->
+          <div class="form-section" style="background: var(--card-bg, #fff); border: 1.5px solid rgba(124,58,237,0.15); border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 12px rgba(124,58,237,0.06);">
+            <div class="section-header">
+              <div class="section-header-icon" style="background: linear-gradient(135deg, rgba(124,58,237,0.12), rgba(91,33,182,0.08)); color: #7C3AED;">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+              </div>
+              <div>
+                <div class="section-title">Tanggal &amp; Armada</div>
+                <div class="section-subtitle">Pilih tanggal pengiriman dan armada yang di-QC</div>
+              </div>
+            </div>
+            <div class="section-body">
+              <div class="fields-row">
+                <div class="field-group">
+                  <label class="field-label" for="qco_tanggal">Tanggal <span class="required">*</span></label>
+                  <div class="field-hint">Tanggal pengiriman / kirim</div>
+                  <div class="date-input-wrap">
+                    <svg class="date-cal-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <input type="date" id="qco_tanggal" class="form-input date-styled" style="border-color: rgba(124,58,237,0.3);" required onchange="qcoLoadArmada()">
+                  </div>
+                  <div class="field-error" id="err-qco_tanggal"><svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg> Wajib diisi</div>
+                </div>
+                <div class="field-group">
+                  <label class="field-label" for="qco_nopol">No. Polisi Armada <span class="required">*</span></label>
+                  <div class="field-hint">Pilih armada yang sudah masuk data loader, atau ketik manual</div>
+                  <div style="position:relative;">
+                    <select id="qco_nopol_select" class="form-input" style="border-color: rgba(124,58,237,0.3); display:none;" onchange="qcoSelectNopol(this.value)">
+                      <option value="">-- Pilih dari daftar armada --</option>
+                    </select>
+                    <input type="text" id="qco_nopol" class="form-input" style="border-color: rgba(124,58,237,0.3); text-transform:uppercase;" placeholder="Contoh: B 1234 AB" required oninput="this.value = this.value.toUpperCase()">
+                  </div>
+                  <div id="qco_armada_info" style="display:none; margin-top:8px; padding:8px 12px; background:rgba(124,58,237,0.06); border-radius:8px; font-size:12px; color:#7C3AED;"></div>
+                  <div class="field-error" id="err-qco_nopol"><svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg> Wajib diisi</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 2: Input Barang -->
+          <div class="form-section" style="background: var(--card-bg, #fff); border: 1.5px solid rgba(124,58,237,0.15); border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 12px rgba(124,58,237,0.06);">
+            <div class="section-header">
+              <div class="section-header-icon" style="background: linear-gradient(135deg, rgba(124,58,237,0.12), rgba(91,33,182,0.08)); color: #7C3AED;">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+                </svg>
+              </div>
+              <div>
+                <div class="section-title">Jumlah Barang Actual</div>
+                <div class="section-subtitle">Input jumlah kontainer, styrofoam &amp; dus yang masuk ke armada</div>
+              </div>
+            </div>
+            <div class="section-body">
+              <div class="non-group-grid">
+                <div class="non-group-item">
+                  <div class="non-group-label" style="color:#7C3AED; font-weight:700;">📦 Kontainer</div>
+                  <div class="non-group-row">
+                    <input type="number" class="non-group-input" id="qco_kontainer" value="0" min="0" oninput="qcoUpdateTotal()" style="border-color:rgba(124,58,237,0.3);">
+                    <span class="non-group-unit">pcs</span>
+                  </div>
+                </div>
+                <div class="non-group-item">
+                  <div class="non-group-label" style="color:#0284C7; font-weight:700;">🧊 Styrofoam</div>
+                  <div class="non-group-row">
+                    <input type="number" class="non-group-input" id="qco_styrofoam" value="0" min="0" oninput="qcoUpdateTotal()" style="border-color:rgba(2,132,199,0.3);">
+                    <span class="non-group-unit">pcs</span>
+                  </div>
+                </div>
+                <div class="non-group-item">
+                  <div class="non-group-label" style="color:#D97706; font-weight:700;">📫 Dus</div>
+                  <div class="non-group-row">
+                    <input type="number" class="non-group-input" id="qco_dus" value="0" min="0" oninput="qcoUpdateTotal()" style="border-color:rgba(217,119,6,0.3);">
+                    <span class="non-group-unit">pcs</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section-divider"></div>
+
+              <!-- Total Summary -->
+              <div class="total-kontainer-card" style="background: linear-gradient(135deg, rgba(124,58,237,0.08), rgba(91,33,182,0.04)); border-color: rgba(124,58,237,0.2);">
+                <div>
+                  <div class="tc-label" style="color:#7C3AED;">Total Semua Items</div>
+                  <div class="tc-unit">Kontainer + Styrofoam + Dus</div>
+                </div>
+                <div style="text-align:right;">
+                  <div class="tc-value" id="qcoTotalItems" style="color:#7C3AED;">0</div>
+                  <div class="tc-unit">items</div>
+                </div>
+              </div>
+
+              <div class="section-divider"></div>
+
+              <!-- Catatan -->
+              <div class="field-group">
+                <label class="field-label" for="qco_catatan">Catatan</label>
+                <textarea id="qco_catatan" class="form-textarea" style="border-color:rgba(124,58,237,0.2);" placeholder="Catatan opsional (kondisi barang, keterangan khusus, dll)"></textarea>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn-submit" id="qcoSubmitBtn" onclick="qcoSubmitForm()" style="background: linear-gradient(135deg, #7C3AED, #5B21B6);">
+                  <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                  <span class="btn-text">Simpan QC Outbound</span>
+                  <div class="spinner"></div>
+                </button>
+                <button type="button" class="btn-clear" onclick="qcoClearForm()">Kosongkan</button>
+              </div>
+            </div>
+          </div>
+
+        </form>
+
+        <!-- SECTION 3: Riwayat QC Outbound -->
+        <div class="form-section" style="background: var(--card-bg, #fff); border: 1.5px solid rgba(124,58,237,0.1); border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 12px rgba(124,58,237,0.04);">
+          <div class="section-header" style="margin-bottom:14px;">
+            <div class="section-header-icon" style="background: linear-gradient(135deg, rgba(124,58,237,0.12), rgba(91,33,182,0.08)); color: #7C3AED;">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/>
+              </svg>
+            </div>
+            <div style="flex:1;">
+              <div class="section-title">Riwayat QC Outbound</div>
+              <div class="section-subtitle">Data yang sudah diinput</div>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <input type="date" id="qcoFilterTanggal" class="form-input date-styled" style="width:160px; font-size:13px; border-color:rgba(124,58,237,0.3);" onchange="qcoLoadRiwayat()">
+              <button class="btn-clear" style="font-size:12px; padding:6px 12px;" onclick="qcoLoadRiwayat()">🔄 Refresh</button>
+            </div>
+          </div>
+          <div id="qcoRiwayatContainer">
+            <div style="text-align:center; padding:24px; color:var(--text-muted,#9CA3AF); font-size:13px;">Belum ada data. Pilih tanggal untuk melihat riwayat.</div>
+          </div>
+        </div>
+
+      </div><!-- end panel-qc-outbound -->
+
+
+      <!-- ===== TAB ENTRY RETURN ===== -->
+      <div class="tab-panel" id="panel-return">
+        <div class="page-header">
+          <div class="page-header-icon teal">
+            <svg width="22" height="22" fill="none" stroke="white" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+            </svg>
+          </div>
+          <div>
+            <h1 class="page-title">Entry Return</h1>
+            <p class="page-subtitle">Input &amp; validasi kontainer kembali dari toko. <span class="required-note">* wajib diisi</span></p>
+          </div>
+        </div>
+
+        <form id="returnForm" onsubmit="event.preventDefault();" novalidate>
+
+          <!-- ── SECTION 1: Pilih Tanggal ── -->
+          <div class="form-section teal-section">
+            <div class="section-header">
+              <div class="section-header-icon teal">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+              </div>
+              <div>
+                <div class="section-title">Pilih Tanggal Pekerjaan</div>
+                <div class="section-subtitle">Tanggal return (hari ini) &amp; referensi outbound</div>
+              </div>
+            </div>
+            <div class="section-body">
+              <div class="fields-row">
+                <div class="field-group">
+                  <label class="field-label">Tanggal Return <span class="required">*</span></label>
+                  <div class="field-hint">Hari ini (tanggal kontainer fisik kembali)</div>
+                  <div class="date-input-wrap">
+                    <svg class="date-cal-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <input type="date" id="rt_tanggal_return" class="form-input date-styled">
+                  </div>
+                </div>
+                <div class="field-group">
+                  <label class="field-label">Tanggal Referensi (Outbound) <span class="required">*</span></label>
+                  <div class="field-hint">Pilih tanggal outbound yang ingin divalidasi</div>
+                  <div class="date-input-wrap">
+                    <svg class="date-cal-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <input type="date" id="rt_tanggal_referensi" class="form-input date-styled" onchange="rtLoadLoaderEntries()" oninput="rtLoadLoaderEntries()">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── SECTION 2: Daftar Armada Outbound ── -->
+          <div style="margin-top:20px;margin-bottom:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:0 4px;flex-wrap:wrap;gap:10px;">
+              <div>
+                <h3 style="font-size:15px;font-weight:800;color:var(--text,#111827);display:flex;align-items:center;gap:8px;margin:0;">
+                  <span style="width:28px;height:28px;border-radius:8px;background:rgba(13,148,136,0.12);color:#0D9488;display:inline-flex;align-items:center;justify-content:center;">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h11a2 2 0 012 2v3m-6 12a2 2 0 002 2h6a2 2 0 002-2v-7a2 2 0 00-2-2h-6a2 2 0 00-2 2v7z"/></svg>
+                  </span>
+                  Data Armada Outbound &amp; Input Return
+                </h3>
+                <p style="font-size:12px;color:var(--text-muted,#6B7280);margin-top:2px;">Input kontainer kembali per armada &amp; cluster toko</p>
+              </div>
+
+              <button type="button" onclick="rtPrintDailyReport()"
+                style="padding:8px 16px;border-radius:10px;border:1.5px solid rgba(13,148,136,0.3);background:linear-gradient(135deg,rgba(13,148,136,0.1),rgba(15,118,110,0.05));color:#0F766E;font-size:12px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.2s;"
+                onmouseover="this.style.background='linear-gradient(135deg,rgba(13,148,136,0.2),rgba(15,118,110,0.1))';"
+                onmouseout="this.style.background='linear-gradient(135deg,rgba(13,148,136,0.1),rgba(15,118,110,0.05))';">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+                🖨️ Cetak Rekap Harian (Semua Armada)
+              </button>
+            </div>
+
+            <!-- Empty state -->
+            <div id="rtEmptyState" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;background:var(--card-bg,#fff);border:2px dashed var(--border,#E5E7EB);border-radius:16px;text-align:center;">
+              <div style="width:48px;height:48px;border-radius:50%;background:rgba(13,148,136,0.1);display:flex;align-items:center;justify-content:center;margin-bottom:10px;">
+                <svg width="24" height="24" fill="none" stroke="#0D9488" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+              </div>
+              <div style="font-size:14px;font-weight:700;color:var(--text,#111827);margin-bottom:4px;">Belum Ada Data Outbound Ditemukan</div>
+              <div style="font-size:12px;color:var(--text-muted,#6B7280);max-width:360px;line-height:1.4;">Silakan pilih <strong>Tanggal Referensi (Outbound)</strong> di atas untuk memuat daftar armada yang sudah diinput oleh team loader.</div>
+            </div>
+
+            <!-- Armada cards container -->
+            <div id="rtArmadaList" style="display:flex;flex-direction:column;gap:12px;"></div>
+          </div>
+
+          <!-- ── SECTION 3: Catatan ── -->
+          <div class="form-section teal-section">
+            <div class="section-header">
+              <div class="section-header-icon teal">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+              </div>
+              <div>
+                <div class="section-title">Catatan Pengembalian</div>
+                <div class="section-subtitle">Catatan tambahan mengenai kondisi kontainer, selisih, atau kendala toko (opsional)</div>
+              </div>
+            </div>
+            <div class="section-body">
+              <div class="field-group">
+                <textarea id="rt_catatan" class="form-input" rows="3" placeholder="Contoh: 1 kontainer retak dari toko X, 2 kontainer tertahan..." style="resize:vertical;font-size:13px;line-height:1.5;"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <div style="margin-top:20px;margin-bottom:40px;">
+            <button type="button" id="rtSubmitBtn" onclick="rtSubmitAll()"
+              style="width:100%;padding:16px 24px;border-radius:14px;border:none;background:linear-gradient(135deg,#0D9488,#0F766E);color:#fff;font-size:16px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 6px 20px rgba(13,148,136,0.35);transition:all 0.25s ease;"
+              onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 8px 24px rgba(13,148,136,0.45)';"
+              onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 6px 20px rgba(13,148,136,0.35)';">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+              Kirim Entry Return
+            </button>
+          </div>
+
+        </form>
+      </div><!-- end panel-return -->
+
     </div><!-- end content-area -->
+
   </div><!-- end main-wrapper -->
 </div><!-- end dashboard-layout -->
 
@@ -1059,6 +1622,79 @@
   <div class="lightbox-caption" id="lightboxCaption">Bukti Foto</div>
 </div>
 
-<script src="/js/index.js?v=1.4" defer></script>
+<!-- ===== MODAL PREVIEW SUBMIT ===== -->
+<div class="preview-overlay" id="previewOverlay" onclick="closePreviewModal()"></div>
+<div class="preview-modal" id="previewModal" role="dialog" aria-modal="true" aria-labelledby="previewModalTitle">
+  <div class="preview-modal-header">
+    <div class="preview-modal-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    </div>
+    <div>
+      <div class="preview-modal-title" id="previewModalTitle">Konfirmasi Data</div>
+      <div class="preview-modal-sub">Periksa kembali sebelum mengirim</div>
+    </div>
+    <button class="preview-close-btn" onclick="closePreviewModal()" aria-label="Tutup">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="preview-modal-body" id="previewModalBody">
+    <!-- dinamis dari JS -->
+  </div>
+  <div class="preview-modal-footer">
+    <button class="preview-btn-cancel" onclick="closePreviewModal()">Koreksi Data</button>
+    <button class="preview-btn-confirm" id="previewConfirmBtn" onclick="previewConfirmSubmit()">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+      <span id="previewConfirmText">Ya, Kirim Sekarang</span>
+      <div class="preview-spinner" id="previewSpinner" style="display:none"></div>
+    </button>
+  </div>
+</div>
+
+<!-- ===== MODAL KONFIRMASI CLEAR ===== -->
+<div class="clear-overlay" id="clearOverlay" onclick="closeClearModal()"></div>
+<div class="clear-modal" id="clearModal" role="dialog" aria-modal="true">
+  <div class="clear-modal-icon">
+    <svg width="28" height="28" fill="none" stroke="#ef4444" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+  </div>
+  <div class="clear-modal-title">Kosongkan Formulir?</div>
+  <div class="clear-modal-sub" id="clearModalSub">Semua data yang sudah diisi akan dihapus. Tindakan ini tidak bisa dibatalkan.</div>
+  <div class="clear-modal-actions">
+    <button class="clear-btn-cancel" onclick="closeClearModal()">Batal</button>
+    <button class="clear-btn-confirm" id="clearConfirmBtn" onclick="executeClearForm()">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+      Ya, Kosongkan
+    </button>
+  </div>
+</div>
+
+<!-- ===== MODAL KONFIRMASI LOGOUT ===== -->
+<div class="clear-overlay" id="logoutOverlay" onclick="closeLogoutModal()"></div>
+<div class="clear-modal" id="logoutModal" role="dialog" aria-modal="true">
+  <div class="clear-modal-icon">
+    <svg width="28" height="28" fill="none" stroke="#ef4444" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+  </div>
+  <div class="clear-modal-title">Konfirmasi Keluar</div>
+  <div class="clear-modal-sub">Apakah Anda yakin ingin keluar dari akun ini?</div>
+  <div class="clear-modal-actions">
+    <button class="clear-btn-cancel" onclick="closeLogoutModal()">Batal</button>
+    <button class="clear-btn-confirm" onclick="confirmLogout()">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+      Ya, Keluar
+    </button>
+  </div>
+</div>
+
+<script src="/js/index.js?v=3.0" defer></script>
+
+<!-- Print styles -->
+<style>
+.rt-armada-card { background: var(--card-bg, #fff); border: 1.5px solid rgba(16,185,129,0.2); border-radius: 14px; overflow: hidden; margin-bottom: 14px; box-shadow: 0 2px 12px rgba(16,185,129,0.07); transition: box-shadow .2s; }
+.rt-armada-card:hover { box-shadow: 0 4px 24px rgba(16,185,129,0.12); }
+.rt-armada-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: linear-gradient(135deg, rgba(16,185,129,0.06), rgba(5,150,105,0.03)); border-bottom: 1px solid rgba(16,185,129,0.12); }
+.rt-cluster-table-head { display: grid; grid-template-columns: 1fr 80px 90px 70px; gap: 8px; padding: 8px 16px; background: rgba(100,116,139,0.04); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #64748b; border-bottom: 1px solid rgba(100,116,139,0.1); }
+.rt-cluster-rows { padding: 4px 16px; }
+.rt-cluster-row { display: grid; grid-template-columns: 1fr 80px 90px 70px; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(100,116,139,0.06); }
+.rt-cluster-row:last-child { border-bottom: none; }
+</style>
 </body>
 </html>

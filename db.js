@@ -18,9 +18,9 @@ if (isSupabaseEnabled) {
       persistSession: false
     }
   });
-  console.log('⚡ Supabase cloud database mode enabled!');
+  console.log('âš¡ Supabase cloud database mode enabled!');
 } else {
-  console.log('📁 Local JSON database fallback enabled!');
+  console.log('ðŸ“ Local JSON database fallback enabled!');
 }
 
 const DB_FILE = path.join(__dirname, 'database.json');
@@ -33,7 +33,8 @@ const defaultDb = {
   data_carian: [],
   loader_entries: [],
   toko_batch_data: [],
-  audit_logs: []
+  audit_logs: [],
+  qc_outbound: []
 };
 
 // Load database from file (local fallback)
@@ -46,6 +47,7 @@ function load() {
       if (!db.loader_entries) db.loader_entries = [];
       if (!db.toko_batch_data) db.toko_batch_data = [];
       if (!db.audit_logs) db.audit_logs = [];
+      if (!db.qc_outbound) db.qc_outbound = [];
       return db;
     } catch (e) {
       console.error('DB read error, using default:', e.message);
@@ -77,7 +79,7 @@ function init() {
       created_at: new Date().toISOString()
     });
     changed = true;
-    console.log('✅ Default admin created: username=admin, password=admin123');
+    console.log('âœ… Default admin created: username=admin, password=admin123');
   }
   // Migrate existing admin users that don't have role field
   db.users.forEach(u => {
@@ -87,9 +89,36 @@ function init() {
 }
 
 init();
-
 module.exports = {
   isSupabaseEnabled,
+  supabase,
+
+  async fetchAllRows(tableName, selectFields, addFiltersFn = null) {
+    let allData = [];
+    let start = 0;
+    const limit = 1000;
+    while (true) {
+      let query = supabase
+        .from(tableName)
+        .select(selectFields)
+        .range(start, start + limit - 1);
+      
+      if (addFiltersFn) {
+        query = addFiltersFn(query);
+      }
+      
+      const { data, error } = await query;
+      if (error) {
+        console.error(`fetchAllRows error on table ${tableName}:`, error);
+        throw error;
+      }
+      if (!data || data.length === 0) break;
+      allData = allData.concat(data);
+      if (data.length < limit) break;
+      start += limit;
+    }
+    return allData;
+  },
 
   async getUserByUsername(username) {
     if (isSupabaseEnabled) {
@@ -195,6 +224,56 @@ module.exports = {
     }
   },
 
+  async updateSubmission(id, data) {
+    if (isSupabaseEnabled) {
+      let batch_cluster = data.batch_cluster;
+      if (typeof batch_cluster === 'string') {
+        try { batch_cluster = JSON.parse(batch_cluster); } catch (e) { batch_cluster = []; }
+      }
+      const record = {
+        tanggal_carian: data.tanggal_carian,
+        tanggal_pengerjaan: data.tanggal_pengerjaan,
+        posisi: data.posisi,
+        tipe_lokasi: data.tipe_lokasi,
+        zona: data.zona,
+        batch_cluster,
+        jumlah_output: parseInt(data.jumlah_output),
+        catatan_tambahan: data.catatan_tambahan || '',
+        status: data.status
+      };
+      const { data: updatedRecord, error } = await supabase
+        .from('submissions')
+        .update(record)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) {
+        console.error('Supabase updateSubmission error:', error);
+        throw error;
+      }
+      return {
+        ...updatedRecord,
+        batch_cluster: typeof updatedRecord.batch_cluster === 'string' ? updatedRecord.batch_cluster : JSON.stringify(updatedRecord.batch_cluster)
+      };
+    } else {
+      const db = load();
+      const idx = db.submissions.findIndex(s => s.id === id);
+      if (idx === -1) throw new Error('Submission tidak ditemukan');
+      let batch_cluster = data.batch_cluster;
+      if (typeof batch_cluster === 'object') {
+        batch_cluster = JSON.stringify(batch_cluster);
+      }
+      db.submissions[idx] = {
+        ...db.submissions[idx],
+        ...data,
+        batch_cluster,
+        updated_at: new Date().toISOString()
+      };
+      save(db);
+      return db.submissions[idx];
+    }
+  },
+
   async getPendingCount() {
     if (isSupabaseEnabled) {
       const { count, error } = await supabase
@@ -213,7 +292,8 @@ module.exports = {
     if (isSupabaseEnabled) {
       const record = {
         id: data.id,
-        submission_id: data.submission_id,
+        submission_id: data.submission_id || null,
+        loader_entry_id: data.loader_entry_id || null,
         filename: data.filename,
         original_name: data.original_name,
         file_path: data.file_path
@@ -238,25 +318,54 @@ module.exports = {
 
   async getAllSubmissions(filters = {}) {
     if (isSupabaseEnabled) {
-      let query = supabase
-        .from('submissions')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Gunakan pagination untuk ambil SEMUA data tanpa batas 1000 baris default Supabase
+      const PAGE_SIZE = 1000;
+      let allData = [];
+      let from = 0;
 
-      if (filters.status) {
-        query = query.eq('status', filters.status);
-        // Jika filter status diberikan (misal pending), ambil semua tanpa batas 1000 baris
-      } else {
-        // Tanpa filter, batasi 1000 baris (default Supabase PostgREST)
-        query = query.limit(1000);
+      while (true) {
+        let query = supabase
+          .from('submissions')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (filters.status) {
+          query = query.eq('status', filters.status);
+        }
+        if (filters.nama) {
+          query = query.eq('nama', filters.nama);
+        }
+
+        if (filters.limit) {
+          const offset = filters.offset || 0;
+          query = query.range(offset, offset + filters.limit - 1);
+          const { data, error } = await query;
+          if (error) {
+            console.error('Supabase getAllSubmissions with limit error:', error);
+            throw error;
+          }
+          return data.map(s => ({
+            ...s,
+            batch_cluster: typeof s.batch_cluster === 'string' ? s.batch_cluster : JSON.stringify(s.batch_cluster)
+          }));
+        }
+
+        const { data, error } = await query;
+        if (error) {
+          console.error('Supabase getAllSubmissions error:', error);
+          throw error;
+        }
+
+        if (!data || data.length === 0) break;
+        allData = allData.concat(data);
+
+        // Jika hasil kurang dari PAGE_SIZE, berarti sudah halaman terakhir
+        if (data.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
       }
 
-      const { data, error } = await query;
-      if (error) {
-        console.error('Supabase getAllSubmissions error:', error);
-        throw error;
-      }
-      return data.map(s => ({
+      return allData.map(s => ({
         ...s,
         batch_cluster: typeof s.batch_cluster === 'string' ? s.batch_cluster : JSON.stringify(s.batch_cluster)
       }));
@@ -266,9 +375,18 @@ module.exports = {
       if (filters.status) {
         subs = subs.filter(s => s.status === filters.status);
       }
-      return subs.sort((a, b) =>
+      if (filters.nama) {
+        subs = subs.filter(s => s.nama === filters.nama);
+      }
+      subs.sort((a, b) =>
         new Date(b.created_at) - new Date(a.created_at)
       );
+
+      if (filters.limit !== undefined) {
+        const offset = filters.offset || 0;
+        subs = subs.slice(offset, offset + filters.limit);
+      }
+      return subs;
     }
   },
 
@@ -299,7 +417,7 @@ module.exports = {
       const { data, error } = await supabase
         .from('files')
         .select('*')
-        .eq('submission_id', submissionId);
+        .or(`submission_id.eq.${submissionId},loader_entry_id.eq.${submissionId}`);
       if (error) {
         console.error('Supabase getFilesBySubmissionId error:', error);
         throw error;
@@ -307,7 +425,7 @@ module.exports = {
       return data;
     } else {
       const db = load();
-      return db.files.filter(f => f.submission_id === submissionId);
+      return db.files.filter(f => f.submission_id === submissionId || f.loader_entry_id === submissionId);
     }
   },
 
@@ -438,7 +556,7 @@ module.exports = {
   },
 
   // =============================================
-  // DATA CARIAN — Kapasitas batch harian
+  // DATA CARIAN â€” Kapasitas batch harian
   // =============================================
 
   /**
@@ -485,13 +603,13 @@ module.exports = {
   /**
    * Insert banyak record data carian sekaligus (bulk upsert)
    * OPTIMASI: gunakan Supabase native upsert (1 query) bukan loop N+1
-   * Jika kombinasi (tanggal, posisi, zona, batch) sudah ada → update total_output
+   * Jika kombinasi (tanggal, posisi, zona, batch) sudah ada â†’ update total_output
    */
   async bulkUpsertDataCarian(records) {
     if (records.length === 0) return [];
 
     if (isSupabaseEnabled) {
-      // Supabase native upsert — 1 query saja, conflict pada unique key
+      // Supabase native upsert â€” 1 query saja, conflict pada unique key
       const rows = records.map(data => ({
         id: data.id || uuidv4(),
         tanggal_carian: data.tanggal_carian,
@@ -693,6 +811,27 @@ module.exports = {
   },
 
   /**
+   * Ambil satu record data carian berdasarkan ID
+   */
+  async getDataCarianById(id) {
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase
+        .from('data_carian')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+      if (error) {
+        console.error('Supabase getDataCarianById error:', error);
+        throw error;
+      }
+      return data;
+    } else {
+      const db = load();
+      return db.data_carian.find(d => d.id === id) || null;
+    }
+  },
+
+  /**
    * Hapus satu record data carian
    */
   async deleteDataCarian(id) {
@@ -728,7 +867,7 @@ module.exports = {
 
   /**
    * Hitung total output yang sudah disubmit untuk kombinasi tertentu
-   * Untuk 1 batch yang dikerjakan banyak orang → total semua yang sudah submit
+   * Untuk 1 batch yang dikerjakan banyak orang â†’ total semua yang sudah submit
    */
   async getSubmittedOutputForBatch(tanggal_carian, posisi, zona, batch) {
     if (posisi === 'Loader') {
@@ -849,7 +988,7 @@ module.exports = {
       this.getAllLoaderEntries(tanggal_carian)
     ]);
 
-    // Bangun lookup map: "posisi|zona|batch" → total output yang sudah disubmit
+    // Bangun lookup map: "posisi|zona|batch" â†’ total output yang sudah disubmit
     const submittedMap = {};
     for (const s of allSubmissions) {
       const clusters = Array.isArray(s.batch_cluster)
@@ -861,7 +1000,7 @@ module.exports = {
       }
     }
 
-    // Bangun lookup map: GM (batch) → zona, dari data carian (posisi=Loader)
+    // Bangun lookup map: GM (batch) â†’ zona, dari data carian (posisi=Loader)
     // Ini diperlukan agar key submittedMap selalu cocok dengan data carian,
     // karena le.zona bisa berupa string gabungan (misal "AMBIENT, CHILLER")
     // ketika loader memuat GM dari beberapa zona sekaligus.
@@ -901,7 +1040,7 @@ module.exports = {
   },
 
   // =============================================
-  // USER MANAGEMENT — Operasional Users (NIK-based)
+  // USER MANAGEMENT â€” Operasional Users (NIK-based)
   // =============================================
 
   /**
@@ -1170,7 +1309,7 @@ module.exports = {
   },
 
   /**
-   * Update password admin — verifikasi password lama dulu
+   * Update password admin â€” verifikasi password lama dulu
    */
   async updateAdminPassword(id, currentPassword, newPassword) {
     if (isSupabaseEnabled) {
@@ -1191,7 +1330,7 @@ module.exports = {
   },
 
   /**
-   * Ganti password (NIK) user operasional — verifikasi password lama dulu
+   * Ganti password (NIK) user operasional â€” verifikasi password lama dulu
    */
   async changeUserNik(id, currentNik, newNik) {
     if (isSupabaseEnabled) {
@@ -1243,7 +1382,7 @@ module.exports = {
   },
 
   // =============================================
-  // LOADER ENTRIES — Entry khusus Loader
+  // LOADER ENTRIES â€” Entry khusus Loader
   // =============================================
 
   async insertLoaderEntry(data) {
@@ -1262,6 +1401,7 @@ module.exports = {
         clusters: formattedClusters,
         non_group: data.non_group || { gacoan: 0, dikichi: 0, benfarm: 0 },
         jumlah_kontainer: parseInt(data.jumlah_kontainer) || 0,
+        cluster_outbound_outputs: data.cluster_outbound_outputs || {},
         catatan: data.catatan || ''
       };
       const { error } = await supabase.from('loader_entries').insert([record]);
@@ -1279,6 +1419,7 @@ module.exports = {
         clusters: formattedClusters,
         non_group: data.non_group || { gacoan: 0, dikichi: 0, benfarm: 0 },
         jumlah_kontainer: parseInt(data.jumlah_kontainer) || 0,
+        cluster_outbound_outputs: data.cluster_outbound_outputs || {},
         catatan: data.catatan || '',
         created_at: new Date().toISOString()
       };
@@ -1290,11 +1431,30 @@ module.exports = {
 
   async getAllLoaderEntries(tanggal_carian = null) {
     if (isSupabaseEnabled) {
-      let query = supabase.from('loader_entries').select('*').order('created_at', { ascending: false });
-      if (tanggal_carian) query = query.eq('tanggal_carian', tanggal_carian);
-      const { data, error } = await query;
-      if (error) { console.error('Supabase getAllLoaderEntries error:', error); throw error; }
-      return data;
+      // Gunakan pagination untuk ambil SEMUA data (bukan hanya 1000 baris default Supabase)
+      const PAGE_SIZE = 1000;
+      let allData = [];
+      let from = 0;
+
+      while (true) {
+        let query = supabase
+          .from('loader_entries')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (tanggal_carian) query = query.eq('tanggal_carian', tanggal_carian);
+
+        const { data, error } = await query;
+        if (error) { console.error('Supabase getAllLoaderEntries error:', error); throw error; }
+
+        if (!data || data.length === 0) break;
+        allData = allData.concat(data);
+        if (data.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+
+      return allData;
     } else {
       const db = load();
       let entries = [...db.loader_entries];
@@ -1321,6 +1481,9 @@ module.exports = {
     } else {
       const db = load();
       db.loader_entries = db.loader_entries.filter(e => e.id !== id);
+      if (db.files) {
+        db.files = db.files.filter(f => f.loader_entry_id !== id);
+      }
       save(db);
     }
   },
@@ -1347,7 +1510,7 @@ module.exports = {
   },
 
   // =============================================
-  // SITE SETTINGS — pengaturan halaman login dll.
+  // SITE SETTINGS â€” pengaturan halaman login dll.
   // =============================================
 
   DEFAULT_LOGIN_SETTINGS: {
@@ -1355,10 +1518,10 @@ module.exports = {
     hero_headline_line2: 'Hasilkan Prestasi!',
     hero_description: 'Platform pencatatan pencapaian kerja yang mudah, cepat, dan akurat untuk tim SS08.',
     hero_quote: 'Disiplin adalah jembatan antara tujuan dan pencapaian.',
-    hero_quote_author: '— Jim Rohn',
-    form_title: 'Selamat Datang! 👋',
+    hero_quote_author: 'â€” Jim Rohn',
+    form_title: 'Selamat Datang! ðŸ‘‹',
     form_subtitle: 'Masuk untuk melanjutkan ke sistem pencapaian kerja SS08',
-    footer_text: '© 2026 SS08 Pencapaian Kerja. All rights reserved.'
+    footer_text: 'Â© 2026 SS08 Pencapaian Kerja. All rights reserved.'
   },
 
   async getLoginSettings() {
@@ -1398,8 +1561,52 @@ module.exports = {
     }
   },
 
+  DEFAULT_MAINTENANCE_SETTINGS: {
+    active: false,
+    title: 'Sistem Sedang Pemeliharaan',
+    message: 'Kami sedang melakukan pembaruan sistem untuk meningkatkan performa dan kenyamanan Anda. Silakan coba beberapa saat lagi.',
+    estimated_end: ''
+  },
+
+  async getMaintenanceSettings() {
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'maintenance')
+        .maybeSingle();
+      if (error) {
+        console.warn('Supabase getMaintenanceSettings error (returning defaults):', error.message);
+        return this.DEFAULT_MAINTENANCE_SETTINGS;
+      }
+      return data ? { ...this.DEFAULT_MAINTENANCE_SETTINGS, ...data.value } : this.DEFAULT_MAINTENANCE_SETTINGS;
+    } else {
+      const db = load();
+      return db.maintenance_settings ? { ...this.DEFAULT_MAINTENANCE_SETTINGS, ...db.maintenance_settings } : this.DEFAULT_MAINTENANCE_SETTINGS;
+    }
+  },
+
+  async saveMaintenanceSettings(settings) {
+    const merged = { ...this.DEFAULT_MAINTENANCE_SETTINGS, ...settings };
+    if (isSupabaseEnabled) {
+      const { error } = await supabase
+        .from('site_settings')
+        .upsert({ key: 'maintenance', value: merged }, { onConflict: 'key' });
+      if (error) {
+        console.error('Supabase saveMaintenanceSettings error:', error);
+        throw error;
+      }
+      return merged;
+    } else {
+      const db = load();
+      db.maintenance_settings = merged;
+      save(db);
+      return merged;
+    }
+  },
+
   // =============================================
-  // TOKO BATCH DATA — Per-store batch data from Excel upload
+  // TOKO BATCH DATA â€” Per-store batch data from Excel upload
   // =============================================
 
   /**
@@ -1531,7 +1738,7 @@ module.exports = {
       })()
     ]);
 
-    // Build actual qty map: "zona|batch" → { qty: total pcs from Picker, kont: total kont from Sorter }
+    // Build actual qty map: "zona|batch" â†’ { qty: total pcs from Picker, kont: total kont from Sorter }
     const actualMap = {};
     for (const s of allSubmissions) {
       const clusters = Array.isArray(s.batch_cluster)
@@ -1601,14 +1808,49 @@ module.exports = {
   /**
    * Get paginated and searchable audit logs
    */
-  async getAuditLogs(page = 1, limit = 50, search = '') {
+  async getAuditLogs(page = 1, limit = 50, search = '', actionType = '', adminUser = '', dateStart = '', dateEnd = '') {
     if (isSupabaseEnabled) {
       let query = supabase
         .from('audit_logs')
         .select('*', { count: 'exact' });
+      
+      // 1. Text Search
       if (search) {
         query = query.or(`username.ilike.%${search}%,action.ilike.%${search}%,details.ilike.%${search}%`);
       }
+      
+      // 2. Action Category Filter
+      if (actionType) {
+        if (actionType === 'auth') {
+          query = query.in('action', ['LOGIN', 'LOGOUT', 'CHANGE_PASSWORD']);
+        } else if (actionType === 'submissions') {
+          query = query.in('action', ['UPDATE_SUBMISSION_STATUS', 'DELETE_SUBMISSION']);
+        } else if (actionType === 'data_carian') {
+          query = query.in('action', ['IMPORT_EXCEL_CARIAN', 'PUSH_GOOGLE_SHEETS_MANUAL', 'PUSH_GOOGLE_SHEETS_AUTO']);
+        } else if (actionType === 'users') {
+          query = query.in('action', ['CREATE_USER', 'DELETE_USER', 'UPDATE_USER', 'CREATE_ADMIN', 'UPDATE_ADMIN_PERMISSIONS', 'DELETE_ADMIN', 'TOGGLE_USER_STATUS']);
+        } else if (actionType === 'absensi') {
+          query = query.in('action', ['ABSENSI_ADD', 'ABSENSI_REMOVE', 'UPDATE_SETTINGS', 'UPDATE_MAINTENANCE_STATUS']);
+        } else if (actionType === 'announcements') {
+          query = query.in('action', ['CREATE_ANNOUNCEMENT', 'UPDATE_ANNOUNCEMENT', 'DELETE_ANNOUNCEMENT']);
+        } else {
+          query = query.eq('action', actionType);
+        }
+      }
+      
+      // 3. User Filter
+      if (adminUser) {
+        query = query.eq('username', adminUser);
+      }
+      
+      // 4. Date Range Filter
+      if (dateStart) {
+        query = query.gte('created_at', `${dateStart}T00:00:00Z`);
+      }
+      if (dateEnd) {
+        query = query.lte('created_at', `${dateEnd}T23:59:59Z`);
+      }
+      
       const from = (page - 1) * limit;
       const to = from + limit - 1;
       const { data, count, error } = await query
@@ -1619,6 +1861,8 @@ module.exports = {
     } else {
       const db = load();
       let logs = [...(db.audit_logs || [])];
+      
+      // 1. Text Search
       if (search) {
         const s = search.toLowerCase();
         logs = logs.filter(l =>
@@ -1627,6 +1871,42 @@ module.exports = {
           (l.details || '').toLowerCase().includes(s)
         );
       }
+      
+      // 2. Action Category Filter
+      if (actionType) {
+        const authActions = ['LOGIN', 'LOGOUT', 'CHANGE_PASSWORD'];
+        const subActions = ['UPDATE_SUBMISSION_STATUS', 'DELETE_SUBMISSION'];
+        const dataActions = ['IMPORT_EXCEL_CARIAN', 'PUSH_GOOGLE_SHEETS_MANUAL', 'PUSH_GOOGLE_SHEETS_AUTO'];
+        const userActions = ['CREATE_USER', 'DELETE_USER', 'UPDATE_USER', 'CREATE_ADMIN', 'UPDATE_ADMIN_PERMISSIONS', 'DELETE_ADMIN', 'TOGGLE_USER_STATUS'];
+        const absActions = ['ABSENSI_ADD', 'ABSENSI_REMOVE', 'UPDATE_SETTINGS', 'UPDATE_MAINTENANCE_STATUS'];
+        const annActions = ['CREATE_ANNOUNCEMENT', 'UPDATE_ANNOUNCEMENT', 'DELETE_ANNOUNCEMENT'];
+        
+        logs = logs.filter(l => {
+          if (actionType === 'auth') return authActions.includes(l.action);
+          if (actionType === 'submissions') return subActions.includes(l.action);
+          if (actionType === 'data_carian') return dataActions.includes(l.action);
+          if (actionType === 'users') return userActions.includes(l.action);
+          if (actionType === 'absensi') return absActions.includes(l.action);
+          if (actionType === 'announcements') return annActions.includes(l.action);
+          return l.action === actionType;
+        });
+      }
+      
+      // 3. User Filter
+      if (adminUser) {
+        logs = logs.filter(l => l.username === adminUser);
+      }
+      
+      // 4. Date Range Filter
+      if (dateStart) {
+        const start = new Date(`${dateStart}T00:00:00`);
+        logs = logs.filter(l => new Date(l.created_at) >= start);
+      }
+      if (dateEnd) {
+        const end = new Date(`${dateEnd}T23:59:59`);
+        logs = logs.filter(l => new Date(l.created_at) <= end);
+      }
+      
       logs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       const total = logs.length;
       const from = (page - 1) * limit;
@@ -1635,8 +1915,29 @@ module.exports = {
     }
   },
 
+  /**
+   * Get list of unique admin users who have actions in audit trail
+   */
+  async getAuditLogUsers() {
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('username')
+        .order('username');
+      if (error) { console.error('Supabase getAuditLogUsers error:', error); throw error; }
+      const usernames = [...new Set((data || []).map(d => d.username))];
+      return usernames;
+    } else {
+      const db = load();
+      const logs = db.audit_logs || [];
+      const usernames = [...new Set(logs.map(l => l.username))];
+      usernames.sort();
+      return usernames;
+    }
+  },
+
   // =============================================
-  // ABSENSI — Attendance management
+  // ABSENSI â€” Attendance management
   // =============================================
 
   DEFAULT_ABSENSI_SETTINGS: {
@@ -1681,6 +1982,90 @@ module.exports = {
       db.absensi_settings = merged;
       save(db);
       return merged;
+    }
+  },
+
+  /**
+   * Default PHL settings
+   */
+  DEFAULT_PHL_SETTINGS: {
+    upah_harian: 0
+  },
+
+  /**
+   * Get PHL daily rate settings
+   */
+  async getPhlSettings() {
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'phl_settings')
+        .maybeSingle();
+      if (error) {
+        console.warn('Supabase getPhlSettings error (returning defaults):', error.message);
+        return this.DEFAULT_PHL_SETTINGS;
+      }
+      return data ? { ...this.DEFAULT_PHL_SETTINGS, ...data.value } : this.DEFAULT_PHL_SETTINGS;
+    } else {
+      const db = load();
+      return db.phl_settings ? { ...this.DEFAULT_PHL_SETTINGS, ...db.phl_settings } : this.DEFAULT_PHL_SETTINGS;
+    }
+  },
+
+  /**
+   * Save PHL daily rate settings
+   */
+  async savePhlSettings(settings) {
+    const merged = { ...this.DEFAULT_PHL_SETTINGS, ...settings };
+    if (isSupabaseEnabled) {
+      const { error } = await supabase
+        .from('site_settings')
+        .upsert({ key: 'phl_settings', value: merged }, { onConflict: 'key' });
+      if (error) { console.error('Supabase savePhlSettings error:', error); throw error; }
+      return merged;
+    } else {
+      const db = load();
+      db.phl_settings = merged;
+      save(db);
+      return merged;
+    }
+  },
+
+  /**
+   * Get active period start date (tutup buku)
+   */
+  async getPeriodeAktif() {
+    const DEFAULT = { tanggal_mulai: null };
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'periode_aktif')
+        .maybeSingle();
+      if (error) { console.warn('Supabase getPeriodeAktif error:', error.message); return DEFAULT; }
+      return data ? { ...DEFAULT, ...data.value } : DEFAULT;
+    } else {
+      const db = load();
+      return db.periode_aktif ? { ...DEFAULT, ...db.periode_aktif } : DEFAULT;
+    }
+  },
+
+  /**
+   * Save active period start date (tutup buku)
+   */
+  async savePeriodeAktif(settings) {
+    if (isSupabaseEnabled) {
+      const { error } = await supabase
+        .from('site_settings')
+        .upsert({ key: 'periode_aktif', value: settings }, { onConflict: 'key' });
+      if (error) { console.error('Supabase savePeriodeAktif error:', error); throw error; }
+      return settings;
+    } else {
+      const db = load();
+      db.periode_aktif = settings;
+      save(db);
+      return settings;
     }
   },
 
@@ -1798,6 +2183,347 @@ module.exports = {
     }
   },
 
+  /**
+   * Get attendance history for a specific user in a date range.
+   * Returns: { user, tanggal_mulai, tanggal_akhir, hadir: ['2026-06-30',...], tidak_hadir: [...], total_hari, total_hadir, total_tidak_hadir }
+   */
+  async getAbsensiRiwayatUser(user_id, tanggal_mulai, tanggal_akhir) {
+    // Generate all dates in range
+    const allDates = [];
+    const cur = new Date(tanggal_mulai + 'T00:00:00');
+    const last = new Date(tanggal_akhir + 'T00:00:00');
+    while (cur <= last) {
+      const y = cur.getFullYear();
+      const m = String(cur.getMonth() + 1).padStart(2, '0');
+      const d = String(cur.getDate()).padStart(2, '0');
+      allDates.push(`${y}-${m}-${d}`);
+      cur.setDate(cur.getDate() + 1);
+    }
+
+    let hadirSet = new Set();
+    let userData = null;
+
+    if (isSupabaseEnabled) {
+      // Fetch user info
+      const { data: uData } = await supabase.from('users').select('id, nama_lengkap, username, posisi, nik').eq('id', user_id).maybeSingle();
+      userData = uData;
+      // Fetch absensi records for this user in range
+      const { data: absensiData, error } = await supabase
+        .from('absensi')
+        .select('tanggal')
+        .eq('user_id', user_id)
+        .gte('tanggal', tanggal_mulai)
+        .lte('tanggal', tanggal_akhir)
+        .limit(5000);
+      if (error) { console.error('getAbsensiRiwayatUser error:', error); throw error; }
+      (absensiData || []).forEach(a => hadirSet.add(a.tanggal));
+    } else {
+      const dbData = load();
+      const user = (dbData.users || []).find(u => u.id === user_id);
+      userData = user || null;
+      (dbData.absensi || [])
+        .filter(a => a.user_id === user_id && a.tanggal >= tanggal_mulai && a.tanggal <= tanggal_akhir)
+        .forEach(a => hadirSet.add(a.tanggal));
+    }
+
+    const hadir = allDates.filter(d => hadirSet.has(d));
+    const tidak_hadir = allDates.filter(d => !hadirSet.has(d));
+
+    return {
+      user: userData,
+      tanggal_mulai,
+      tanggal_akhir,
+      hadir,
+      tidak_hadir,
+      total_hari: allDates.length,
+      total_hadir: hadir.length,
+      total_tidak_hadir: tidak_hadir.length
+    };
+  },
+
+  /**
+   * Get attendance history for ALL active operasional users in a date range.
+   * Returns: { tanggal_mulai, tanggal_akhir, total_hari, users: [{ user, hadir:[], tidak_hadir:[], total_hadir, total_tidak_hadir, pct }] }
+   */
+  async getAbsensiRiwayatSemuaUser(tanggal_mulai, tanggal_akhir) {
+    // Generate all dates in range
+    const allDates = [];
+    const cur  = new Date(tanggal_mulai + 'T00:00:00');
+    const last = new Date(tanggal_akhir  + 'T00:00:00');
+    while (cur <= last) {
+      const y = cur.getFullYear();
+      const m = String(cur.getMonth() + 1).padStart(2, '0');
+      const d = String(cur.getDate()).padStart(2, '0');
+      allDates.push(`${y}-${m}-${d}`);
+      cur.setDate(cur.getDate() + 1);
+    }
+    const total_hari = allDates.length;
+
+    if (isSupabaseEnabled) {
+      // 1. Fetch all active operasional users
+      const { data: usersData } = await supabase
+        .from('users')
+        .select('id, nama_lengkap, username, posisi, nik, tipe_karyawan')
+        .eq('role', 'operasional')
+        .eq('is_active', true)
+        .order('nama_lengkap', { ascending: true });
+      const users = usersData || [];
+
+      // 2. Fetch ALL absensi records in range (single query, paginated)
+      const absensiData = await this.fetchAllRows('absensi', 'user_id, tanggal', q =>
+        q.gte('tanggal', tanggal_mulai).lte('tanggal', tanggal_akhir)
+      );
+
+      // Build map: user_id -> Set<tanggal>
+      const absensiMap = {};
+      (absensiData || []).forEach(a => {
+        if (!absensiMap[a.user_id]) absensiMap[a.user_id] = new Set();
+        absensiMap[a.user_id].add(a.tanggal);
+      });
+
+      // 3. Build result per user
+      const result = users.map(u => {
+        const hadirSet  = absensiMap[u.id] || new Set();
+        const hadir     = allDates.filter(d => hadirSet.has(d));
+        const tidak_hadir = allDates.filter(d => !hadirSet.has(d));
+        const pct       = total_hari > 0 ? ((hadir.length / total_hari) * 100).toFixed(1) : '0';
+        return { user: u, hadir, tidak_hadir, total_hadir: hadir.length, total_tidak_hadir: tidak_hadir.length, pct };
+      });
+
+      return { tanggal_mulai, tanggal_akhir, total_hari, allDates, users: result };
+    } else {
+      const dbData = load();
+      const users  = (dbData.users || []).filter(u => u.role === 'operasional' && u.is_active !== false)
+        .sort((a, b) => (a.nama_lengkap || a.username).localeCompare(b.nama_lengkap || b.username));
+      const absensiMap = {};
+      (dbData.absensi || [])
+        .filter(a => a.tanggal >= tanggal_mulai && a.tanggal <= tanggal_akhir)
+        .forEach(a => {
+          if (!absensiMap[a.user_id]) absensiMap[a.user_id] = new Set();
+          absensiMap[a.user_id].add(a.tanggal);
+        });
+      const result = users.map(u => {
+        const hadirSet = absensiMap[u.id] || new Set();
+        const hadir    = allDates.filter(d => hadirSet.has(d));
+        const tidak_hadir = allDates.filter(d => !hadirSet.has(d));
+        const pct = total_hari > 0 ? ((hadir.length / total_hari) * 100).toFixed(1) : '0';
+        return { user: u, hadir, tidak_hadir, total_hadir: hadir.length, total_tidak_hadir: tidak_hadir.length, pct };
+      });
+      return { tanggal_mulai, tanggal_akhir, total_hari, allDates, users: result };
+    }
+  },
+
+  /**
+   * Get combined attendance and earnings data for HR payroll (penggajian) report.
+   */
+  async getRekapPenggajian(tanggalMulai, tanggalAkhir) {
+    const [rekapPendapatan, rekapAbsensi, phlSettings] = await Promise.all([
+      this.getRekapPendapatan(tanggalMulai, tanggalAkhir),
+      this.getAbsensiRiwayatSemuaUser(tanggalMulai, tanggalAkhir),
+      this.getPhlSettings()
+    ]);
+    const upahHarian = phlSettings.upah_harian || 0;
+
+    // Merge attendance and revenue
+    // Start with all active operasional users from attendance list
+    const combined = rekapAbsensi.users.map(au => {
+      const nameKey = String(au.user.nama_lengkap || au.user.username || '').toLowerCase().trim();
+      // Find all matching revenue data for this user
+      const matches = rekapPendapatan.pekerja.filter(p => 
+        String(p.nama || '').toLowerCase().trim() === nameKey
+      );
+
+      let total_pencapaian = 0;
+      let total_nilai = 0;
+      let combined_zona_detail = [];
+
+      matches.forEach(m => {
+        total_pencapaian += m.total_pencapaian || 0;
+        total_nilai += m.total_nilai || 0;
+        if (Array.isArray(m.zona_detail)) {
+          m.zona_detail.forEach(zd => {
+            combined_zona_detail.push({ ...zd, posisi: m.posisi });
+          });
+        }
+      });
+
+      const userType = au.user.tipe_karyawan || 'Productivity';
+      if (userType === 'PHL') {
+        total_nilai = au.total_hadir * upahHarian;
+      }
+
+      return {
+        user: au.user,
+        total_hadir: au.total_hadir,
+        total_tidak_hadir: au.total_tidak_hadir,
+        attendance_pct: au.pct,
+        total_pencapaian: total_pencapaian,
+        pendapatan_carian: total_nilai,
+        zona_detail: combined_zona_detail
+      };
+    });
+
+    // Check if there are any workers in revenue data that were not in the active users list
+    rekapPendapatan.pekerja.forEach(p => {
+      const nameKey = String(p.nama || '').toLowerCase().trim();
+      const existingIdx = combined.findIndex(c => String(c.user.nama_lengkap || c.user.username || '').toLowerCase().trim() === nameKey);
+      if (existingIdx === -1) {
+        const matches = rekapPendapatan.pekerja.filter(x => String(x.nama || '').toLowerCase().trim() === nameKey);
+        let total_pencapaian = 0;
+        let total_nilai = 0;
+        let combined_zona_detail = [];
+        matches.forEach(m => {
+          total_pencapaian += m.total_pencapaian || 0;
+          total_nilai += m.total_nilai || 0;
+          if (Array.isArray(m.zona_detail)) {
+            m.zona_detail.forEach(zd => {
+              combined_zona_detail.push({ ...zd, posisi: m.posisi });
+            });
+          }
+        });
+
+        combined.push({
+          user: { nama_lengkap: p.nama, posisi: p.posisi, username: p.nama },
+          total_hadir: 0,
+          total_tidak_hadir: 0,
+          attendance_pct: '0.0',
+          total_pencapaian: total_pencapaian,
+          pendapatan_carian: total_nilai,
+          zona_detail: combined_zona_detail
+        });
+      }
+    });
+
+    return {
+      tanggal_mulai: tanggalMulai,
+      tanggal_akhir: tanggalAkhir,
+      total_hari: rekapAbsensi.total_hari,
+      pekerja: combined
+    };
+  },
+
+  /**
+   * Get detailed approved submissions and loader entries in date range.
+   */
+  async getDetailSubmissionsAndLoader(tanggalMulai, tanggalAkhir) {
+    const zonaToKategori = (zona) => {
+      const z = String(zona || '').trim().toUpperCase();
+      if (z.startsWith('F')) return 'FREEZER';
+      if (z.startsWith('R')) return 'CHILLER';
+      if (z.startsWith('T')) return 'AMBIENT';
+      return zona;
+    };
+
+    if (isSupabaseEnabled) {
+      const [subData, loaderData, { data: hargaData }] = await Promise.all([
+        this.fetchAllRows('submissions', 'nama, posisi, zona, jumlah_output, tanggal_carian', q =>
+          q.gte('tanggal_carian', tanggalMulai).lte('tanggal_carian', tanggalAkhir).eq('status', 'approved')
+        ),
+        this.fetchAllRows('loader_entries', 'nama, jumlah_kontainer, tanggal_carian', q =>
+          q.gte('tanggal_carian', tanggalMulai).lte('tanggal_carian', tanggalAkhir)
+        ),
+        supabase.from('ketentuan_harga').select('*')
+      ]);
+
+      const hargaMap = {};
+      (hargaData || []).forEach(h => { hargaMap[`${h.posisi}|${h.zona}`] = h; });
+
+      const details = [];
+
+      (subData || []).forEach(s => {
+        const hargaKey  = `${s.posisi}|${s.zona}`;
+        const hargaKeyK = `${s.posisi}|${zonaToKategori(s.zona)}`;
+        const h = hargaMap[hargaKey] || hargaMap[hargaKeyK] || null;
+        const jml = parseInt(s.jumlah_output) || 0;
+        const hargaVal = h ? h.harga : 0;
+        const total = jml * hargaVal;
+        details.push({
+          nama: s.nama,
+          posisi: s.posisi,
+          tanggal: s.tanggal_carian,
+          item: s.zona || '-',
+          jumlah: jml,
+          satuan: h ? h.satuan : 'output',
+          harga: hargaVal,
+          total_nilai: total
+        });
+      });
+
+      (loaderData || []).forEach(l => {
+        const loaderH = hargaMap['Loader|AMBIENT, CHILLER, FREEZER'] || hargaMap['Loader|LOADER'] || null;
+        const jml = parseInt(l.jumlah_kontainer) || 0;
+        const hargaVal = loaderH ? loaderH.harga : 0;
+        const total = jml * hargaVal;
+        details.push({
+          nama: l.nama,
+          posisi: 'Loader',
+          tanggal: l.tanggal_carian,
+          item: 'AMBIENT, CHILLER, FREEZER',
+          jumlah: jml,
+          satuan: loaderH ? loaderH.satuan : 'kontainer',
+          harga: hargaVal,
+          total_nilai: total
+        });
+      });
+
+      return details.sort((a, b) => a.tanggal.localeCompare(b.tanggal) || a.nama.localeCompare(b.nama));
+    } else {
+      const dbData = load();
+      const subData = (dbData.submissions || []).filter(s => {
+        const tgl = s.tanggal_carian;
+        return tgl >= tanggalMulai && tgl <= tanggalAkhir && s.status === 'approved';
+      });
+      const loaderData = (dbData.loader_entries || []).filter(l => {
+        const tgl = l.tanggal_carian;
+        return tgl >= tanggalMulai && tgl <= tanggalAkhir;
+      });
+      const hargaData = dbData.ketentuan_harga || [];
+
+      const hargaMap = {};
+      hargaData.forEach(h => { hargaMap[`${h.posisi}|${h.zona}`] = h; });
+
+      const details = [];
+
+      subData.forEach(s => {
+        const hargaKey  = `${s.posisi}|${s.zona}`;
+        const hargaKeyK = `${s.posisi}|${zonaToKategori(s.zona)}`;
+        const h = hargaMap[hargaKey] || hargaMap[hargaKeyK] || null;
+        const jml = parseInt(s.jumlah_output) || 0;
+        const hargaVal = h ? h.harga : 0;
+        const total = jml * hargaVal;
+        details.push({
+          nama: s.nama,
+          posisi: s.posisi,
+          tanggal: s.tanggal_carian,
+          item: s.zona || '-',
+          jumlah: jml,
+          satuan: h ? h.satuan : 'output',
+          harga: hargaVal,
+          total_nilai: total
+        });
+      });
+
+      loaderData.forEach(l => {
+        const loaderH = hargaMap['Loader|AMBIENT, CHILLER, FREEZER'] || hargaMap['Loader|LOADER'] || null;
+        const jml = parseInt(l.jumlah_kontainer) || 0;
+        const hargaVal = loaderH ? loaderH.harga : 0;
+        const total = jml * hargaVal;
+        details.push({
+          nama: l.nama,
+          posisi: 'Loader',
+          tanggal: l.tanggal_carian,
+          item: 'AMBIENT, CHILLER, FREEZER',
+          jumlah: jml,
+          satuan: loaderH ? loaderH.satuan : 'kontainer',
+          harga: hargaVal,
+          total_nilai: total
+        });
+      });
+
+      return details.sort((a, b) => a.tanggal.localeCompare(b.tanggal) || a.nama.localeCompare(b.nama));
+    }
+  },
+
   // ==================== ANNOUNCEMENTS ====================
 
   async getActiveAnnouncements() {
@@ -1829,22 +2555,32 @@ module.exports = {
     }
   },
 
-  async createAnnouncement({ title, content, type, emoji, created_by }) {
+  async createAnnouncement({ title, content, type, emoji, imageUrl, created_by }) {
     const record = {
       id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(),
       title: title || '',
       content: content || '',
       type: type || 'info',
-      emoji: emoji || '📢',
+      emoji: emoji || 'ðŸ“¢',
+      image_url: imageUrl || '',
       is_active: true,
       created_by: created_by || 'admin',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
     if (isSupabaseEnabled) {
-      const { data, error } = await supabase.from('announcements').insert([record]).select().single();
-      if (error) { console.error('createAnnouncement error:', error); throw error; }
-      return data;
+      try {
+        const { data, error } = await supabase.from('announcements').insert([record]).select().single();
+        if (error) throw error;
+        return data;
+      } catch (err) {
+        console.error('createAnnouncement Supabase error, falling back without image_url:', err.message);
+        const recordFallback = { ...record };
+        delete recordFallback.image_url;
+        const { data, error } = await supabase.from('announcements').insert([recordFallback]).select().single();
+        if (error) { console.error('createAnnouncement fallback error:', error); throw error; }
+        return { ...data, image_url: record.image_url };
+      }
     } else {
       const db = load();
       if (!db.announcements) db.announcements = [];
@@ -1854,19 +2590,29 @@ module.exports = {
     }
   },
 
-  async updateAnnouncement(id, { title, content, type, emoji, is_active }) {
+  async updateAnnouncement(id, { title, content, type, emoji, is_active, imageUrl }) {
     const updates = {
       ...(title     !== undefined && { title }),
       ...(content   !== undefined && { content }),
       ...(type      !== undefined && { type }),
       ...(emoji     !== undefined && { emoji }),
       ...(is_active !== undefined && { is_active }),
+      ...(imageUrl  !== undefined && { image_url: imageUrl }),
       updated_at: new Date().toISOString()
     };
     if (isSupabaseEnabled) {
-      const { data, error } = await supabase.from('announcements').update(updates).eq('id', id).select().single();
-      if (error) { console.error('updateAnnouncement error:', error); throw error; }
-      return data;
+      try {
+        const { data, error } = await supabase.from('announcements').update(updates).eq('id', id).select().single();
+        if (error) throw error;
+        return data;
+      } catch (err) {
+        console.error('updateAnnouncement Supabase error, falling back without image_url:', err.message);
+        const updatesFallback = { ...updates };
+        delete updatesFallback.image_url;
+        const { data, error } = await supabase.from('announcements').update(updatesFallback).eq('id', id).select().single();
+        if (error) { console.error('updateAnnouncement fallback error:', error); throw error; }
+        return { ...data, image_url: updates.image_url };
+      }
     } else {
       const db = load();
       const idx = (db.announcements || []).findIndex(a => a.id === id);
@@ -2155,7 +2901,7 @@ module.exports = {
   async getRekapPendapatan(tanggalMulai, tanggalAkhir) {
     if (!tanggalAkhir) tanggalAkhir = tanggalMulai;
 
-    // Helper: zona code → kategori harga
+    // Helper: zona code â†’ kategori harga
     const zonaToKategori = (zona) => {
       const z = String(zona || '').trim().toUpperCase();
       if (z.startsWith('F')) return 'FREEZER';
@@ -2164,19 +2910,37 @@ module.exports = {
       return zona;
     };
 
+    // Load all users to get tipe_karyawan mapping
+    let userTipeMap = {};
+    try {
+      if (isSupabaseEnabled) {
+        const { data: users } = await supabase.from('users').select('nama_lengkap, username, tipe_karyawan');
+        (users || []).forEach(u => {
+          const key = String(u.nama_lengkap || u.username || '').toLowerCase().trim();
+          userTipeMap[key] = u.tipe_karyawan || 'Productivity';
+        });
+      } else {
+        const db = load();
+        (db.users || []).forEach(u => {
+          const key = String(u.nama_lengkap || u.username || '').toLowerCase().trim();
+          userTipeMap[key] = u.tipe_karyawan || 'Productivity';
+        });
+      }
+    } catch (e) {
+      console.warn('Gagal memuat mapping tipe karyawan:', e.message);
+    }
+
     let result = { pekerja: [], grand_total: 0, total_by_posisi: { picker: 0, sorter: 0, loader: 0 }, leaderboard: [] };
 
     if (isSupabaseEnabled) {
-      const [{ data: subData }, { data: loaderData }, { data: hargaData }] = await Promise.all([
-        supabase.from('submissions')
-          .select('nama, posisi, zona, jumlah_output, tanggal_carian')
-          .gte('tanggal_carian', tanggalMulai)
-          .lte('tanggal_carian', tanggalAkhir)
-          .eq('status', 'approved'),
-        supabase.from('loader_entries')
-          .select('nama, jumlah_kontainer, tanggal_carian')
-          .gte('tanggal_carian', tanggalMulai)
-          .lte('tanggal_carian', tanggalAkhir),
+      // CATATAN: .limit(10000) wajib â€” Supabase default hanya 1000 rows
+      const [subData, loaderData, { data: hargaData }] = await Promise.all([
+        this.fetchAllRows('submissions', 'nama, posisi, zona, jumlah_output, tanggal_carian', q =>
+          q.gte('tanggal_carian', tanggalMulai).lte('tanggal_carian', tanggalAkhir).eq('status', 'approved')
+        ),
+        this.fetchAllRows('loader_entries', 'nama, jumlah_kontainer, tanggal_carian', q =>
+          q.gte('tanggal_carian', tanggalMulai).lte('tanggal_carian', tanggalAkhir)
+        ),
         supabase.from('ketentuan_harga').select('*')
       ]);
 
@@ -2237,17 +3001,96 @@ module.exports = {
         });
       });
 
-      result.pekerja = Object.values(pekerjaMap).sort((a, b) => b.total_nilai - a.total_nilai);
+      const mappedPekerja = Object.values(pekerjaMap).map(p => {
+        const nameKey = String(p.nama || '').toLowerCase().trim();
+        return { ...p, tipe_karyawan: userTipeMap[nameKey] || 'Productivity' };
+      });
+      result.pekerja = mappedPekerja.sort((a, b) => b.total_nilai - a.total_nilai);
       result.grand_total = result.pekerja.reduce((s, p) => s + p.total_nilai, 0);
       result.total_by_posisi.picker = result.pekerja.filter(p => p.posisi === 'Picker').reduce((s, p) => s + p.total_nilai, 0);
       result.total_by_posisi.sorter = result.pekerja.filter(p => p.posisi === 'Sorter').reduce((s, p) => s + p.total_nilai, 0);
       result.total_by_posisi.loader = result.pekerja.filter(p => p.posisi === 'Loader').reduce((s, p) => s + p.total_nilai, 0);
-      result.leaderboard = result.pekerja.slice(0, 10).map((p, i) => ({ rank: i + 1, nama: p.nama, posisi: p.posisi, total_nilai: p.total_nilai, total_pencapaian: p.total_pencapaian }));
+      result.leaderboard = result.pekerja.slice(0, 10).map((p, i) => ({ rank: i + 1, nama: p.nama, posisi: p.posisi, tipe_karyawan: p.tipe_karyawan, total_nilai: p.total_nilai, total_pencapaian: p.total_pencapaian }));
 
     } else {
-      // Local JSON fallback (simplified)
       const db = load();
-      result.pekerja = [];
+      const subData = (db.submissions || []).filter(s => {
+        const tgl = s.tanggal_carian;
+        return tgl >= tanggalMulai && tgl <= tanggalAkhir && s.status === 'approved';
+      });
+      const loaderData = (db.loader_entries || []).filter(l => {
+        const tgl = l.tanggal_carian;
+        return tgl >= tanggalMulai && tgl <= tanggalAkhir;
+      });
+      const hargaData = db.ketentuan_harga || [];
+
+      const hargaMap = {};
+      hargaData.forEach(h => { hargaMap[`${h.posisi}|${h.zona}`] = h; });
+
+      // Aggregate Picker & Sorter per nama+posisi (cross-zona)
+      const subAgg = {};
+      subData.forEach(s => {
+        const key = `${s.nama}|${s.posisi}`;
+        if (!subAgg[key]) subAgg[key] = { nama: s.nama, posisi: s.posisi, total_pencapaian: 0, total_nilai: 0, zona_detail: {} };
+        const hargaKey  = `${s.posisi}|${s.zona}`;
+        const hargaKeyK = `${s.posisi}|${zonaToKategori(s.zona)}`;
+        const h = hargaMap[hargaKey] || hargaMap[hargaKeyK] || null;
+        const jml = parseInt(s.jumlah_output) || 0;
+        const nilai = h ? jml * h.harga : 0;
+        subAgg[key].total_pencapaian += jml;
+        subAgg[key].total_nilai      += nilai;
+        const zk = s.zona || 'UNKNOWN';
+        if (!subAgg[key].zona_detail[zk]) subAgg[key].zona_detail[zk] = { pencapaian: 0, nilai: 0, satuan: h ? h.satuan : '-', harga_satuan: h ? h.harga : null };
+        subAgg[key].zona_detail[zk].pencapaian += jml;
+        subAgg[key].zona_detail[zk].nilai      += nilai;
+      });
+
+      // Aggregate Loader per nama
+      const loaderAgg = {};
+      loaderData.forEach(l => {
+        const key = l.nama;
+        if (!loaderAgg[key]) loaderAgg[key] = { nama: l.nama, posisi: 'Loader', total_pencapaian: 0, total_nilai: 0, zona_detail: {} };
+        const loaderH = hargaMap['Loader|AMBIENT, CHILLER, FREEZER'] || hargaMap['Loader|LOADER'] || null;
+        const jml = parseInt(l.jumlah_kontainer) || 0;
+        const nilai = loaderH ? jml * loaderH.harga : 0;
+        loaderAgg[key].total_pencapaian += jml;
+        loaderAgg[key].total_nilai      += nilai;
+        const zk = 'ALL ZONA';
+        if (!loaderAgg[key].zona_detail[zk]) loaderAgg[key].zona_detail[zk] = { pencapaian: 0, nilai: 0, satuan: loaderH ? loaderH.satuan : 'kontainer', harga_satuan: loaderH ? loaderH.harga : null };
+        loaderAgg[key].zona_detail[zk].pencapaian += jml;
+        loaderAgg[key].zona_detail[zk].nilai      += nilai;
+      });
+
+      // Merge all into pekerja list
+      const pekerjaMap = {};
+      [...Object.values(subAgg), ...Object.values(loaderAgg)].forEach(p => {
+        const key = `${p.nama}|${p.posisi}`;
+        if (!pekerjaMap[key]) {
+          pekerjaMap[key] = {
+            nama: p.nama,
+            posisi: p.posisi,
+            total_pencapaian: 0,
+            total_nilai: 0,
+            zona_detail: []
+          };
+        }
+        pekerjaMap[key].total_pencapaian += p.total_pencapaian;
+        pekerjaMap[key].total_nilai      += p.total_nilai;
+        Object.entries(p.zona_detail).forEach(([zona, d]) => {
+          pekerjaMap[key].zona_detail.push({ zona, ...d });
+        });
+      });
+
+      const mappedPekerja = Object.values(pekerjaMap).map(p => {
+        const nameKey = String(p.nama || '').toLowerCase().trim();
+        return { ...p, tipe_karyawan: userTipeMap[nameKey] || 'Productivity' };
+      });
+      result.pekerja = mappedPekerja.sort((a, b) => b.total_nilai - a.total_nilai);
+      result.grand_total = result.pekerja.reduce((s, p) => s + p.total_nilai, 0);
+      result.total_by_posisi.picker = result.pekerja.filter(p => p.posisi === 'Picker').reduce((s, p) => s + p.total_nilai, 0);
+      result.total_by_posisi.sorter = result.pekerja.filter(p => p.posisi === 'Sorter').reduce((s, p) => s + p.total_nilai, 0);
+      result.total_by_posisi.loader = result.pekerja.filter(p => p.posisi === 'Loader').reduce((s, p) => s + p.total_nilai, 0);
+      result.leaderboard = result.pekerja.slice(0, 10).map((p, i) => ({ rank: i + 1, nama: p.nama, posisi: p.posisi, tipe_karyawan: p.tipe_karyawan, total_nilai: p.total_nilai, total_pencapaian: p.total_pencapaian }));
     }
 
     return result;
@@ -2355,12 +3198,15 @@ module.exports = {
         mppToday.hari_count = daysWithData;
       }
 
-      // Pencapaian: Picker & Sorter dari submissions (approved) — range query
-      const [{ data: subData }, { data: loaderData }, { data: hargaData }] = await Promise.all([
-        supabase.from('submissions').select('nama, posisi, zona, jumlah_output, tanggal_carian')
-          .gte('tanggal_carian', tanggalMulai).lte('tanggal_carian', tanggalAkhir).eq('status', 'approved'),
-        supabase.from('loader_entries').select('nama, jumlah_kontainer, tanggal_carian')
-          .gte('tanggal_carian', tanggalMulai).lte('tanggal_carian', tanggalAkhir),
+      // Pencapaian: Picker & Sorter dari submissions (approved) â€” range query
+      // CATATAN: .limit(10000) wajib â€” Supabase default hanya 1000 rows, menyebabkan data tanggal awal hilang saat range panjang
+      const [subData, loaderData, { data: hargaData }] = await Promise.all([
+        this.fetchAllRows('submissions', 'nama, posisi, zona, jumlah_output, tanggal_carian', q =>
+          q.gte('tanggal_carian', tanggalMulai).lte('tanggal_carian', tanggalAkhir).eq('status', 'approved')
+        ),
+        this.fetchAllRows('loader_entries', 'nama, jumlah_kontainer, tanggal_carian', q =>
+          q.gte('tanggal_carian', tanggalMulai).lte('tanggal_carian', tanggalAkhir)
+        ),
         supabase.from('ketentuan_harga').select('*')
       ]);
 
@@ -2570,7 +3416,172 @@ module.exports = {
       tanggal_mulai: tanggalMulai,
       tanggal_akhir: tanggalAkhir
     };
+  },
+
+  // ===================== RETURN ENTRIES =====================
+
+  async insertReturnEntry(data) {
+    const { v4: uuidv4 } = require('uuid');
+    const record = {
+      id: uuidv4(),
+      tanggal_return: data.tanggal_return,
+      tanggal_referensi: data.tanggal_referensi,
+      loader_entry_id: data.loader_entry_id || null,
+      no_polisi: data.no_polisi || '',
+      nama_return: data.nama_return || '',
+      cluster_return_outputs: data.cluster_return_outputs || {},
+      total_outbound: data.total_outbound || 0,
+      total_kembali: data.total_kembali || 0,
+      total_selisih: data.total_selisih || 0,
+      catatan: data.catatan || '',
+      status: 'submitted',
+      created_at: new Date().toISOString()
+    };
+    if (supabase) {
+      const { error } = await supabase.from('return_entries').insert([record]);
+      if (error) throw error;
+    }
+    return record;
+  },
+
+  async getAllReturnEntries({ tanggal_return, tanggal_referensi, status } = {}) {
+    if (supabase) {
+      let q = supabase.from('return_entries').select('*').order('created_at', { ascending: false });
+      if (tanggal_return) q = q.eq('tanggal_return', tanggal_return);
+      if (tanggal_referensi) q = q.eq('tanggal_referensi', tanggal_referensi);
+      if (status) q = q.eq('status', status);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data || [];
+    }
+    return [];
+  },
+
+  async getReturnEntryById(id) {
+    if (supabase) {
+      const { data, error } = await supabase.from('return_entries').select('*').eq('id', id).single();
+      if (error) return null;
+      return data;
+    }
+    return null;
+  },
+
+  async validateReturnEntry(id, status, validatedBy, catatanAdmin) {
+    const now = new Date().toISOString();
+    if (supabase) {
+      const updateData = { status, validated_by: validatedBy, validated_at: now };
+      if (catatanAdmin) updateData.catatan = catatanAdmin;
+      const { data, error } = await supabase.from('return_entries')
+        .update(updateData).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    }
+    throw new Error('Supabase tidak tersedia');
   }
+
+  // ===================== END RETURN ENTRIES =====================
+
+  // ===================== QC OUTBOUND =====================
+
+  /**
+   * Insert QC Outbound entry baru.
+   * Validasi duplikat (1 nopol per hari) harus dilakukan di server.js sebelum memanggil ini.
+   */
+  async insertQcOutbound(data) {
+    const { v4: uuidv4 } = require('uuid');
+    const record = {
+      id: uuidv4(),
+      tanggal: data.tanggal,
+      no_polisi: data.no_polisi,
+      kontainer: parseInt(data.kontainer) || 0,
+      styrofoam: parseInt(data.styrofoam) || 0,
+      dus: parseInt(data.dus) || 0,
+      catatan: data.catatan || '',
+      created_by: data.created_by || 'unknown',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    if (isSupabaseEnabled) {
+      const { error } = await supabase.from('qc_outbound').insert([record]);
+      if (error) { console.error('Supabase insertQcOutbound error:', error); throw error; }
+      return record;
+    } else {
+      const db = load();
+      db.qc_outbound.push(record);
+      save(db);
+      return record;
+    }
+  },
+
+  /**
+   * Ambil semua QC Outbound, opsional filter per tanggal.
+   */
+  async getAllQcOutbound(tanggal = null) {
+    if (isSupabaseEnabled) {
+      let query = supabase.from('qc_outbound').select('*').order('created_at', { ascending: false });
+      if (tanggal) query = query.eq('tanggal', tanggal);
+      const { data, error } = await query;
+      if (error) { console.error('Supabase getAllQcOutbound error:', error); return []; }
+      return data || [];
+    } else {
+      const db = load();
+      let entries = db.qc_outbound || [];
+      if (tanggal) entries = entries.filter(e => e.tanggal === tanggal);
+      return entries.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+  },
+
+  /**
+   * Ambil satu QC Outbound berdasarkan ID.
+   */
+  async getQcOutboundById(id) {
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase.from('qc_outbound').select('*').eq('id', id).maybeSingle();
+      if (error) return null;
+      return data;
+    } else {
+      const db = load();
+      return (db.qc_outbound || []).find(e => e.id === id) || null;
+    }
+  },
+
+  /**
+   * Hapus QC Outbound berdasarkan ID.
+   */
+  async deleteQcOutbound(id) {
+    if (isSupabaseEnabled) {
+      const { error } = await supabase.from('qc_outbound').delete().eq('id', id);
+      if (error) throw error;
+    } else {
+      const db = load();
+      db.qc_outbound = (db.qc_outbound || []).filter(e => e.id !== id);
+      save(db);
+    }
+  },
+
+  /**
+   * Cek apakah no_polisi sudah ada untuk tanggal tertentu (validasi duplikat).
+   * Returns: entry yang ditemukan atau null.
+   */
+  async getQcOutboundByNopolAndTanggal(no_polisi, tanggal) {
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase
+        .from('qc_outbound')
+        .select('*')
+        .eq('no_polisi', no_polisi)
+        .eq('tanggal', tanggal)
+        .maybeSingle();
+      if (error) return null;
+      return data;
+    } else {
+      const db = load();
+      return (db.qc_outbound || []).find(e => e.no_polisi === no_polisi && e.tanggal === tanggal) || null;
+    }
+  }
+
+  // ===================== END QC OUTBOUND =====================
 };
+
 
 
