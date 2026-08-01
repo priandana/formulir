@@ -1,4 +1,4 @@
-﻿require('dotenv').config();
+require('dotenv').config();
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
@@ -4165,8 +4165,8 @@ app.post('/api/users', requirePermission('users'), async (req, res) => {
     if (!username || !nama_lengkap || !nik || !posisi) {
       return res.status(400).json({ error: 'Semua field (username, nama lengkap, NIK, posisi) wajib diisi.' });
     }
-    if (!['Picker', 'Sorter', 'Loader', 'Return'].includes(posisi)) {
-      return res.status(400).json({ error: 'Posisi harus Picker, Sorter, Loader, atau Return.' });
+    if (!['Picker', 'Sorter', 'Loader', 'Return', 'QC Outbound'].includes(posisi)) {
+      return res.status(400).json({ error: 'Posisi harus Picker, Sorter, Loader, Return, atau QC Outbound.' });
     }
     if (tipe_karyawan && !['Productivity', 'PHL'].includes(tipe_karyawan)) {
       return res.status(400).json({ error: 'Tipe Karyawan harus Productivity atau PHL.' });
@@ -4223,8 +4223,8 @@ app.put('/api/users/:id', requirePermission('users'), async (req, res) => {
     if (!username || !nama_lengkap || !nik || !posisi) {
       return res.status(400).json({ error: 'Semua field (username, nama lengkap, NIK, posisi) wajib diisi.' });
     }
-    if (!['Picker', 'Sorter', 'Loader', 'Return'].includes(posisi)) {
-      return res.status(400).json({ error: 'Posisi harus Picker, Sorter, Loader, atau Return.' });
+    if (!['Picker', 'Sorter', 'Loader', 'Return', 'QC Outbound'].includes(posisi)) {
+      return res.status(400).json({ error: 'Posisi harus Picker, Sorter, Loader, Return, atau QC Outbound.' });
     }
     if (tipe_karyawan && !['Productivity', 'PHL'].includes(tipe_karyawan)) {
       return res.status(400).json({ error: 'Tipe Karyawan harus Productivity atau PHL.' });
