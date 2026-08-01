@@ -4940,26 +4940,39 @@ async function qcoLoadGroupMobils() {
     let records = [];
     try {
       const r = await fetch(`/api/data-carian?tanggal=${tanggal}`);
-      const resData = await r.json();
-      records = Array.isArray(resData) ? resData : (resData.data || []);
-    } catch(e) {}
-
-    if (records.length === 0) {
-      try {
-        const r2 = await fetch(`/api/toko-batch-data?tanggal_carian=${tanggal}`);
-        const resData2 = await r2.json();
-        records = Array.isArray(resData2) ? resData2 : (resData2.records || []);
-      } catch(e) {}
+      if (r.ok) {
+        const resData = await r.json();
+        // API bisa return array langsung atau { records: [...] } atau { data: [...] }
+        if (Array.isArray(resData)) {
+          records = resData;
+        } else if (Array.isArray(resData?.records)) {
+          records = resData.records;
+        } else if (Array.isArray(resData?.data)) {
+          records = resData.data;
+        }
+      }
+    } catch(e) {
+      console.error('QCO fetch data-carian error:', e);
     }
 
-    const activeRecords = records.filter(rec => rec.batch || rec.posisi === 'Loader');
+    console.log('[QCO] Raw records dari API:', records.length, records.slice(0,3));
 
-    if (activeRecords.length === 0) {
-      if (empty) empty.textContent = `⚠️ Tidak ada data carian Loader untuk tanggal ${tanggal}.`;
+    // Ambil semua records yang punya field 'batch' (group mobil)
+    // Tidak filter berdasarkan posisi — QC Outbound butuh semua batch yang ada
+    const batchList = records
+      .filter(rec => rec.batch && String(rec.batch).trim() !== '' && String(rec.batch).trim() !== 'undefined')
+      .map(rec => String(rec.batch).trim());
+
+    console.log('[QCO] batchList:', batchList);
+
+    if (batchList.length === 0) {
+      if (empty) empty.textContent = `⚠️ Tidak ada data Group Mobil untuk tanggal ${tanggal}. Pastikan data carian sudah diinput.`;
       return;
     }
 
-    qcoAvailableGroupMobils = Array.from(new Set(activeRecords.map(rec => String(rec.batch).trim()))).sort();
+    qcoAvailableGroupMobils = Array.from(new Set(batchList)).sort();
+
+    console.log('[QCO] qcoAvailableGroupMobils:', qcoAvailableGroupMobils);
     
     if (armadaSection) armadaSection.style.display = 'block';
     if (empty) empty.textContent = 'Pilih Group Mobil pada Armada di atas untuk menginput barang actual.';
