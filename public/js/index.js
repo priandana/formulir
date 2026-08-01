@@ -4126,39 +4126,38 @@ function rtRenderArmadaCards() {
   if (!listEl) return;
   listEl.innerHTML = '';
 
-  // Aggregate all loader entries by cluster name (Flat List like paper form)
+  // Build map per no_polisi dari Loader Entries
   rtClusterMap = {};
   rtLoaderEntriesCache.forEach(entry => {
+    const nopol = (entry.no_polisi || '').trim().toUpperCase();
+    if (!nopol) return;
     let cl = [];
     if (Array.isArray(entry.clusters)) cl = entry.clusters;
     else if (entry.clusters && typeof entry.clusters === 'object') cl = entry.clusters.list || [];
-    if (cl.length === 0 && entry.no_polisi) cl = [entry.no_polisi];
-
-    const ob = entry.cluster_outbound_outputs || {};
     const rps = (entry.clusters && entry.clusters.outputs) ? entry.clusters.outputs : (entry.cluster_outputs || {});
+    let totalRps = 0;
+    cl.forEach(gm => { totalRps += parseInt(rps[gm] || 0); });
 
-    cl.forEach(gm => {
-      if (!rtClusterMap[gm]) {
-        rtClusterMap[gm] = {
-          gm: gm,
-          no_polisi: entry.no_polisi || gm,
-          rps: 0,
-          outbound: { kontainer: 0, styrofoam: 0, dus: 0, total: 0 },
-          entries: []
-        };
-      }
-      // Outbound fallback from legacy cluster_outbound_outputs (if any)
-      const parsedOb = parsePackageBreakdown(ob[gm]);
-      rtClusterMap[gm].outbound.kontainer += parsedOb.kontainer;
-      rtClusterMap[gm].outbound.styrofoam += parsedOb.styrofoam;
-      rtClusterMap[gm].outbound.dus       += parsedOb.dus;
-      rtClusterMap[gm].outbound.total     += parsedOb.total;
-      if (rps[gm] !== undefined) rtClusterMap[gm].rps += (parseInt(rps[gm]) || 0);
-      rtClusterMap[gm].entries.push(entry);
-    });
+    if (!rtClusterMap[nopol]) {
+      rtClusterMap[nopol] = {
+        gm: nopol,
+        no_polisi: nopol,
+        rps: 0,
+        clusters: [],
+        // outbound dari QC Outbound (diisi di bawah)
+        outbound: { kontainer: 0, styrofoam: 0, dus: 0, total: 0 },
+        has_qc: false,
+        qc_record: null,
+        entries: []
+      };
+    }
+    rtClusterMap[nopol].rps += totalRps;
+    rtClusterMap[nopol].clusters.push(...cl.filter(g => !rtClusterMap[nopol].clusters.includes(g)));
+    rtClusterMap[nopol].entries.push(entry);
   });
 
-  // Enrich & override with actual QC Outbound data per armada (no_polisi)
+  // Enrich dengan data QC Outbound sebagai SUMBER REFERENSI outbound
+  // QC Outbound menyimpan kontainer/styrofoam/dus aktual yang dikirim
   const qcMap = {};
   rtQcOutboundCache.forEach(qc => {
     if (qc.no_polisi) {
@@ -4166,29 +4165,47 @@ function rtRenderArmadaCards() {
     }
   });
 
+  // Merge QC Outbound ke rtClusterMap (per no_polisi)
   Object.keys(qcMap).forEach(nopol => {
     const qc = qcMap[nopol];
-    const k = parseInt(qc.kontainer) || 0;
-    const s = parseInt(qc.styrofoam) || 0;
-    const d = parseInt(qc.dus) || 0;
-    const tot = k + s + d;
+    // Parse cluster_qco_outputs jika ada (per-cluster breakdown dari QC Outbound)
+    let totalK = 0, totalS = 0, totalD = 0;
+    try {
+      const qcoOutputs = typeof qc.cluster_qco_outputs === 'string'
+        ? JSON.parse(qc.cluster_qco_outputs || '{}')
+        : (qc.cluster_qco_outputs || {});
+      Object.values(qcoOutputs).forEach(v => {
+        totalK += parseInt(v.kontainer || 0);
+        totalS += parseInt(v.styrofoam || 0);
+        totalD += parseInt(v.dus || 0);
+      });
+    } catch(e) {}
+    // Fallback ke field top-level kontainer/styrofoam/dus jika cluster breakdown tidak ada
+    if (totalK === 0 && totalS === 0 && totalD === 0) {
+      totalK = parseInt(qc.kontainer || 0);
+      totalS = parseInt(qc.styrofoam || 0);
+      totalD = parseInt(qc.dus || 0);
+    }
 
-    // Find matching key in rtClusterMap (by gm or no_polisi)
-    let matchedKey = Object.keys(rtClusterMap).find(key => 
-      key.trim().toUpperCase() === nopol || 
-      (rtClusterMap[key].no_polisi && rtClusterMap[key].no_polisi.trim().toUpperCase() === nopol)
-    );
-
-    if (matchedKey) {
-      rtClusterMap[matchedKey].outbound = { kontainer: k, styrofoam: s, dus: d, total: tot };
-      rtClusterMap[matchedKey].qc_record = qc;
+    if (rtClusterMap[nopol]) {
+      rtClusterMap[nopol].outbound = { kontainer: totalK, styrofoam: totalS, dus: totalD, total: totalK + totalS + totalD };
+      rtClusterMap[nopol].has_qc = true;
+      rtClusterMap[nopol].qc_record = qc;
+      // Tambahkan clusters dari QC jika belum ada
+      let qcClusters = [];
+      try { qcClusters = JSON.parse(qc.clusters || '[]'); } catch(e) {}
+      qcClusters.forEach(g => { if (!rtClusterMap[nopol].clusters.includes(g)) rtClusterMap[nopol].clusters.push(g); });
     } else {
-      // Armada has QC Outbound record but no loader entry yet
+      // Armada ada di QC tapi tidak ada di Loader — tetap tampilkan
+      let qcClusters = [];
+      try { qcClusters = JSON.parse(qc.clusters || '[]'); } catch(e) {}
       rtClusterMap[nopol] = {
         gm: nopol,
         no_polisi: nopol,
         rps: 0,
-        outbound: { kontainer: k, styrofoam: s, dus: d, total: tot },
+        clusters: qcClusters,
+        outbound: { kontainer: totalK, styrofoam: totalS, dus: totalD, total: totalK + totalS + totalD },
+        has_qc: true,
         qc_record: qc,
         entries: []
       };
@@ -4252,13 +4269,22 @@ function rtRenderArmadaCards() {
     card.setAttribute('data-gm', gm);
     card.style.cssText = 'border-radius:12px; border:1.5px solid rgba(13,148,136,0.2); background:#fff; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.02);';
     
+    const clusterChips = (item.clusters || []).map(g =>
+      `<span style="font-size:10px;font-weight:800;background:#E0F2FE;color:#0369a1;padding:2px 7px;border-radius:5px;border:1px solid #BAE6FD;">${g}</span>`
+    ).join('');
+
+    const qcBadge = item.has_qc
+      ? `<span style="font-size:10px;font-weight:800;color:#059669;background:#ECFDF5;border:1px solid #A7F3D0;padding:3px 9px;border-radius:12px;">✓ Sudah di-QC</span>`
+      : `<span style="font-size:10px;font-weight:800;color:#B45309;background:#FEF3C7;border:1px solid #FDE68A;padding:3px 9px;border-radius:12px;">⚠️ Belum di-QC</span>`;
+
     card.innerHTML = `
-      <!-- Cluster Sub Header -->
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:linear-gradient(135deg,rgba(13,148,136,0.05),rgba(13,148,136,0.01)); border-bottom:1px solid rgba(13,148,136,0.1); flex-wrap:wrap; gap:8px;">
-        <div style="display:flex; align-items:center; gap:8px;">
+      <!-- Header Armada -->
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:linear-gradient(135deg,rgba(13,148,136,0.06),rgba(13,148,136,0.01)); border-bottom:1px solid rgba(13,148,136,0.12); flex-wrap:wrap; gap:8px;">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
           <span style="font-size:11px; font-weight:800; color:#64748b; background:#F1F5F9; padding:2px 7px; border-radius:6px;">#${index + 1}</span>
-          <span style="font-size:14px; font-weight:800; color:#0F766E; background:#E6FFFA; padding:4px 10px; border-radius:8px; border:1px solid #B2F5EA;">🚚 ${gm}</span>
-          <span style="font-size:11px; font-weight:600; color:#64748b; background:#F1F5F9; padding:3px 8px; border-radius:6px;">RPS: <strong>${item.rps || '-'}</strong></span>
+          <span style="font-size:14px; font-weight:800; color:#0F766E;">🚚 ${item.no_polisi}</span>
+          ${clusterChips}
+          ${qcBadge}
         </div>
         <div id="rt-selisih-${gm}">
           <span style="font-size:11px; font-weight:800; color:#94a3b8; background:#F1F5F9; border:1px solid #E2E8F0; padding:4px 10px; border-radius:20px;">— Belum diisi</span>
@@ -4268,10 +4294,10 @@ function rtRenderArmadaCards() {
       <!-- Body Section: Side by Side on PC, Stacked on HP -->
       <div style="padding:12px; display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px;">
         
-        <!-- 1. Outbound Dikirim (Loader) -->
+        <!-- 1. Outbound Dikirim (dari QC Outbound) -->
         <div style="background:linear-gradient(135deg,rgba(109,40,217,0.05),rgba(109,40,217,0.01)); border:1.5px solid rgba(109,40,217,0.2); border-radius:10px; padding:10px 12px;">
           <div style="font-size:10px; font-weight:800; text-transform:uppercase; color:#6D28D9; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
-            <span>📦 OUTBOUND DIKIRIM</span>
+            <span>📦 OUTBOUND DIKIRIM ${item.has_qc ? '(QC Outbound)' : '(Data Loader)'}</span>
             <span style="font-size:10px; color:#6D28D9;">TOT: <strong>${outObj.total}</strong></span>
           </div>
           <div style="display:flex; justify-content:space-around; align-items:center; background:#fff; padding:8px 6px; border-radius:8px; border:1px solid rgba(109,40,217,0.15);">
