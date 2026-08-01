@@ -4946,14 +4946,17 @@ async function qcoOnDateOrArmadaChange() {
   const container = document.getElementById('qcoRpsContainer');
   if (!container) return;
 
-  // Isi nama QC jika belum terisi
+  // Auto-fill nama QC Inspector jika ada user login
   const nameEl = document.getElementById('qco_nama_qc');
-  if (nameEl && !nameEl.value && currentUser) {
+  if (nameEl && currentUser) {
     nameEl.value = currentUser.nama_lengkap || currentUser.username || '';
   }
 
   if (!tanggal) {
-    if (empty) empty.style.display = 'block';
+    if (empty) {
+      empty.textContent = 'Pilih Tanggal Carian di atas untuk menampilkan acuan Target RPS.';
+      empty.style.display = 'block';
+    }
     if (container) container.style.display = 'none';
     if (loading) loading.style.display = 'none';
     return;
@@ -4964,44 +4967,68 @@ async function qcoOnDateOrArmadaChange() {
   if (container) container.style.display = 'none';
 
   try {
-    // Ambil data carian / loader entries untuk tanggal carian ini
-    const res = await fetch(`/api/loader-entries?tanggal_carian=${tanggal}`);
-    const data = await res.json();
-    const loaderEntries = Array.isArray(data) ? data : (data.entries || []);
-    
-    // Filter per nopol jika nopol diisi
-    let matchedEntries = loaderEntries;
-    if (nopol) {
-      matchedEntries = loaderEntries.filter(e => e.no_polisi && e.no_polisi.trim().toUpperCase() === nopol.toUpperCase());
+    // Fetch data carian dan loader entries secara paralel
+    const [resCarian, resLoader] = await Promise.all([
+      fetch(`/api/data-carian?tanggal=${tanggal}`).catch(() => null),
+      fetch(`/api/loader-entries?tanggal_carian=${tanggal}`).catch(() => null)
+    ]);
+
+    let carianRecords = [];
+    if (resCarian && resCarian.ok) {
+      carianRecords = await resCarian.json();
+    }
+    let loaderEntries = [];
+    if (resLoader && resLoader.ok) {
+      const dataL = await resLoader.json();
+      loaderEntries = Array.isArray(dataL) ? dataL : (dataL.entries || []);
     }
 
     qcoTargetRpsCache = {};
-    matchedEntries.forEach(entry => {
-      const outputs = (entry.clusters && entry.clusters.outputs) ? entry.clusters.outputs : (entry.cluster_outputs || {});
-      Object.entries(outputs).forEach(([cluster, rpsVal]) => {
-        const val = parseInt(rpsVal) || 0;
-        qcoTargetRpsCache[cluster] = (qcoTargetRpsCache[cluster] || 0) + val;
-      });
-    });
 
-    const clusters = Object.keys(qcoTargetRpsCache);
+    // 1. Dari Data Carian
+    if (Array.isArray(carianRecords)) {
+      carianRecords.forEach(rec => {
+        const gm = String(rec.batch || '').trim();
+        const cap = parseInt(rec.total_output || rec.capacity || rec.target) || 0;
+        if (gm && cap > 0) {
+          qcoTargetRpsCache[gm] = (qcoTargetRpsCache[gm] || 0) + cap;
+        }
+      });
+    }
+
+    // 2. Dari Loader Entries (jika ada)
+    if (Array.isArray(loaderEntries)) {
+      loaderEntries.forEach(entry => {
+        if (!nopol || (entry.no_polisi && entry.no_polisi.trim().toUpperCase() === nopol.toUpperCase())) {
+          const outputs = (entry.clusters && entry.clusters.outputs) ? entry.clusters.outputs : (entry.cluster_outputs || {});
+          Object.entries(outputs).forEach(([cluster, rpsVal]) => {
+            const val = parseInt(rpsVal) || 0;
+            if (val > 0) {
+              qcoTargetRpsCache[cluster] = Math.max(qcoTargetRpsCache[cluster] || 0, val);
+            }
+          });
+        }
+      });
+    }
+
+    const clusters = Object.keys(qcoTargetRpsCache).sort();
 
     if (clusters.length === 0) {
       if (loading) loading.style.display = 'none';
       if (empty) {
-        empty.textContent = `Belum ada data carian / RPS terdata untuk tanggal ${tanggal}${nopol ? ' & armada ' + nopol : ''}.`;
+        empty.textContent = `Belum ada data carian / RPS terdata untuk tanggal carian ${tanggal}.`;
         empty.style.display = 'block';
       }
       return;
     }
 
     let totalRpsAll = 0;
-    let html = `<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:10px;">`;
+    let html = `<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap:10px;">`;
     clusters.forEach(c => {
       const rps = qcoTargetRpsCache[c];
       totalRpsAll += rps;
       html += `
-        <div style="background:linear-gradient(135deg, rgba(14,165,233,0.08), rgba(2,132,199,0.03)); border:1px solid rgba(14,165,233,0.25); border-radius:10px; padding:10px 14px; text-align:center;">
+        <div style="background:linear-gradient(135deg, rgba(14,165,233,0.08), rgba(2,132,199,0.03)); border:1.5px solid rgba(14,165,233,0.25); border-radius:10px; padding:10px 12px; text-align:center;">
           <div style="font-size:11px; font-weight:800; color:#0369A1; margin-bottom:4px;">🚚 ${c}</div>
           <div style="font-size:18px; font-weight:900; color:#0284C7;">${rps} <span style="font-size:11px; font-weight:600; color:#64748B;">RPS</span></div>
           <div style="font-size:9px; color:#0284C7; margin-top:2px; font-weight:700;">READ-ONLY ACUAN</div>
@@ -5010,7 +5037,7 @@ async function qcoOnDateOrArmadaChange() {
     html += `</div>`;
     html += `
       <div style="margin-top:12px; padding:8px 12px; background:rgba(14,165,233,0.1); border-radius:8px; font-size:12px; font-weight:800; color:#0369A1; display:flex; justify-content:space-between; align-items:center;">
-        <span>TOTAL TARGET RPS ACUAN</span>
+        <span>TOTAL TARGET RPS ACUAN (${clusters.length} Cluster)</span>
         <span style="font-size:15px; color:#0284C7;">${totalRpsAll} RPS</span>
       </div>`;
 
@@ -5020,9 +5047,10 @@ async function qcoOnDateOrArmadaChange() {
     container.style.display = 'block';
 
   } catch(e) {
+    console.error('qcoOnDateOrArmadaChange error:', e);
     if (loading) loading.style.display = 'none';
     if (empty) {
-      empty.textContent = 'Gagal memuat acuan target RPS.';
+      empty.textContent = 'Belum ada data carian / RPS terdata untuk tanggal ini.';
       empty.style.display = 'block';
     }
   }
