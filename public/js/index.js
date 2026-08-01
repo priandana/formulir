@@ -4879,6 +4879,7 @@ let qcoSelectedFiles = [];
 let qcoTargetRpsCache = {};
 let qcoArmadas = [{ id: Date.now(), no_polisi: '', selectedGms: [] }];
 let qcoAvailableGroupMobils = [];
+let qcoGmZonaMap = {}; // GM -> zona (untuk fetch capacity)
 
 function qcoUpdateTotal() {
   const k = parseInt(document.getElementById('qco_kontainer')?.value) || 0;
@@ -4971,9 +4972,21 @@ async function qcoLoadGroupMobils() {
       return;
     }
 
+    // Build qcoGmZonaMap: GM -> zona (diperlukan untuk fetch capacity)
+    qcoGmZonaMap = {};
+    records.forEach(rec => {
+      const b = String(rec.batch || '').trim().toUpperCase();
+      if (b && /[A-Za-z]/.test(b)) {
+        const zona = String(rec.zona || '').trim();
+        if (!qcoGmZonaMap[b]) qcoGmZonaMap[b] = [];
+        if (zona && !qcoGmZonaMap[b].includes(zona)) qcoGmZonaMap[b].push(zona);
+      }
+    });
+
     qcoAvailableGroupMobils = Array.from(new Set(batchList)).sort();
 
     console.log('[QCO] qcoAvailableGroupMobils:', qcoAvailableGroupMobils);
+    console.log('[QCO] qcoGmZonaMap:', qcoGmZonaMap);
     
     if (armadaSection) armadaSection.style.display = 'block';
     if (empty) empty.textContent = 'Pilih Group Mobil pada Armada di atas untuk menginput barang actual.';
@@ -5025,9 +5038,20 @@ async function qcoLoadClusterCapacity() {
 
     try {
       const capResults = await Promise.all(allSelectedGms.map(async gm => {
-        const r = await fetch(`/api/batch-capacity?tanggal_carian=${tanggal}&posisi=Loader&batch=${encodeURIComponent(gm)}`);
-        const d = await r.json();
-        return { gm, cap: d };
+        const zonas = Array.isArray(qcoGmZonaMap[gm]) ? qcoGmZonaMap[gm] : (qcoGmZonaMap[gm] ? [qcoGmZonaMap[gm]] : []);
+        if (zonas.length === 0) return { gm, cap: { ada_data_carian: false, total_output: 0, capacity: 0 } };
+        // Fetch semua zona yang dimiliki GM ini
+        const zoneResults = await Promise.all(zonas.map(async zona => {
+          const r = await fetch(`/api/batch-capacity?tanggal_carian=${tanggal}&posisi=Loader&zona=${encodeURIComponent(zona)}&batch=${encodeURIComponent(gm)}`);
+          return r.ok ? r.json() : { total_output: 0, capacity: 0 };
+        }));
+        // Gabungkan semua zona
+        const cap = {
+          total_output: zoneResults.reduce((s, c) => s + (parseInt(c.total_output) || 0), 0),
+          capacity:     zoneResults.reduce((s, c) => s + (parseInt(c.capacity)      || 0), 0),
+          ada_data_carian: zoneResults.some(c => c.ada_data_carian),
+        };
+        return { gm, cap };
       }));
 
       capResults.forEach(res => {
