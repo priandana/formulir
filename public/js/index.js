@@ -4914,6 +4914,12 @@ async function qcoLoadGroupMobils() {
     const capCard    = document.getElementById('qcoCapacityCard');
     const capLoading = document.getElementById('qcoCapacityLoading');
 
+    // Auto fill QC Name
+    const nameEl = document.getElementById('qco_nama_qc');
+    if (nameEl && currentUser) {
+      nameEl.value = currentUser.nama_lengkap || currentUser.username || '';
+    }
+
     if (armadaListContainer) armadaListContainer.innerHTML = '';
     if (armadaSection) armadaSection.style.display = 'none';
     
@@ -4931,10 +4937,22 @@ async function qcoLoadGroupMobils() {
 
     if (empty) empty.textContent = 'Memuat daftar Group Mobil dari server...';
 
-    const r = await fetch(`/api/data-carian?tanggal=${tanggal}`);
-    const records = await r.json();
-    
-    const activeRecords = Array.isArray(records) ? records.filter(rec => rec.posisi === 'Loader' || rec.batch) : [];
+    let records = [];
+    try {
+      const r = await fetch(`/api/data-carian?tanggal=${tanggal}`);
+      const resData = await r.json();
+      records = Array.isArray(resData) ? resData : (resData.data || []);
+    } catch(e) {}
+
+    if (records.length === 0) {
+      try {
+        const r2 = await fetch(`/api/toko-batch-data?tanggal_carian=${tanggal}`);
+        const resData2 = await r2.json();
+        records = Array.isArray(resData2) ? resData2 : (resData2.records || []);
+      } catch(e) {}
+    }
+
+    const activeRecords = records.filter(rec => rec.batch || rec.posisi === 'Loader');
 
     if (activeRecords.length === 0) {
       if (empty) empty.textContent = `⚠️ Tidak ada data carian Loader untuk tanggal ${tanggal}.`;
@@ -4944,11 +4962,111 @@ async function qcoLoadGroupMobils() {
     qcoAvailableGroupMobils = Array.from(new Set(activeRecords.map(rec => String(rec.batch).trim()))).sort();
     
     if (armadaSection) armadaSection.style.display = 'block';
-    if (empty) empty.textContent = 'Masukkan armada dan pilih Group Mobil yang dimuat.';
+    if (empty) empty.textContent = 'Pilih Group Mobil pada Armada di atas untuk menginput barang actual.';
     
     qcoRenderArmadas();
+    qcoLoadClusterCapacity();
   } catch (err) {
     console.error('qcoLoadGroupMobils error:', err);
+  }
+}
+
+async function qcoLoadClusterCapacity() {
+  try {
+    const tanggal = document.getElementById('qco_tanggal_carian')?.value;
+    const outputList = document.getElementById('qcoClusterOutputList');
+    const empty      = document.getElementById('qcoClusterOutputEmpty');
+    const capCard    = document.getElementById('qcoCapacityCard');
+    const capLoading = document.getElementById('qcoCapacityLoading');
+    const capVal     = document.getElementById('qcoCapacityValue');
+    const capLabel   = document.getElementById('qcoCapacityClusterLabel');
+
+    if (!outputList || !empty) return;
+
+    // Collect all selected Group Mobils across armadas
+    const allSelectedGms = [];
+    qcoArmadas.forEach(a => {
+      (a.selectedGms || []).forEach(gm => {
+        if (!allSelectedGms.includes(gm)) allSelectedGms.push(gm);
+      });
+    });
+
+    if (allSelectedGms.length === 0) {
+      outputList.innerHTML = '';
+      empty.textContent = 'Pilih minimal 1 Group Mobil pada Armada di atas.';
+      empty.style.display = '';
+      if (capCard) capCard.style.display = 'none';
+      qcoUpdateTotal();
+      return;
+    }
+
+    empty.style.display = 'none';
+
+    // Fetch capacity / RPS target for all selected GMs
+    if (capLoading) capLoading.style.display = 'flex';
+    if (capCard) capCard.style.display = 'block';
+
+    let totalRpsTarget = 0;
+    qcoTargetRpsCache = {};
+
+    try {
+      const capResults = await Promise.all(allSelectedGms.map(async gm => {
+        const r = await fetch(`/api/batch-capacity?tanggal_carian=${tanggal}&posisi=Loader&batch=${encodeURIComponent(gm)}`);
+        const d = await r.json();
+        return { gm, cap: d };
+      }));
+
+      capResults.forEach(res => {
+        const rps = parseInt(res.cap?.total_output || res.cap?.capacity || 0) || 0;
+        qcoTargetRpsCache[res.gm] = rps;
+        totalRpsTarget += rps;
+      });
+    } catch(e) {
+      console.error('Fetch capacity error:', e);
+    }
+
+    if (capLoading) capLoading.style.display = 'none';
+    if (capVal) capVal.textContent = totalRpsTarget;
+    if (capLabel) capLabel.textContent = `${allSelectedGms.length} Cluster (${allSelectedGms.join(', ')})`;
+
+    // Build input cards per selected Group Mobil
+    let html = '';
+    allSelectedGms.forEach((gm, idx) => {
+      const rpsTarget = qcoTargetRpsCache[gm] || 0;
+      html += `
+        <div class="batch-output-item" style="background:#fff; border:1.5px solid rgba(124,58,237,0.2); border-radius:12px; padding:14px; margin-bottom:10px; box-shadow:0 2px 8px rgba(124,58,237,0.04);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #F1F5F9;">
+            <div style="font-weight:800; font-size:14px; color:#7C3AED; display:flex; align-items:center; gap:6px;">
+              <span>🚚</span>
+              <span>Cluster: ${gm}</span>
+            </div>
+            <div style="font-size:11.5px; font-weight:800; color:#0284C7; background:rgba(14,165,233,0.1); padding:4px 10px; border-radius:20px; border:1px solid rgba(14,165,233,0.2);">
+              Target RPS: ${rpsTarget} RPS (Acuan)
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap:10px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">📦 Kontainer</label>
+              <input type="number" class="form-input qco-gm-kontainer" data-gm="${gm}" value="0" min="0" oninput="qcoUpdateTotal()" style="border-color:rgba(124,58,237,0.3); font-weight:700;">
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">🧊 Styrofoam</label>
+              <input type="number" class="form-input qco-gm-styrofoam" data-gm="${gm}" value="0" min="0" oninput="qcoUpdateTotal()" style="border-color:rgba(2,132,199,0.3); font-weight:700;">
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">📫 Dus</label>
+              <input type="number" class="form-input qco-gm-dus" data-gm="${gm}" value="0" min="0" oninput="qcoUpdateTotal()" style="border-color:rgba(217,119,6,0.3); font-weight:700;">
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    outputList.innerHTML = html;
+    qcoUpdateTotal();
+  } catch(e) {
+    console.error('qcoLoadClusterCapacity error:', e);
   }
 }
 
@@ -5071,6 +5189,7 @@ function qcoAddArmada() {
 function qcoRemoveArmada(index) {
   qcoArmadas.splice(index, 1);
   qcoRenderArmadas();
+  qcoLoadClusterCapacity();
 }
 
 function qcoUpdateTruckPolisi(index, val) {
@@ -5151,6 +5270,7 @@ function qcoToggleGmChip(index, gm) {
     truck.selectedGms.push(gm);
   }
   qcoFilterArmadaGrid(index);
+  qcoLoadClusterCapacity();
 }
 
 function qcoOpenNopolDropdown(index) {
