@@ -3491,7 +3491,9 @@ module.exports = {
     const { v4: uuidv4 } = require('uuid');
     const record = {
       id: data.id || uuidv4(),
-      tanggal: data.tanggal,
+      tanggal: data.tanggal_carian || data.tanggal,
+      tanggal_carian: data.tanggal_carian || data.tanggal,
+      tanggal_kirim: data.tanggal_kirim || data.tanggal,
       no_polisi: data.no_polisi,
       nama_qc: data.nama_qc || data.created_by || '',
       zona: data.zona || '',

@@ -4893,7 +4893,7 @@ function qcoUpdateTotal() {
 }
 
 async function qcoLoadArmada() {
-  const tanggal = document.getElementById('qco_tanggal')?.value;
+  const tanggal = document.getElementById('qco_tanggal_carian')?.value || document.getElementById('qco_tanggal_kirim')?.value;
   const select = document.getElementById('qco_nopol_select');
   const info = document.getElementById('qco_armada_info');
   if (!tanggal || !select) return;
@@ -4939,7 +4939,7 @@ function qcoSelectNopol(val) {
 
 async function qcoOnDateOrArmadaChange() {
   qcoLoadArmada();
-  const tanggal = document.getElementById('qco_tanggal')?.value;
+  const tanggal = document.getElementById('qco_tanggal_carian')?.value;
   const nopol = document.getElementById('qco_nopol')?.value?.trim();
   const loading = document.getElementById('qcoRpsLoading');
   const empty = document.getElementById('qcoRpsEmpty');
@@ -5091,7 +5091,8 @@ function qcoRenderPhotoPreview() {
 
 // ── SUBMIT FORM ──
 async function qcoSubmitForm() {
-  const tanggal = document.getElementById('qco_tanggal')?.value;
+  const tanggal_carian = document.getElementById('qco_tanggal_carian')?.value;
+  const tanggal_kirim = document.getElementById('qco_tanggal_kirim')?.value;
   const no_polisi = document.getElementById('qco_nopol')?.value?.trim();
   const nama_qc = document.getElementById('qco_nama_qc')?.value || currentUser?.nama_lengkap || currentUser?.username || '';
   const kontainer = parseInt(document.getElementById('qco_kontainer')?.value) || 0;
@@ -5103,12 +5104,15 @@ async function qcoSubmitForm() {
   const catatan = document.getElementById('qco_catatan')?.value || '';
 
   let hasError = false;
-  const errTgl = document.getElementById('err-qco_tanggal');
+  const errCar = document.getElementById('err-qco_tanggal_carian');
+  const errKir = document.getElementById('err-qco_tanggal_kirim');
   const errNopol = document.getElementById('err-qco_nopol');
-  if (errTgl) errTgl.style.display = 'none';
+  if (errCar) errCar.style.display = 'none';
+  if (errKir) errKir.style.display = 'none';
   if (errNopol) errNopol.style.display = 'none';
 
-  if (!tanggal) { if (errTgl) errTgl.style.display = 'flex'; hasError = true; }
+  if (!tanggal_carian) { if (errCar) errCar.style.display = 'flex'; hasError = true; }
+  if (!tanggal_kirim) { if (errKir) errKir.style.display = 'flex'; hasError = true; }
   if (!no_polisi) { if (errNopol) errNopol.style.display = 'flex'; hasError = true; }
   if (hasError) return;
 
@@ -5122,7 +5126,9 @@ async function qcoSubmitForm() {
 
   try {
     const formData = new FormData();
-    formData.append('tanggal', tanggal);
+    formData.append('tanggal_carian', tanggal_carian);
+    formData.append('tanggal_kirim', tanggal_kirim);
+    formData.append('tanggal', tanggal_carian); // Fallback
     formData.append('no_polisi', no_polisi);
     formData.append('nama_qc', nama_qc);
     formData.append('kontainer', kontainer);
@@ -5147,7 +5153,7 @@ async function qcoSubmitForm() {
       showToast('✅ Data QC Outbound berhasil disimpan!', 'success');
       qcoClearForm();
       const filterTgl = document.getElementById('qcoFilterTanggal');
-      if (filterTgl) filterTgl.value = tanggal;
+      if (filterTgl) filterTgl.value = tanggal_carian;
       qcoLoadRiwayat();
     }
   } catch(e) {
@@ -5159,8 +5165,11 @@ async function qcoSubmitForm() {
 
 function qcoClearForm() {
   const todayStr = new Date().toLocaleDateString('sv-SE');
-  const tgl = document.getElementById('qco_tanggal');
-  if (tgl) tgl.value = todayStr;
+  const tglCar = document.getElementById('qco_tanggal_carian');
+  if (tglCar) tglCar.value = todayStr;
+  const tglKir = document.getElementById('qco_tanggal_kirim');
+  if (tglKir) tglKir.value = todayStr;
+
   const nopol = document.getElementById('qco_nopol');
   if (nopol) nopol.value = '';
   const select = document.getElementById('qco_nopol_select');

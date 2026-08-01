@@ -6,6 +6,8 @@
 CREATE TABLE IF NOT EXISTS qc_outbound (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tanggal             DATE NOT NULL,
+  tanggal_carian      DATE NOT NULL DEFAULT CURRENT_DATE,
+  tanggal_kirim       DATE NOT NULL DEFAULT CURRENT_DATE,
   no_polisi           TEXT NOT NULL,
   nama_qc             TEXT NOT NULL,
   zona                TEXT DEFAULT '',
@@ -23,9 +25,10 @@ CREATE TABLE IF NOT EXISTS qc_outbound (
 
 -- Index untuk query per tanggal (performa)
 CREATE INDEX IF NOT EXISTS idx_qc_outbound_tanggal ON qc_outbound (tanggal);
+CREATE INDEX IF NOT EXISTS idx_qc_outbound_tgl_carian ON qc_outbound (tanggal_carian);
 
--- Unique constraint: 1 nopol hanya boleh 1 entry per hari
+-- Unique constraint: 1 nopol hanya boleh 1 entry per tanggal carian
 CREATE UNIQUE INDEX IF NOT EXISTS idx_qc_outbound_tanggal_nopol 
-  ON qc_outbound (tanggal, no_polisi);
+  ON qc_outbound (tanggal_carian, no_polisi);
 
 COMMENT ON TABLE qc_outbound IS 'Data QC Outbound: input kontainer, styrofoam, dus actual, foto, dan non-group per armada per hari';

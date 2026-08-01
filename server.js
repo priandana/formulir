@@ -5794,11 +5794,13 @@ app.post('/api/qc-outbound', requireQcOutbound, (req, res, next) => {
   });
 }, async (req, res) => {
   try {
-    const { tanggal, no_polisi, nama_qc, zona, kontainer, styrofoam, dus, catatan } = req.body;
+    const { tanggal, tanggal_carian, tanggal_kirim, no_polisi, nama_qc, zona, kontainer, styrofoam, dus, catatan } = req.body;
+    const finalTglCarian = tanggal_carian || tanggal;
+    const finalTglKirim = tanggal_kirim || tanggal;
 
     // Validasi field wajib
-    if (!tanggal || !no_polisi) {
-      return res.status(400).json({ error: 'Tanggal dan No. Polisi wajib diisi.' });
+    if (!finalTglCarian || !finalTglKirim || !no_polisi) {
+      return res.status(400).json({ error: 'Tanggal carian, tanggal kirim, dan No. Polisi wajib diisi.' });
     }
 
     // Parse JSON fields
@@ -5819,10 +5821,10 @@ app.post('/api/qc-outbound', requireQcOutbound, (req, res, next) => {
     }
 
     // Validasi duplikat: 1 nopol hanya boleh 1 entry per hari
-    const existing = await db.getQcOutboundByNopolAndTanggal(no_polisi.trim().toUpperCase(), tanggal);
+    const existing = await db.getQcOutboundByNopolAndTanggal(no_polisi.trim().toUpperCase(), finalTglCarian);
     if (existing) {
       return res.status(409).json({
-        error: `Armada ${no_polisi} sudah memiliki data QC Outbound untuk tanggal ${tanggal}. Hapus data lama terlebih dahulu jika ingin menggantinya.`
+        error: `Armada ${no_polisi} sudah memiliki data QC Outbound untuk tanggal carian ${finalTglCarian}. Hapus data lama terlebih dahulu jika ingin menggantinya.`
       });
     }
 
@@ -5840,7 +5842,9 @@ app.post('/api/qc-outbound', requireQcOutbound, (req, res, next) => {
 
     const entry = await db.insertQcOutbound({
       id: entryId,
-      tanggal,
+      tanggal: finalTglCarian,
+      tanggal_carian: finalTglCarian,
+      tanggal_kirim: finalTglKirim,
       no_polisi: no_polisi.trim().toUpperCase(),
       nama_qc: nama_qc || req.user?.nama_lengkap || req.user?.username || 'unknown',
       zona: zona || '',

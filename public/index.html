@@ -1276,15 +1276,27 @@
             <div class="section-body">
               <div class="fields-row">
                 <div class="field-group">
-                  <label class="field-label" for="qco_tanggal">Tanggal Kirim / Carian <span class="required">*</span></label>
-                  <div class="field-hint">Tanggal carian atau pengiriman</div>
+                  <label class="field-label" for="qco_tanggal_carian">Tanggal Carian <span class="required">*</span></label>
+                  <div class="field-hint">Tanggal carian PB</div>
                   <div class="date-input-wrap">
                     <svg class="date-cal-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    <input type="date" id="qco_tanggal" class="form-input date-styled" style="border-color: rgba(124,58,237,0.3);" required onchange="qcoOnDateOrArmadaChange()">
+                    <input type="date" id="qco_tanggal_carian" class="form-input date-styled" style="border-color: rgba(124,58,237,0.3);" required onchange="qcoOnDateOrArmadaChange()">
                   </div>
-                  <div class="field-error" id="err-qco_tanggal"><svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg> Wajib diisi</div>
+                  <div class="field-error" id="err-qco_tanggal_carian"><svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg> Wajib diisi</div>
                 </div>
 
+                <div class="field-group">
+                  <label class="field-label" for="qco_tanggal_kirim">Tanggal Kirim <span class="required">*</span></label>
+                  <div class="field-hint">Tanggal pengiriman</div>
+                  <div class="date-input-wrap">
+                    <svg class="date-cal-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <input type="date" id="qco_tanggal_kirim" class="form-input date-styled" style="border-color: rgba(124,58,237,0.3);" required>
+                  </div>
+                  <div class="field-error" id="err-qco_tanggal_kirim"><svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg> Wajib diisi</div>
+                </div>
+              </div>
+
+              <div class="fields-row" style="margin-top: 14px;">
                 <div class="field-group">
                   <label class="field-label" for="qco_nopol">No. Polisi Armada <span class="required">*</span></label>
                   <div class="field-hint">Pilih dari daftar armada loader atau ketik manual</div>
@@ -1297,11 +1309,11 @@
                   <div id="qco_armada_info" style="display:none; margin-top:8px; padding:8px 12px; background:rgba(124,58,237,0.06); border-radius:8px; font-size:12px; color:#7C3AED;"></div>
                   <div class="field-error" id="err-qco_nopol"><svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg> Wajib diisi</div>
                 </div>
-              </div>
 
-              <div class="field-group" style="margin-top: 14px;">
-                <label class="field-label" for="qco_nama_qc">Nama QC Inspector</label>
-                <input type="text" id="qco_nama_qc" class="form-input" style="border-color: rgba(124,58,237,0.3); background: rgba(124,58,237,0.03);" readonly>
+                <div class="field-group">
+                  <label class="field-label" for="qco_nama_qc">Nama QC Inspector</label>
+                  <input type="text" id="qco_nama_qc" class="form-input" style="border-color: rgba(124,58,237,0.3); background: rgba(124,58,237,0.03);" readonly>
+                </div>
               </div>
             </div>
           </div>
