@@ -1260,8 +1260,8 @@
 
         <form id="qcOutboundForm" onsubmit="event.preventDefault();" novalidate>
 
-          <!-- ── SECTION 1: Tanggal & Armada ── -->
-          <div class="form-section" style="background: var(--card-bg, #fff); border: 1.5px solid rgba(124,58,237,0.15); border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 12px rgba(124,58,237,0.06);">
+          <!-- ── SECTION 1: Data Pengiriman ── -->
+          <div class="form-section" style="background: var(--card-bg, #fff); border: 1.5px solid rgba(124,58,237,0.15); border-radius: 16px; padding: 20px; margin-bottom: 16px;">
             <div class="section-header">
               <div class="section-header-icon" style="background: linear-gradient(135deg, rgba(124,58,237,0.12), rgba(91,33,182,0.08)); color: #7C3AED;">
                 <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -1269,8 +1269,8 @@
                 </svg>
               </div>
               <div>
-                <div class="section-title">Tanggal &amp; Armada</div>
-                <div class="section-subtitle">Pilih tanggal carian/kirim dan armada yang di-QC</div>
+                <div class="section-title">Data Pengiriman</div>
+                <div class="section-subtitle">Tanggal carian dan pengiriman</div>
               </div>
             </div>
             <div class="section-body">
@@ -1280,7 +1280,7 @@
                   <div class="field-hint">Tanggal carian PB</div>
                   <div class="date-input-wrap">
                     <svg class="date-cal-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    <input type="date" id="qco_tanggal_carian" class="form-input date-styled" style="border-color: rgba(124,58,237,0.3);" required onchange="qcoOnDateOrArmadaChange()">
+                    <input type="date" id="qco_tanggal_carian" class="form-input date-styled" style="border-color: rgba(124,58,237,0.3);" required>
                   </div>
                   <div class="field-error" id="err-qco_tanggal_carian"><svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg> Wajib diisi</div>
                 </div>
@@ -1295,117 +1295,99 @@
                   <div class="field-error" id="err-qco_tanggal_kirim"><svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg> Wajib diisi</div>
                 </div>
               </div>
+            </div>
+          </div>
 
-              <div class="fields-row" style="margin-top: 14px;">
-                <div class="field-group">
-                  <label class="field-label" for="qco_nopol">No. Polisi Armada <span class="required">*</span></label>
-                  <div class="field-hint">Pilih dari daftar armada loader atau ketik manual</div>
-                  <div style="position:relative;">
-                    <select id="qco_nopol_select" class="form-input" style="border-color: rgba(124,58,237,0.3); display:none;" onchange="qcoSelectNopol(this.value)">
-                      <option value="">-- Pilih dari daftar armada --</option>
-                    </select>
-                    <input type="text" id="qco_nopol" class="form-input" style="border-color: rgba(124,58,237,0.3); text-transform:uppercase;" placeholder="Contoh: B 1234 AB" required oninput="this.value = this.value.toUpperCase(); qcoOnDateOrArmadaChange();">
-                  </div>
-                  <div id="qco_armada_info" style="display:none; margin-top:8px; padding:8px 12px; background:rgba(124,58,237,0.06); border-radius:8px; font-size:12px; color:#7C3AED;"></div>
-                  <div class="field-error" id="err-qco_nopol"><svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg> Wajib diisi</div>
+          <!-- ── SECTION 2: Daftar Armada ── -->
+          <div id="qcoArmadaSection" style="display:none; margin-bottom: 16px;">
+            <div class="form-section" style="background: var(--card-bg, #fff); border: 1.5px solid rgba(124,58,237,0.15); border-radius: 16px; padding: 20px; margin-bottom:0;">
+              <div class="section-header">
+                <div class="section-header-icon" style="background: linear-gradient(135deg, rgba(124,58,237,0.12), rgba(91,33,182,0.08)); color: #7C3AED;">
+                  <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+                  </svg>
                 </div>
-
-                <div class="field-group">
-                  <label class="field-label" for="qco_nama_qc">Nama QC Inspector</label>
-                  <input type="text" id="qco_nama_qc" class="form-input" style="border-color: rgba(124,58,237,0.3); background: rgba(124,58,237,0.03);" readonly>
+                <div>
+                  <div class="section-title">Daftar Armada <span class="required">*</span></div>
+                  <div class="section-subtitle">No. Polisi &amp; muatan tiap armada</div>
                 </div>
+              </div>
+              <div class="section-body">
+                <div id="qcoArmadaListContainer"></div>
               </div>
             </div>
           </div>
 
-          <!-- ── SECTION 2: TARGET RPS (READ-ONLY REFERENCE CARD) ── -->
-          <div class="form-section" style="background: var(--card-bg, #fff); border: 1.5px solid rgba(14,165,233,0.2); border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 12px rgba(14,165,233,0.05);">
-            <div class="section-header">
-              <div class="section-header-icon" style="background: linear-gradient(135deg, rgba(14,165,233,0.12), rgba(2,132,199,0.08)); color: #0284C7;">
-                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/>
-                </svg>
-              </div>
-              <div style="flex:1;">
-                <div class="section-title" style="color:#0284C7;">Target RPS (Acuan Informasi)</div>
-                <div class="section-subtitle">Data RPS dari Data Carian/Loader untuk acuan pemeriksa QC <span style="font-weight:700; color:#0284C7;">(Read-Only)</span></div>
-              </div>
-            </div>
-            <div class="section-body">
-              <div id="qcoRpsLoading" style="display:none; align-items:center; justify-content:center; gap:10px; padding:16px; background:rgba(14,165,233,0.04); border:1.5px dashed rgba(14,165,233,0.25); border-radius:12px;">
-                <div class="tc-spinner"></div>
-                <span style="font-size:13px; font-weight:600; color:#0284C7;">Memuat data acuan target RPS...</span>
-              </div>
-              <div id="qcoRpsEmpty" style="padding:14px; text-align:center; font-size:12px; color:#94A3B8; background:rgba(148,163,184,0.05); border-radius:10px; border:1px dashed #CBD5E1;">
-                Pilih tanggal &amp; armada di atas untuk menampilkan acuan Target RPS.
-              </div>
-              <div id="qcoRpsContainer" style="display:none;"></div>
-            </div>
-          </div>
-
-          <!-- ── SECTION 3: Jumlah Barang Actual (Outbound) ── -->
-          <div class="form-section" style="background: var(--card-bg, #fff); border: 1.5px solid rgba(124,58,237,0.15); border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 12px rgba(124,58,237,0.06);">
+          <!-- ── SECTION 3: Data Barang Actual (Kontainer, Styrofoam, Dus) ── -->
+          <div class="form-section" style="background: var(--card-bg, #fff); border: 1.5px solid rgba(124,58,237,0.15); border-radius: 16px; padding: 20px; margin-bottom: 16px;">
             <div class="section-header">
               <div class="section-header-icon" style="background: linear-gradient(135deg, rgba(124,58,237,0.12), rgba(91,33,182,0.08)); color: #7C3AED;">
                 <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
                 </svg>
               </div>
               <div>
-                <div class="section-title">Jumlah Barang Actual</div>
-                <div class="section-subtitle">Input jumlah kontainer, styrofoam &amp; dus actual yang masuk ke armada</div>
+                <div class="section-title">Data Kontainer &amp; Barang Actual</div>
+                <div class="section-subtitle">Target RPS (Read-Only) dan input barang actual per armada</div>
               </div>
             </div>
             <div class="section-body">
-              <div class="non-group-grid">
-                <div class="non-group-item" style="border-color:rgba(124,58,237,0.25);">
-                  <div class="non-group-label" style="color:#7C3AED; font-weight:700;">📦 Kontainer</div>
-                  <div class="non-group-row">
-                    <input type="number" class="non-group-input" id="qco_kontainer" value="0" min="0" oninput="qcoUpdateTotal()" style="border-color:rgba(124,58,237,0.3);">
-                    <span class="non-group-unit">kont.</span>
+              <!-- Target kontainer (auto-loaded) -->
+              <div id="qcoCapacityCard" style="display:none; margin-bottom:16px;">
+                <div class="field-label" style="margin-bottom:10px; color:#0284C7;">Target Kontainer / RPS (dari Data Carian)</div>
+                <div id="qcoCapacityLoading" style="display:none; align-items:center; justify-content:center; gap:12px; padding:20px; background:rgba(14,165,233,0.04); border:2px dashed rgba(14,165,233,0.2); border-radius:12px;">
+                  <div class="tc-spinner"></div>
+                  <span style="font-size:14px; font-weight:600; color:#0284C7;">Memuat target kontainer...</span>
+                </div>
+                <div id="qcoCapacityInfo" class="total-kontainer-card" style="background:linear-gradient(135deg,rgba(14,165,233,0.08),rgba(2,132,199,0.03)); border-color:rgba(14,165,233,0.25);">
+                  <div>
+                    <div class="tc-label" id="qcoCapacityClusterLabel" style="color:#0369A1;">Cluster</div>
+                    <div class="tc-unit">Total RPS dari data carian (Read-Only)</div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div class="tc-value" id="qcoCapacityValue" style="color:#0284C7;">0</div>
+                    <div class="tc-unit">kontainer / RPS</div>
                   </div>
                 </div>
-                <div class="non-group-item" style="border-color:rgba(2,132,199,0.25);">
-                  <div class="non-group-label" style="color:#0284C7; font-weight:700;">🧊 Styrofoam</div>
-                  <div class="non-group-row">
-                    <input type="number" class="non-group-input" id="qco_styrofoam" value="0" min="0" oninput="qcoUpdateTotal()" style="border-color:rgba(2,132,199,0.3);">
-                    <span class="non-group-unit">stero.</span>
-                  </div>
-                </div>
-                <div class="non-group-item" style="border-color:rgba(217,119,6,0.25);">
-                  <div class="non-group-label" style="color:#D97706; font-weight:700;">📫 Dus</div>
-                  <div class="non-group-row">
-                    <input type="number" class="non-group-input" id="qco_dus" value="0" min="0" oninput="qcoUpdateTotal()" style="border-color:rgba(217,119,6,0.3);">
-                    <span class="non-group-unit">dus</span>
-                  </div>
+              </div>
+
+              <!-- Barang Actual List (Per Selected Cluster/Armada) -->
+              <div class="field-group">
+                <div class="field-label">Jumlah Barang Actual <span class="required">*</span></div>
+                <div class="field-hint">Input jumlah kontainer, styrofoam &amp; dus yang dimuat ke armada</div>
+                <div class="batch-output-empty" id="qcoClusterOutputEmpty">Pilih Tanggal Carian terlebih dahulu.</div>
+                <div id="qcoClusterOutputList"></div>
+                <div class="field-error" id="err-qco_kontainer">
+                  <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                  <span id="qcoErrKontainerMsg">Isi minimal satu barang actual</span>
                 </div>
               </div>
 
               <div class="section-divider"></div>
 
-              <!-- Non-Group Items (Gacoan / Dikichi / Benfarm) -->
+              <!-- Non-Group Items -->
               <div class="field-group">
-                <div class="field-label" style="color:#7C3AED;">Item Non-Group</div>
+                <div class="field-label" style="color:#7C3AED;">Non-Group</div>
                 <div class="field-hint">Isi jumlah kontainer untuk item non-cluster (jika ada)</div>
                 <div class="non-group-grid">
                   <div class="non-group-item">
                     <div class="non-group-label">Gacoan</div>
                     <div class="non-group-row">
-                      <input type="number" class="non-group-input" id="qco_gacoan" value="0" min="0" oninput="qcoUpdateTotal()" style="border-color:rgba(124,58,237,0.3);">
+                      <input type="number" class="non-group-input" id="qco_gacoan" value="0" min="0" oninput="qcoUpdateTotal()">
                       <span class="non-group-unit">kont.</span>
                     </div>
                   </div>
                   <div class="non-group-item">
                     <div class="non-group-label">Dikichi</div>
                     <div class="non-group-row">
-                      <input type="number" class="non-group-input" id="qco_dikichi" value="0" min="0" oninput="qcoUpdateTotal()" style="border-color:rgba(124,58,237,0.3);">
+                      <input type="number" class="non-group-input" id="qco_dikichi" value="0" min="0" oninput="qcoUpdateTotal()">
                       <span class="non-group-unit">kont.</span>
                     </div>
                   </div>
                   <div class="non-group-item">
                     <div class="non-group-label">Benfarm</div>
                     <div class="non-group-row">
-                      <input type="number" class="non-group-input" id="qco_benfarm" value="0" min="0" oninput="qcoUpdateTotal()" style="border-color:rgba(124,58,237,0.3);">
+                      <input type="number" class="non-group-input" id="qco_benfarm" value="0" min="0" oninput="qcoUpdateTotal()">
                       <span class="non-group-unit">kont.</span>
                     </div>
                   </div>
@@ -1421,7 +1403,7 @@
                   <div class="tc-unit">Kontainer + Styrofoam + Dus + Non-Group</div>
                 </div>
                 <div style="text-align:right;">
-                  <div class="tc-value" id="qcoTotalItems" style="color:#7C3AED;">0</div>
+                  <div class="tc-value" id="qcoTotalKontainer" style="color:#7C3AED;">0</div>
                   <div class="tc-unit">items</div>
                 </div>
               </div>
@@ -1429,7 +1411,7 @@
           </div>
 
           <!-- ── SECTION 4: Foto & Lampiran ── -->
-          <div class="form-section" style="background: var(--card-bg, #fff); border: 1.5px solid rgba(124,58,237,0.15); border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 12px rgba(124,58,237,0.06);">
+          <div class="form-section" style="background: var(--card-bg, #fff); border: 1.5px solid rgba(124,58,237,0.15); border-radius: 16px; padding: 20px; margin-bottom: 16px;">
             <div class="section-header">
               <div class="section-header-icon" style="background: linear-gradient(135deg, rgba(124,58,237,0.12), rgba(91,33,182,0.08)); color: #7C3AED;">
                 <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -1438,7 +1420,7 @@
               </div>
               <div>
                 <div class="section-title">Foto &amp; Lampiran</div>
-                <div class="section-subtitle">Foto muatan kontainer di dalam armada + catatan tambahan</div>
+                <div class="section-subtitle">Foto muatan kontainer di dalam unit + catatan tambahan</div>
               </div>
             </div>
             <div class="section-body">
@@ -1489,7 +1471,7 @@
               <div class="form-actions">
                 <button type="submit" class="btn-submit" id="qcoSubmitBtn" onclick="qcoSubmitForm()" style="background: linear-gradient(135deg, #7C3AED, #5B21B6);">
                   <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                  <span class="btn-text">Simpan QC Outbound</span>
+                  <span class="btn-text">Kirim QC Outbound</span>
                   <div class="spinner"></div>
                 </button>
                 <button type="button" class="btn-clear" onclick="qcoClearForm()">Kosongkan</button>

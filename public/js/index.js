@@ -4880,6 +4880,8 @@ window.printLoaderEntryDirect = printLoaderEntryDirect;
 
 let qcoSelectedFiles = [];
 let qcoTargetRpsCache = {};
+let qcoArmadas = [{ id: Date.now(), no_polisi: '', selectedGms: [] }];
+let qcoAvailableGroupMobils = [];
 
 function qcoUpdateTotal() {
   const k = parseInt(document.getElementById('qco_kontainer')?.value) || 0;
@@ -4888,53 +4890,306 @@ function qcoUpdateTotal() {
   const g = parseInt(document.getElementById('qco_gacoan')?.value) || 0;
   const dk = parseInt(document.getElementById('qco_dikichi')?.value) || 0;
   const bf = parseInt(document.getElementById('qco_benfarm')?.value) || 0;
-  const el = document.getElementById('qcoTotalItems');
+  const el = document.getElementById('qcoTotalKontainer');
   if (el) el.textContent = k + s + d + g + dk + bf;
 }
 
-async function qcoLoadArmada() {
-  const tanggal = document.getElementById('qco_tanggal_carian')?.value || document.getElementById('qco_tanggal_kirim')?.value;
-  const select = document.getElementById('qco_nopol_select');
-  const info = document.getElementById('qco_armada_info');
-  if (!tanggal || !select) return;
+document.addEventListener('DOMContentLoaded', () => {
+  const tglCar = document.getElementById('qco_tanggal_carian');
+  if (tglCar) {
+    tglCar.addEventListener('change', () => {
+      qcoLoadGroupMobils();
+    });
+  }
+});
 
+async function qcoLoadGroupMobils() {
   try {
-    const res = await fetch(`/api/qc-outbound/loader-armada?tanggal=${tanggal}`);
-    if (!res.ok) { select.style.display = 'none'; return; }
-    const data = await res.json();
-    const armadaList = data.data || [];
+    const tanggal = document.getElementById('qco_tanggal_carian')?.value;
+    const armadaSection = document.getElementById('qcoArmadaSection');
+    const armadaListContainer = document.getElementById('qcoArmadaListContainer');
+    
+    const outputList = document.getElementById('qcoClusterOutputList');
+    const empty      = document.getElementById('qcoClusterOutputEmpty');
+    const capCard    = document.getElementById('qcoCapacityCard');
+    const capLoading = document.getElementById('qcoCapacityLoading');
 
-    if (armadaList.length === 0) {
-      select.style.display = 'none';
-      if (info) { info.style.display = 'none'; }
+    if (armadaListContainer) armadaListContainer.innerHTML = '';
+    if (armadaSection) armadaSection.style.display = 'none';
+    
+    if (outputList) outputList.innerHTML = '';
+    if (empty) empty.style.display = '';
+    if (capCard) capCard.style.display = 'none';
+    if (capLoading) capLoading.style.display = 'none';
+    
+    qcoArmadas = [{ id: Date.now(), no_polisi: '', selectedGms: [] }];
+    qcoAvailableGroupMobils = [];
+    
+    qcoUpdateTotal();
+
+    if (!tanggal) return;
+
+    if (empty) empty.textContent = 'Memuat daftar Group Mobil dari server...';
+
+    const r = await fetch(`/api/data-carian?tanggal=${tanggal}`);
+    const records = await r.json();
+    
+    const activeRecords = Array.isArray(records) ? records.filter(rec => rec.posisi === 'Loader' || rec.batch) : [];
+
+    if (activeRecords.length === 0) {
+      if (empty) empty.textContent = `⚠️ Tidak ada data carian Loader untuk tanggal ${tanggal}.`;
       return;
     }
 
-    select.innerHTML = '<option value="">-- Pilih dari daftar armada --</option>';
-    armadaList.forEach(a => {
-      const opt = document.createElement('option');
-      opt.value = a.no_polisi;
-      opt.textContent = `${a.no_polisi} — ${a.nama || ''} ${a.sudah_ada_qc ? '✅ Sudah di-QC' : ''}`;
-      if (a.sudah_ada_qc) opt.style.color = '#10B981';
-      select.appendChild(opt);
-    });
-    select.style.display = 'block';
-  } catch(e) {
-    select.style.display = 'none';
+    qcoAvailableGroupMobils = Array.from(new Set(activeRecords.map(rec => String(rec.batch).trim()))).sort();
+    
+    if (armadaSection) armadaSection.style.display = 'block';
+    if (empty) empty.textContent = 'Masukkan armada dan pilih Group Mobil yang dimuat.';
+    
+    qcoRenderArmadas();
+  } catch (err) {
+    console.error('qcoLoadGroupMobils error:', err);
   }
 }
 
-function qcoSelectNopol(val) {
-  const input = document.getElementById('qco_nopol');
-  const info = document.getElementById('qco_armada_info');
-  if (input && val) {
-    input.value = val;
-    if (info) {
-      info.textContent = `Armada ${val} dipilih dari daftar loader entries`;
-      info.style.display = 'block';
-    }
-    qcoOnDateOrArmadaChange();
+function qcoRenderArmadas() {
+  const container = document.getElementById('qcoArmadaListContainer');
+  if (!container) return;
+  
+  if (qcoArmadas.length === 0) {
+    qcoArmadas.push({ id: Date.now(), no_polisi: '', selectedGms: [] });
   }
+  
+  const cardsHtml = qcoArmadas.map((truck, index) => {
+    return `
+      <div class="armada-card" id="qcoArmadaCard_${index}">
+        <div class="armada-card-header">
+          <div class="armada-badge-header">
+            <div class="armada-badge-icon" style="background:linear-gradient(135deg,#7C3AED,#5B21B6);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                <rect x="1" y="3" width="15" height="13" rx="2" />
+                <path d="M16 8h4.5l2.5 3.5V15h-7V8z" />
+                <circle cx="5.5" cy="17.5" r="2" fill="#fff"/>
+                <circle cx="17.5" cy="17.5" r="2" fill="#fff"/>
+              </svg>
+            </div>
+            <div>
+              <div class="armada-title-text" style="color:#7C3AED;">ARMADA #${index + 1}</div>
+              <div class="armada-title-sub">No. Polisi & Cluster Muatan</div>
+            </div>
+          </div>
+          ${index > 0 ? `
+          <button type="button" class="btn-remove-armada" onclick="qcoRemoveArmada(${index})" title="Hapus armada ini">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+            Hapus Armada
+          </button>
+          ` : ''}
+        </div>
+        
+        <div style="margin-bottom: 16px; position:relative;" class="nopol-wrapper">
+          <label class="field-label" style="font-size:12px; margin-bottom:6px; font-weight:700; color:var(--text); display:block;">No. Polisi Armada <span class="required" style="color:var(--error);">*</span></label>
+          
+          <div style="position:relative;">
+            <input type="text" 
+                   id="qco_nopol_input_${index}"
+                   placeholder="🚚 Pilih / Cari No. Polisi (contoh: B 9676 VXR)..." 
+                   class="form-input no-polisi-input" 
+                   value="${truck.no_polisi}" 
+                   onfocus="qcoOpenNopolDropdown(${index})"
+                   oninput="qcoUpdateTruckPolisi(${index}, this.value); qcoFilterNopolDropdown(${index})" 
+                   autocomplete="off"
+                   style="text-transform: uppercase; padding: 11px 40px 11px 14px; font-size: 13px; border-radius: 10px; border: 2px solid rgba(124,58,237,0.3); font-weight:800; font-family:'Inter', sans-serif; width:100%; transition:all 0.2s;"
+                   required>
+            
+            <div onclick="qcoOpenNopolDropdown(${index})" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; color:#7C3AED; font-size:11px; display:flex; align-items:center; gap:4px; background:rgba(124,58,237,0.08); padding:4px 8px; border-radius:6px; font-weight:700;">
+              <span>Cari / Pilih</span>
+              <span>▼</span>
+            </div>
+          </div>
+
+          <!-- Dropdown Floating Menu -->
+          <div id="qco_nopol_dropdown_${index}" class="nopol-dropdown-menu" 
+               style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:999; background:#fff; border:1.5px solid #7C3AED; border-radius:12px; box-shadow:0 12px 32px rgba(124,58,237,0.15); max-height:240px; overflow-y:auto;">
+            <div id="qco_nopol_list_${index}"></div>
+          </div>
+        </div>
+        
+        <div>
+          <label class="field-label" style="font-size:12px; margin-bottom:4px; font-weight:700; color:var(--text); display:block;">Muatan Group Mobil (No. Mobil) <span class="required" style="color:var(--error);">*</span></label>
+          <p class="field-hint" style="font-size:11px; margin-bottom:8px; color:var(--text-muted);">Pilih group mobil yang di-QC pada armada ini</p>
+          
+          <div class="gm-filter-wrapper" style="margin-bottom: 8px;">
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:6px;">
+              <div style="position:relative; flex:1; min-width:160px;">
+                <input type="text" 
+                       id="qco_gm_search_${index}" 
+                       placeholder="Cari No. Mobil (misal: KWG, BDG, 05)..." 
+                       class="form-input gm-search-input" 
+                       oninput="qcoFilterArmadaGrid(${index})"
+                       style="padding: 8px 10px 8px 30px; font-size: 11.5px; border-radius: 8px; border: 1.5px solid rgba(124,58,237,0.2); font-weight:600; width:100%;">
+                <svg width="13" height="13" fill="none" stroke="#7C3AED" stroke-width="2.2" viewBox="0 0 24 24" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); pointer-events:none;">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+              </div>
+              <div class="gm-category-tabs" id="qco_gm_cat_tabs_${index}"></div>
+            </div>
+          </div>
+
+          <div class="batch-grid gm-chips-grid" id="qcoArmadaGrid_${index}" style="grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 8px; margin-top: 4px; max-height: 220px; overflow-y: auto; padding: 6px;"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const nextNum = qcoArmadas.length + 1;
+  const bottomBtnHtml = `
+    <div class="add-armada-bottom-wrapper">
+      <button type="button" class="btn-add-armada-bottom" onclick="qcoAddArmada()" style="background:linear-gradient(135deg,rgba(124,58,237,0.08),rgba(91,33,182,0.04)); border:1.5px dashed #7C3AED; color:#7C3AED;">
+        <div class="add-armada-icon-box" style="background:#7C3AED; color:#fff;">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.8" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+          </svg>
+        </div>
+        <span>Tambah Armada #${nextNum}</span>
+      </button>
+    </div>
+  `;
+
+  container.innerHTML = cardsHtml + bottomBtnHtml;
+  
+  qcoArmadas.forEach((truck, index) => {
+    qcoRenderGroupFilterControls(index);
+    qcoFilterArmadaGrid(index);
+  });
+}
+
+function qcoAddArmada() {
+  qcoArmadas.push({ id: Date.now(), no_polisi: '', selectedGms: [] });
+  qcoRenderArmadas();
+}
+
+function qcoRemoveArmada(index) {
+  qcoArmadas.splice(index, 1);
+  qcoRenderArmadas();
+}
+
+function qcoUpdateTruckPolisi(index, val) {
+  if (qcoArmadas[index]) {
+    qcoArmadas[index].no_polisi = val.trim().toUpperCase();
+  }
+}
+
+function qcoRenderGroupFilterControls(index) {
+  const tabsContainer = document.getElementById(`qco_gm_cat_tabs_${index}`);
+  if (!tabsContainer) return;
+  const cats = new Set();
+  qcoAvailableGroupMobils.forEach(gm => {
+    const prefix = gm.replace(/[0-9]/g, '').trim().toUpperCase();
+    if (prefix) cats.add(prefix);
+  });
+  const catList = Array.from(cats).sort();
+  let html = `<button type="button" class="gm-cat-pill active" onclick="qcoSelectCatTab(${index}, 'ALL', this)" style="background:#7C3AED; color:#fff; font-size:11px; padding:4px 8px; border-radius:6px; border:none; font-weight:700; cursor:pointer;">SEMUA</button>`;
+  catList.forEach(c => {
+    html += `<button type="button" class="gm-cat-pill" onclick="qcoSelectCatTab(${index}, '${c}', this)" style="background:#F1F5F9; color:#64748B; font-size:11px; padding:4px 8px; border-radius:6px; border:none; font-weight:700; cursor:pointer;">${c}</button>`;
+  });
+  tabsContainer.innerHTML = html;
+}
+
+function qcoSelectCatTab(index, cat, btnEl) {
+  const tabs = document.querySelectorAll(`#qco_gm_cat_tabs_${index} .gm-cat-pill`);
+  tabs.forEach(t => {
+    t.style.background = '#F1F5F9';
+    t.style.color = '#64748B';
+  });
+  btnEl.style.background = '#7C3AED';
+  btnEl.style.color = '#fff';
+  btnEl.setAttribute('data-selected-cat', cat);
+  qcoFilterArmadaGrid(index);
+}
+
+function qcoFilterArmadaGrid(index) {
+  const grid = document.getElementById(`qcoArmadaGrid_${index}`);
+  if (!grid) return;
+  const searchVal = (document.getElementById(`qco_gm_search_${index}`)?.value || '').trim().toUpperCase();
+  const activeTabBtn = document.querySelector(`#qco_gm_cat_tabs_${index} .gm-cat-pill[style*="7C3AED"]`);
+  const activeCat = activeTabBtn?.getAttribute('data-selected-cat') || 'ALL';
+
+  const truck = qcoArmadas[index];
+  const selectedSet = new Set(truck?.selectedGms || []);
+
+  const filtered = qcoAvailableGroupMobils.filter(gm => {
+    const matchSearch = !searchVal || gm.toUpperCase().includes(searchVal);
+    const prefix = gm.replace(/[0-9]/g, '').trim().toUpperCase();
+    const matchCat = (activeCat === 'ALL') || (prefix === activeCat);
+    return matchSearch && matchCat;
+  });
+
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div style="grid-column:1/-1; font-size:11px; color:#94A3B8; text-align:center; padding:10px;">Tidak ada Group Mobil yang sesuai</div>`;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(gm => {
+    const isSel = selectedSet.has(gm);
+    return `
+      <div class="batch-chip ${isSel ? 'selected' : ''}" 
+           onclick="qcoToggleGmChip(${index}, '${gm}')"
+           style="padding:8px 10px; border-radius:8px; font-size:12px; font-weight:800; text-align:center; cursor:pointer; transition:all 0.15s; ${isSel ? 'background:#7C3AED; color:#fff; border:1.5px solid #5B21B6;' : 'background:#F8FAFC; color:#334155; border:1.5px solid #E2E8F0;'}">
+        <span>🚚 ${gm}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function qcoToggleGmChip(index, gm) {
+  const truck = qcoArmadas[index];
+  if (!truck) return;
+  const pos = truck.selectedGms.indexOf(gm);
+  if (pos >= 0) {
+    truck.selectedGms.splice(pos, 1);
+  } else {
+    truck.selectedGms.push(gm);
+  }
+  qcoFilterArmadaGrid(index);
+}
+
+function qcoOpenNopolDropdown(index) {
+  const dropdown = document.getElementById(`qco_nopol_dropdown_${index}`);
+  if (!dropdown) return;
+  qcoFilterNopolDropdown(index);
+  dropdown.style.display = 'block';
+}
+
+function qcoCloseNopolDropdown(index) {
+  const dropdown = document.getElementById(`qco_nopol_dropdown_${index}`);
+  if (dropdown) dropdown.style.display = 'none';
+}
+
+function qcoFilterNopolDropdown(index) {
+  const listEl = document.getElementById(`qco_nopol_list_${index}`);
+  if (!listEl) return;
+  const searchVal = (document.getElementById(`qco_nopol_input_${index}`)?.value || '').trim().toUpperCase();
+  const list = ldGetCombinedNopolList();
+  const filtered = list.filter(p => !searchVal || p.toUpperCase().includes(searchVal));
+
+  if (filtered.length === 0) {
+    listEl.innerHTML = `<div style="padding:10px; font-size:12px; color:#94A3B8; text-align:center;">Gunakan nopol baru "${searchVal}"</div>`;
+    return;
+  }
+
+  listEl.innerHTML = filtered.map(p => `
+    <div onclick="qcoSelectNopol(${index}, '${p}')" style="padding:10px 14px; font-size:12.5px; font-weight:700; color:#1E293B; cursor:pointer; border-bottom:1px solid #F1F5F9; hover:background:#F8FAFC;">
+      🚚 ${p}
+    </div>
+  `).join('');
+}
+
+function qcoSelectNopol(index, val) {
+  const cleanVal = val.trim().toUpperCase();
+  qcoUpdateTruckPolisi(index, cleanVal);
+  const inputEl = document.getElementById(`qco_nopol_input_${index}`);
+  if (inputEl) inputEl.value = cleanVal;
+  qcoCloseNopolDropdown(index);
 }
 
 async function qcoOnDateOrArmadaChange() {
