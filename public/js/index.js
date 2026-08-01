@@ -2592,45 +2592,8 @@ function ldRenderClusterInputRow(groupMobil, cap, customContainer = null) {
             <span style="font-size:12px; font-weight:700; color:#64748b;">${satuan}</span>
           </div>
         </div>
-
-        <!-- 2. Outbound Box -->
-        <div style="background:linear-gradient(135deg,rgba(109,40,217,0.06),rgba(109,40,217,0.02)); border:1.5px solid rgba(109,40,217,0.25); border-radius:12px; padding:12px 14px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:4px;">
-            <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:#6d28d9; display:flex; align-items:center; gap:6px;">
-              <span style="width:20px; height:20px; border-radius:6px; background:rgba(109,40,217,0.15); display:inline-flex; align-items:center; justify-content:center;">🚚</span>
-              Outbound <span style="color:#ef4444; font-size:13px; margin-left:2px;">*</span>
-            </div>
-            <span style="font-size:10px; font-weight:600; color:#7c3aed;">Pencatatan Barang <span style="color:#ef4444;">*</span></span>
-          </div>
-
-          <!-- Banner Petunjuk Ramping Outbound -->
-          <div style="background:rgba(109,40,217,0.07); border:1px solid rgba(109,40,217,0.18); border-radius:8px; padding:6px 10px; margin-bottom:10px; display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600; color:#5b21b6; line-height:1.35;">
-            <span style="font-size:13px; flex-shrink:0;">ℹ️</span>
-            <span>Isi dengan <strong>jumlah FISIK AKTUAL</strong> (Kontainer, Styrofoam, Dus) yang benar-benar dikirim ke armada.</span>
-          </div>
-
-          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(95px, 1fr)); gap:8px;">
-            <div style="background:#fff; border:1.5px solid rgba(109,40,217,0.2); border-radius:10px; padding:8px 10px; text-align:center;">
-              <div style="font-size:10px; font-weight:800; color:#6d28d9; margin-bottom:4px;">📦 Kontainer</div>
-              <input type="number" class="bor-input-outbound-kontainer" data-batch-outbound="${groupMobil}" placeholder="0" min="0" value="0"
-                style="width:100%; padding:6px; border-radius:6px; border:1.5px solid rgba(109,40,217,0.25); font-size:16px; font-weight:800; color:#6d28d9; background:rgba(109,40,217,0.03); text-align:center; outline:none;"
-                onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='rgba(109,40,217,0.25)'">
-            </div>
-            <div style="background:#fff; border:1.5px solid rgba(2,132,199,0.2); border-radius:10px; padding:8px 10px; text-align:center;">
-              <div style="font-size:10px; font-weight:800; color:#0284c7; margin-bottom:4px;">🧊 Styrofoam</div>
-              <input type="number" class="bor-input-outbound-styrofoam" data-batch-outbound="${groupMobil}" placeholder="0" min="0" value="0"
-                style="width:100%; padding:6px; border-radius:6px; border:1.5px solid rgba(2,132,199,0.25); font-size:16px; font-weight:800; color:#0284c7; background:rgba(2,132,199,0.03); text-align:center; outline:none;"
-                onfocus="this.style.borderColor='#0284c7'" onblur="this.style.borderColor='rgba(2,132,199,0.25)'">
-            </div>
-            <div style="background:#fff; border:1.5px solid rgba(217,119,6,0.2); border-radius:10px; padding:8px 10px; text-align:center;">
-              <div style="font-size:10px; font-weight:800; color:#d97706; margin-bottom:4px;">📦 Dus</div>
-              <input type="number" class="bor-input-outbound-dus" data-batch-outbound="${groupMobil}" placeholder="0" min="0" value="0"
-                style="width:100%; padding:6px; border-radius:6px; border:1.5px solid rgba(217,119,6,0.25); font-size:16px; font-weight:800; color:#d97706; background:rgba(217,119,6,0.03); text-align:center; outline:none;"
-                onfocus="this.style.borderColor='#d97706'" onblur="this.style.borderColor='rgba(217,119,6,0.25)'">
-            </div>
-          </div>
-        </div>
       </div>
+
       <div class="bor-note-row" id="ld-note-row-${groupMobil}" style="display:none; padding: 8px 16px 0px;">
         <input type="text" class="form-input bor-note-input blue" data-batch="${groupMobil}" placeholder="Tulis alasan / keterangan over-input untuk Group Mobil ${groupMobil}..." style="font-size:12px; padding:8px 12px; border-radius:8px; border: 1.5px dashed var(--error); width: 100%; box-sizing: border-box; outline: none; background: rgba(14,165,233,0.01);">
       </div>
@@ -2847,33 +2810,6 @@ function ldValidate() {
       rpsInput.style.boxShadow   = '';
     }
 
-    // 2. Outbound — minimal total Kontainer + Styrofoam + Dus > 0
-    const inpK = row.querySelector('.bor-input-outbound-kontainer');
-    const inpS = row.querySelector('.bor-input-outbound-styrofoam');
-    const inpD = row.querySelector('.bor-input-outbound-dus');
-    const outTotal = (parseInt(inpK?.value) || 0) + (parseInt(inpS?.value) || 0) + (parseInt(inpD?.value) || 0);
-
-    const outboundBox = row.querySelector('.bor-input-outbound-kontainer')?.closest('div[style*="grid"]')?.parentElement;
-
-    if (outTotal <= 0) {
-      // Tandai semua input outbound dengan border merah
-      [inpK, inpS, inpD].forEach(inp => {
-        if (inp) {
-          inp.style.borderColor = '#ef4444';
-          inp.style.boxShadow  = '0 0 0 3px rgba(239,68,68,0.18)';
-        }
-      });
-      showToast(`⚠️ Outbound wajib diisi untuk Group Mobil ${gm} (minimal 1 field > 0).`, 'error');
-      valid = false;
-    } else {
-      // Reset jika sudah diisi
-      [inpK, inpS, inpD].forEach(inp => {
-        if (inp) {
-          inp.style.borderColor = '';
-          inp.style.boxShadow   = '';
-        }
-      });
-    }
   });
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -2905,23 +2841,6 @@ async function doLoaderSubmit() {
   document.querySelectorAll('#ldClusterOutputList .bor-input').forEach(inp => {
     if (!inp.disabled) {
       clusterOutputs[inp.getAttribute('data-batch') || inp.dataset.batch] = parseInt(inp.value) || 0;
-    }
-  });
-
-  // Kumpulkan nilai Outbound breakdown (Kontainer, Styrofoam, Dus) per cluster
-  const clusterOutboundOutputs = {};
-  document.querySelectorAll('#ldClusterOutputList .batch-output-row').forEach(row => {
-    const gm = row.getAttribute('data-batch-row');
-    const inpK = row.querySelector('.bor-input-outbound-kontainer');
-    const inpS = row.querySelector('.bor-input-outbound-styrofoam');
-    const inpD = row.querySelector('.bor-input-outbound-dus');
-
-    if (gm) {
-      clusterOutboundOutputs[gm] = {
-        kontainer: parseInt(inpK?.value) || 0,
-        styrofoam: parseInt(inpS?.value) || 0,
-        dus:       parseInt(inpD?.value) || 0
-      };
     }
   });
 
