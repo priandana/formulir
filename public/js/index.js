@@ -4157,7 +4157,8 @@ window.loadAnnouncements    = loadAnnouncements;
 window.loadCalendarData     = loadCalendarData;
 window.changeCalendarMonth  = changeCalendarMonth;
 window.closeDayDetails      = closeDayDetails;
-// ====================================================================let rtLoaderEntriesCache = [];
+let rtLoaderEntriesCache = [];
+let rtQcOutboundCache = [];
 let rtGroupedArmadaCache = {};
 
 async function rtLoadLoaderEntries() {
@@ -4165,19 +4166,26 @@ async function rtLoadLoaderEntries() {
   const listEl = document.getElementById('rtArmadaList');
   const emptyEl = document.getElementById('rtEmptyState');
   if (!tglRef || !listEl) return;
-  listEl.innerHTML = '<div style="text-align:center;padding:32px;color:#94a3b8;font-size:13px;">Memuat data outbound...</div>';
+  listEl.innerHTML = '<div style="text-align:center;padding:32px;color:#94a3b8;font-size:13px;">Memuat data outbound &amp; QC...</div>';
   if (emptyEl) emptyEl.style.display = 'none';
   try {
-    const r = await fetch(`/api/loader-entries?tanggal_carian=${tglRef}`);
-    const data = await r.json();
-    rtLoaderEntriesCache = Array.isArray(data) ? data : (data.entries || []);
-    if (rtLoaderEntriesCache.length === 0) {
+    const [resLoader, resQc] = await Promise.all([
+      fetch(`/api/loader-entries?tanggal_carian=${tglRef}`),
+      fetch(`/api/qc-outbound?tanggal=${tglRef}`)
+    ]);
+    const dataLoader = await resLoader.json();
+    const dataQc = await resQc.json();
+    rtLoaderEntriesCache = Array.isArray(dataLoader) ? dataLoader : (dataLoader.entries || []);
+    rtQcOutboundCache = (dataQc && dataQc.data) ? dataQc.data : [];
+
+    if (rtLoaderEntriesCache.length === 0 && rtQcOutboundCache.length === 0) {
       listEl.innerHTML = '';
       if (emptyEl) emptyEl.style.display = 'flex';
       return;
     }
     rtRenderArmadaCards();
   } catch(e) {
+    console.error('rtLoadLoaderEntries error:', e);
     listEl.innerHTML = '<div style="text-align:center;padding:32px;color:#ef4444;font-size:13px;">Gagal memuat data outbound.</div>';
   }
 }
@@ -4210,6 +4218,7 @@ function rtRenderArmadaCards() {
     let cl = [];
     if (Array.isArray(entry.clusters)) cl = entry.clusters;
     else if (entry.clusters && typeof entry.clusters === 'object') cl = entry.clusters.list || [];
+    if (cl.length === 0 && entry.no_polisi) cl = [entry.no_polisi];
 
     const ob = entry.cluster_outbound_outputs || {};
     const rps = (entry.clusters && entry.clusters.outputs) ? entry.clusters.outputs : (entry.cluster_outputs || {});
@@ -4218,11 +4227,13 @@ function rtRenderArmadaCards() {
       if (!rtClusterMap[gm]) {
         rtClusterMap[gm] = {
           gm: gm,
+          no_polisi: entry.no_polisi || gm,
           rps: 0,
           outbound: { kontainer: 0, styrofoam: 0, dus: 0, total: 0 },
           entries: []
         };
       }
+      // Outbound fallback from legacy cluster_outbound_outputs (if any)
       const parsedOb = parsePackageBreakdown(ob[gm]);
       rtClusterMap[gm].outbound.kontainer += parsedOb.kontainer;
       rtClusterMap[gm].outbound.styrofoam += parsedOb.styrofoam;
@@ -4231,6 +4242,43 @@ function rtRenderArmadaCards() {
       if (rps[gm] !== undefined) rtClusterMap[gm].rps += (parseInt(rps[gm]) || 0);
       rtClusterMap[gm].entries.push(entry);
     });
+  });
+
+  // Enrich & override with actual QC Outbound data per armada (no_polisi)
+  const qcMap = {};
+  rtQcOutboundCache.forEach(qc => {
+    if (qc.no_polisi) {
+      qcMap[qc.no_polisi.trim().toUpperCase()] = qc;
+    }
+  });
+
+  Object.keys(qcMap).forEach(nopol => {
+    const qc = qcMap[nopol];
+    const k = parseInt(qc.kontainer) || 0;
+    const s = parseInt(qc.styrofoam) || 0;
+    const d = parseInt(qc.dus) || 0;
+    const tot = k + s + d;
+
+    // Find matching key in rtClusterMap (by gm or no_polisi)
+    let matchedKey = Object.keys(rtClusterMap).find(key => 
+      key.trim().toUpperCase() === nopol || 
+      (rtClusterMap[key].no_polisi && rtClusterMap[key].no_polisi.trim().toUpperCase() === nopol)
+    );
+
+    if (matchedKey) {
+      rtClusterMap[matchedKey].outbound = { kontainer: k, styrofoam: s, dus: d, total: tot };
+      rtClusterMap[matchedKey].qc_record = qc;
+    } else {
+      // Armada has QC Outbound record but no loader entry yet
+      rtClusterMap[nopol] = {
+        gm: nopol,
+        no_polisi: nopol,
+        rps: 0,
+        outbound: { kontainer: k, styrofoam: s, dus: d, total: tot },
+        qc_record: qc,
+        entries: []
+      };
+    }
   });
 
   const clusterKeys = Object.keys(rtClusterMap).sort();
