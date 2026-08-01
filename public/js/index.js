@@ -4872,7 +4872,6 @@ window.rtLoadLoaderEntries = rtLoadLoaderEntries;
 window.rtUpdateSelisih = rtUpdateSelisih;
 window.rtSubmitAll = rtSubmitAll;
 window.rtPrintDailyReport = rtPrintDailyReport;
-window.printLoaderEntryDirect = printLoaderEntryDirect;
 
 // ===================== QC OUTBOUND =====================
 
@@ -5703,7 +5702,6 @@ async function qcoDeleteEntry(id, nopol) {
 }
 
 window.qcoUpdateTotal = qcoUpdateTotal;
-window.qcoLoadArmada = qcoLoadArmada;
 window.qcoSelectNopol = qcoSelectNopol;
 window.qcoOnDateOrArmadaChange = qcoOnDateOrArmadaChange;
 window.qcoHandleFileSelect = qcoHandleFileSelect;
