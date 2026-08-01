@@ -3477,7 +3477,7 @@ module.exports = {
       return data;
     }
     throw new Error('Supabase tidak tersedia');
-  }
+  },
 
   // ===================== END RETURN ENTRIES =====================
 
