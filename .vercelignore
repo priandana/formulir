@@ -1,0 +1,21 @@
+# Vercel Ignore file to reduce deployment bundle size
+vercel.exe
+*.zip
+*.xlsx
+.env
+node_modules/
+database.json
+*.py
+*.sql
+*.js.map
+scratch/
+design/
+.git
+.vercel
+*Compare*.js
+*migrate*.js
+createTable.js
+createAdmin.js
+debug*.js
+test*.js
+README.md

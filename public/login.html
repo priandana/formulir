@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="dns-prefetch" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/login.css?v=1.3">
+  <link rel="stylesheet" href="/css/login.css?v=1.5">
 </head>
 <body class="">
   <script>
@@ -60,10 +60,32 @@
 
   <!-- RIGHT: FORM PANEL -->
   <div class="form-panel">
+    <!-- Glowing Background Blobs -->
+    <div class="glow-blob blob-1"></div>
+    <div class="glow-blob blob-2"></div>
+
+    <!-- Mobile Logo Header -->
+    <div class="mobile-logo">
+      <div class="mobile-logo-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>
+      </div>
+      <div class="mobile-logo-text">
+        <div class="brand">SS08 Admin</div>
+        <div class="tagline">Pencapaian Kerja</div>
+      </div>
+    </div>
+
     <div class="form-card">
+      <div id="maintenanceAlert" style="display:none; background:rgba(245, 158, 11, 0.1); border:1.5px solid rgba(245, 158, 11, 0.3); color:#d97706; padding:12px 16px; border-radius:10px; font-size:12px; margin-bottom:20px; flex-direction:column; gap:4px; line-height:1.4; text-align:left;">
+        <div style="display:flex; align-items:center; gap:8px; font-weight:700;">
+          <span style="font-size:16px;">⚠️</span> Pemeliharaan Sistem Aktif
+        </div>
+        <div id="maintenanceAlertMsg">Sistem operasional sedang dalam pemeliharaan. Hanya Administrator yang dapat masuk.</div>
+      </div>
       <div class="form-title" id="formTitle">Selamat Datang! 👋</div>
       <div class="form-subtitle" id="formSubtitle">Masuk untuk melanjutkan ke sistem pencapaian kerja SS08</div>
       <div class="role-switcher">
+        <div class="switcher-pill" id="switcherPill"></div>
         <button class="role-btn active" id="btnAdmin" onclick="switchRole('admin')">
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           Administrator
@@ -92,24 +114,26 @@
             <input type="text" id="username" class="field-input" placeholder="Masukkan username" autocomplete="username" required>
           </div>
         </div>
-        <div class="field" id="nikField" style="display:none">
-          <label class="field-label" for="nik">Password</label>
-          <div class="field-input-wrap">
-            <svg class="field-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-            <input type="password" id="nik" class="field-input has-right-icon" placeholder="Masukkan password" autocomplete="current-password">
-            <button type="button" class="field-icon-right" onclick="toggleNikPassword()">
-              <svg id="eyeIconNik" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
+        <div class="role-fields-wrap" style="position: relative; height: 82px; overflow: hidden; margin-bottom: 18px; width: 100%;">
+          <div class="field" id="nikField" style="position: absolute; width: 100%; top: 0; transform: translateX(30px); opacity: 0; pointer-events: none; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); margin-bottom: 0;">
+            <label class="field-label" for="nik">Password</label>
+            <div class="field-input-wrap">
+              <svg class="field-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+              <input type="password" id="nik" class="field-input has-right-icon" placeholder="Masukkan password" autocomplete="current-password">
+              <button type="button" class="field-icon-right" onclick="toggleNikPassword()">
+                <svg id="eyeIconNik" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
           </div>
-        </div>
-        <div class="field" id="passwordField">
-          <label class="field-label" for="password">Password</label>
-          <div class="field-input-wrap">
-            <svg class="field-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-            <input type="password" id="password" class="field-input has-right-icon" placeholder="Masukkan password" autocomplete="current-password" required>
-            <button type="button" class="field-icon-right" onclick="togglePassword()">
-              <svg id="eyeIcon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
+          <div class="field" id="passwordField" style="position: absolute; width: 100%; top: 0; transform: translateX(0); opacity: 1; pointer-events: auto; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); margin-bottom: 0;">
+            <label class="field-label" for="password">Password</label>
+            <div class="field-input-wrap">
+              <svg class="field-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+              <input type="password" id="password" class="field-input has-right-icon" placeholder="Masukkan password" autocomplete="current-password" required>
+              <button type="button" class="field-icon-right" onclick="togglePassword()">
+                <svg id="eyeIcon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
           </div>
         </div>
         <button type="submit" class="btn-submit" id="submitBtn">
@@ -135,7 +159,15 @@
         const qa = document.getElementById('heroQuoteAuthor');
         if (qa) qa.textContent = s.hero_quote_author || '';
         const ft = document.getElementById('formTitle');
-        if (ft) ft.textContent = s.form_title || '';
+        if (ft) {
+          let title = s.form_title || 'Selamat Datang!';
+          if (title.includes('Selamat Datang')) {
+            const hour = new Date().getHours();
+            const greet = hour < 11 ? 'Selamat Pagi' : hour < 15 ? 'Selamat Siang' : hour < 18 ? 'Selamat Sore' : 'Selamat Malam';
+            title = title.replace('Selamat Datang', greet);
+          }
+          ft.textContent = title;
+        }
         const fs = document.getElementById('formSubtitle');
         if (fs) fs.textContent = s.form_subtitle || '';
         const pf = document.getElementById('pageFooter');
@@ -143,17 +175,83 @@
       } catch (e) { console.warn('Settings load error:', e); }
     }
     loadSettings();
+    switchRole('admin');
 
     function switchRole(role) {
       currentRole = role;
       const isOps = role === 'operasional';
+      
+      // 1. Toggle Active buttons
       document.getElementById('btnAdmin').classList.toggle('active', !isOps);
       document.getElementById('btnOps').classList.toggle('active', isOps);
-      document.getElementById('nikField').style.display = isOps ? 'block' : 'none';
-      document.getElementById('passwordField').style.display = isOps ? 'none' : 'block';
+      
+      // 2. Animate sliding pill
+      const pill = document.getElementById('switcherPill');
+      if (pill) {
+        pill.style.transform = isOps ? 'translateX(100%)' : 'translateX(0)';
+      }
+      
+      // 3. Toggle role-ops class on body for dynamic accent colors
+      document.body.classList.toggle('role-ops', isOps);
+      
+      // 4. Slide & Fade input fields and toggle disabled state to prevent Tab focus
+      const nikF = document.getElementById('nikField');
+      const pwdF = document.getElementById('passwordField');
+      const nikInput = document.getElementById('nik');
+      const pwdInput = document.getElementById('password');
+      
+      if (nikF && pwdF && nikInput && pwdInput) {
+        if (isOps) {
+          // Slide NIK in, Slide Password out
+          nikF.style.transform = 'translateX(0)';
+          nikF.style.opacity = '1';
+          nikF.style.pointerEvents = 'auto';
+          nikInput.disabled = false;
+          
+          pwdF.style.transform = 'translateX(-30px)';
+          pwdF.style.opacity = '0';
+          pwdF.style.pointerEvents = 'none';
+          pwdInput.disabled = true;
+        } else {
+          // Slide Password in, Slide NIK out
+          nikF.style.transform = 'translateX(30px)';
+          nikF.style.opacity = '0';
+          nikF.style.pointerEvents = 'none';
+          nikInput.disabled = true;
+          
+          pwdF.style.transform = 'translateX(0)';
+          pwdF.style.opacity = '1';
+          pwdF.style.pointerEvents = 'auto';
+          pwdInput.disabled = false;
+        }
+      }
+      
+      // 5. Update formSubtitle text dynamically
+      const fs = document.getElementById('formSubtitle');
+      if (fs) {
+        fs.textContent = isOps 
+          ? 'Masuk untuk mencatat hasil kerja keras Anda hari ini!'
+          : 'Masuk ke konsol kontrol untuk verifikasi pencapaian kerja';
+      }
+      
       document.getElementById('nik').required = isOps;
       document.getElementById('password').required = !isOps;
       hideError();
+      
+      if (window.isMaintenanceActive) {
+        disableLoginForMaintenance(isOps);
+      } else {
+        disableLoginForMaintenance(false);
+      }
+    }
+
+    // Prevent browser auto-scroll in container on focus
+    const fieldsWrap = document.querySelector('.role-fields-wrap');
+    if (fieldsWrap) {
+      fieldsWrap.addEventListener('scroll', () => {
+        fieldsWrap.scrollLeft = 0;
+        fieldsWrap.scrollTop = 0;
+      });
     }
     function togglePassword() {
       const pw = document.getElementById('password');
@@ -222,8 +320,48 @@
       }
     }
     fetch('/api/check-auth').then(r => r.json()).then(auth => {
-      if (auth.authenticated) window.location.href = auth.role === 'admin' ? '/admin' : '/';
+      if (auth.authenticated && !auth.maintenance) window.location.href = auth.role === 'admin' ? '/admin' : '/';
     }).catch(() => {});
+
+    async function checkMaintenance() {
+      try {
+        const r = await fetch('/api/settings/maintenance-status');
+        const data = await r.json();
+        if (data && data.active) {
+          window.isMaintenanceActive = true;
+          const alertEl = document.getElementById('maintenanceAlert');
+          const alertMsg = document.getElementById('maintenanceAlertMsg');
+          if (alertEl && alertMsg) {
+            alertMsg.textContent = data.message || 'Sistem operasional sedang dalam pemeliharaan. Hanya Administrator yang dapat masuk.';
+            alertEl.style.display = 'flex';
+          }
+          if (currentRole === 'operasional') {
+            disableLoginForMaintenance(true);
+          }
+        }
+      } catch (e) {
+        console.warn('Maintenance check error:', e);
+      }
+    }
+
+    function disableLoginForMaintenance(disabled) {
+      const btn = document.getElementById('submitBtn');
+      if (!btn) return;
+      const btnText = btn.querySelector('.btn-text');
+      if (disabled) {
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
+        if (btnText) btnText.textContent = 'Pemeliharaan Aktif';
+      } else {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        if (btnText) btnText.textContent = 'Masuk';
+      }
+    }
+
+    checkMaintenance();
 
     // Dark Mode Toggle Logic
     const currentTheme = localStorage.getItem('theme');

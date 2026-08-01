@@ -5666,10 +5666,10 @@ app.get('/api/export-return', requirePermission('loader'), async (req, res) => {
           <!-- Selisih Breakdown -->
           <td style="text-align: center; border: 1px solid #CBD5E1; padding: 7px; font-weight: bold; color: ${selFg}; background-color: ${selBg};">${selText}</td>
           
-          <td style="border: 1px solid #CBD5E1; padding: 7px; font-size: 9pt;">${clusterDetail || 'â€”'}</td>
-          <td style="border: 1px solid #CBD5E1; padding: 7px; font-style: italic;">${e.catatan || 'â€”'}</td>
+          <td style="border: 1px solid #CBD5E1; padding: 7px; font-size: 9pt;">${clusterDetail || '—'}</td>
+          <td style="border: 1px solid #CBD5E1; padding: 7px; font-style: italic;">${e.catatan || '—'}</td>
           <td style="text-align: center; border: 1px solid #CBD5E1; padding: 7px; font-weight: bold; background-color: ${statusBg}; color: ${statusFg};">${statusLabel}</td>
-          <td style="border: 1px solid #CBD5E1; padding: 7px;">${e.validated_by || 'â€”'}</td>
+          <td style="border: 1px solid #CBD5E1; padding: 7px;">${e.validated_by || '—'}</td>
           <td style="border: 1px solid #CBD5E1; padding: 7px; font-size: 9pt; text-align: center;">${e.created_at ? new Date(e.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : ''}</td>
         </tr>`;
     }).join('');
@@ -5780,38 +5780,95 @@ app.get('/api/qc-outbound', requireQcOutbound, async (req, res) => {
   }
 });
 
-// POST /api/qc-outbound - Simpan entry QC Outbound baru
-app.post('/api/qc-outbound', requireQcOutbound, async (req, res) => {
+// POST /api/qc-outbound - Simpan entry QC Outbound baru (dengan dukungan upload foto & full fields)
+app.post('/api/qc-outbound', requireQcOutbound, (req, res, next) => {
+  uploadLembar.array('foto_outbound', 5)(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'Ukuran file maksimum 10MB per file.' });
+      if (err.code === 'LIMIT_FILE_COUNT') return res.status(400).json({ error: 'Maksimum 5 file foto yang dapat diupload.' });
+      return res.status(400).json({ error: err.message });
+    } else if (err) {
+      return res.status(400).json({ error: err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
-    const { tanggal, no_polisi, kontainer, styrofoam, dus, catatan } = req.body;
+    const { tanggal, no_polisi, nama_qc, zona, kontainer, styrofoam, dus, catatan } = req.body;
 
     // Validasi field wajib
     if (!tanggal || !no_polisi) {
       return res.status(400).json({ error: 'Tanggal dan No. Polisi wajib diisi.' });
     }
-    if ((parseInt(kontainer) || 0) + (parseInt(styrofoam) || 0) + (parseInt(dus) || 0) === 0) {
-      return res.status(400).json({ error: 'Minimal satu jenis item harus diisi (kontainer, styrofoam, atau dus).' });
+
+    // Parse JSON fields
+    let non_group = { gacoan: 0, dikichi: 0, benfarm: 0 };
+    let clusters_breakdown = {};
+    let target_rps_info = {};
+    try { non_group = JSON.parse(req.body.non_group || '{}'); } catch(e) {}
+    try { clusters_breakdown = JSON.parse(req.body.clusters_breakdown || '{}'); } catch(e) {}
+    try { target_rps_info = JSON.parse(req.body.target_rps_info || '{}'); } catch(e) {}
+
+    const totKont = parseInt(kontainer) || 0;
+    const totStero = parseInt(styrofoam) || 0;
+    const totDus = parseInt(dus) || 0;
+    const totNon = (non_group.gacoan || 0) + (non_group.dikichi || 0) + (non_group.benfarm || 0);
+
+    if (totKont + totStero + totDus + totNon === 0 && Object.keys(clusters_breakdown).length === 0) {
+      return res.status(400).json({ error: 'Minimal satu jenis item harus diisi (kontainer, styrofoam, dus, atau non-group).' });
     }
 
     // Validasi duplikat: 1 nopol hanya boleh 1 entry per hari
-    const existing = await db.getQcOutboundByNopolAndTanggal(no_polisi.trim(), tanggal);
+    const existing = await db.getQcOutboundByNopolAndTanggal(no_polisi.trim().toUpperCase(), tanggal);
     if (existing) {
       return res.status(409).json({
         error: `Armada ${no_polisi} sudah memiliki data QC Outbound untuk tanggal ${tanggal}. Hapus data lama terlebih dahulu jika ingin menggantinya.`
       });
     }
 
+    // Save uploaded files if any
+    const uploadedFiles = [];
+    const entryId = uuidv4();
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const fileId = uuidv4();
+        const uniqueFilename = fileId + path.extname(file.originalname);
+        const fileUrl = await db.saveUploadedFile(uniqueFilename, file.buffer, file.mimetype);
+        uploadedFiles.push({ id: fileId, filename: uniqueFilename, original_name: file.originalname, file_path: fileUrl });
+      }
+    }
+
     const entry = await db.insertQcOutbound({
+      id: entryId,
       tanggal,
       no_polisi: no_polisi.trim().toUpperCase(),
-      kontainer: parseInt(kontainer) || 0,
-      styrofoam: parseInt(styrofoam) || 0,
-      dus: parseInt(dus) || 0,
+      nama_qc: nama_qc || req.user?.nama_lengkap || req.user?.username || 'unknown',
+      zona: zona || '',
+      kontainer: totKont,
+      styrofoam: totStero,
+      dus: totDus,
+      non_group,
+      clusters_breakdown,
+      target_rps_info,
       catatan: catatan || '',
       created_by: req.user?.username || req.user?.nama_lengkap || 'unknown'
     });
 
-    res.json({ success: true, data: entry });
+    // Attach file records to database if files uploaded
+    if (uploadedFiles.length > 0) {
+      for (const f of uploadedFiles) {
+        await db.createFileRecord({
+          id: f.id,
+          submission_id: entryId,
+          filename: f.filename,
+          original_name: f.original_name,
+          file_path: f.file_path,
+          mime_type: f.mime_type || 'image/jpeg'
+        });
+      }
+    }
+
+    res.json({ success: true, data: { ...entry, files: uploadedFiles } });
 
     // ===== AUTO-SYNC ke Google Sheets (fire-and-forget) =====
     setImmediate(() => {

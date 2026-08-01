@@ -3490,12 +3490,17 @@ module.exports = {
   async insertQcOutbound(data) {
     const { v4: uuidv4 } = require('uuid');
     const record = {
-      id: uuidv4(),
+      id: data.id || uuidv4(),
       tanggal: data.tanggal,
       no_polisi: data.no_polisi,
+      nama_qc: data.nama_qc || data.created_by || '',
+      zona: data.zona || '',
       kontainer: parseInt(data.kontainer) || 0,
       styrofoam: parseInt(data.styrofoam) || 0,
       dus: parseInt(data.dus) || 0,
+      non_group: data.non_group || { gacoan: 0, dikichi: 0, benfarm: 0 },
+      clusters_breakdown: data.clusters_breakdown || {},
+      target_rps_info: data.target_rps_info || {},
       catatan: data.catatan || '',
       created_by: data.created_by || 'unknown',
       created_at: new Date().toISOString(),

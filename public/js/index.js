@@ -4878,12 +4878,18 @@ window.printLoaderEntryDirect = printLoaderEntryDirect;
 
 // ===================== QC OUTBOUND =====================
 
+let qcoSelectedFiles = [];
+let qcoTargetRpsCache = {};
+
 function qcoUpdateTotal() {
   const k = parseInt(document.getElementById('qco_kontainer')?.value) || 0;
   const s = parseInt(document.getElementById('qco_styrofoam')?.value) || 0;
   const d = parseInt(document.getElementById('qco_dus')?.value) || 0;
+  const g = parseInt(document.getElementById('qco_gacoan')?.value) || 0;
+  const dk = parseInt(document.getElementById('qco_dikichi')?.value) || 0;
+  const bf = parseInt(document.getElementById('qco_benfarm')?.value) || 0;
   const el = document.getElementById('qcoTotalItems');
-  if (el) el.textContent = k + s + d;
+  if (el) el.textContent = k + s + d + g + dk + bf;
 }
 
 async function qcoLoadArmada() {
@@ -4904,7 +4910,6 @@ async function qcoLoadArmada() {
       return;
     }
 
-    // Populate dropdown
     select.innerHTML = '<option value="">-- Pilih dari daftar armada --</option>';
     armadaList.forEach(a => {
       const opt = document.createElement('option');
@@ -4928,18 +4933,176 @@ function qcoSelectNopol(val) {
       info.textContent = `Armada ${val} dipilih dari daftar loader entries`;
       info.style.display = 'block';
     }
+    qcoOnDateOrArmadaChange();
   }
 }
 
+async function qcoOnDateOrArmadaChange() {
+  qcoLoadArmada();
+  const tanggal = document.getElementById('qco_tanggal')?.value;
+  const nopol = document.getElementById('qco_nopol')?.value?.trim();
+  const loading = document.getElementById('qcoRpsLoading');
+  const empty = document.getElementById('qcoRpsEmpty');
+  const container = document.getElementById('qcoRpsContainer');
+  if (!container) return;
+
+  // Isi nama QC jika belum terisi
+  const nameEl = document.getElementById('qco_nama_qc');
+  if (nameEl && !nameEl.value && currentUser) {
+    nameEl.value = currentUser.nama_lengkap || currentUser.username || '';
+  }
+
+  if (!tanggal) {
+    if (empty) empty.style.display = 'block';
+    if (container) container.style.display = 'none';
+    if (loading) loading.style.display = 'none';
+    return;
+  }
+
+  if (loading) loading.style.display = 'flex';
+  if (empty) empty.style.display = 'none';
+  if (container) container.style.display = 'none';
+
+  try {
+    // Ambil data carian / loader entries untuk tanggal carian ini
+    const res = await fetch(`/api/loader-entries?tanggal_carian=${tanggal}`);
+    const data = await res.json();
+    const loaderEntries = Array.isArray(data) ? data : (data.entries || []);
+    
+    // Filter per nopol jika nopol diisi
+    let matchedEntries = loaderEntries;
+    if (nopol) {
+      matchedEntries = loaderEntries.filter(e => e.no_polisi && e.no_polisi.trim().toUpperCase() === nopol.toUpperCase());
+    }
+
+    qcoTargetRpsCache = {};
+    matchedEntries.forEach(entry => {
+      const outputs = (entry.clusters && entry.clusters.outputs) ? entry.clusters.outputs : (entry.cluster_outputs || {});
+      Object.entries(outputs).forEach(([cluster, rpsVal]) => {
+        const val = parseInt(rpsVal) || 0;
+        qcoTargetRpsCache[cluster] = (qcoTargetRpsCache[cluster] || 0) + val;
+      });
+    });
+
+    const clusters = Object.keys(qcoTargetRpsCache);
+
+    if (clusters.length === 0) {
+      if (loading) loading.style.display = 'none';
+      if (empty) {
+        empty.textContent = `Belum ada data carian / RPS terdata untuk tanggal ${tanggal}${nopol ? ' & armada ' + nopol : ''}.`;
+        empty.style.display = 'block';
+      }
+      return;
+    }
+
+    let totalRpsAll = 0;
+    let html = `<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:10px;">`;
+    clusters.forEach(c => {
+      const rps = qcoTargetRpsCache[c];
+      totalRpsAll += rps;
+      html += `
+        <div style="background:linear-gradient(135deg, rgba(14,165,233,0.08), rgba(2,132,199,0.03)); border:1px solid rgba(14,165,233,0.25); border-radius:10px; padding:10px 14px; text-align:center;">
+          <div style="font-size:11px; font-weight:800; color:#0369A1; margin-bottom:4px;">🚚 ${c}</div>
+          <div style="font-size:18px; font-weight:900; color:#0284C7;">${rps} <span style="font-size:11px; font-weight:600; color:#64748B;">RPS</span></div>
+          <div style="font-size:9px; color:#0284C7; margin-top:2px; font-weight:700;">READ-ONLY ACUAN</div>
+        </div>`;
+    });
+    html += `</div>`;
+    html += `
+      <div style="margin-top:12px; padding:8px 12px; background:rgba(14,165,233,0.1); border-radius:8px; font-size:12px; font-weight:800; color:#0369A1; display:flex; justify-content:space-between; align-items:center;">
+        <span>TOTAL TARGET RPS ACUAN</span>
+        <span style="font-size:15px; color:#0284C7;">${totalRpsAll} RPS</span>
+      </div>`;
+
+    if (loading) loading.style.display = 'none';
+    if (empty) empty.style.display = 'none';
+    container.innerHTML = html;
+    container.style.display = 'block';
+
+  } catch(e) {
+    if (loading) loading.style.display = 'none';
+    if (empty) {
+      empty.textContent = 'Gagal memuat acuan target RPS.';
+      empty.style.display = 'block';
+    }
+  }
+}
+
+// ── PHOTO HANDLING ──
+function qcoHandleFileSelect(event) {
+  const files = Array.from(event.target.files || []);
+  if (files.length === 0) return;
+
+  if (qcoSelectedFiles.length + files.length > 5) {
+    showToast('Maksimum 5 foto yang dapat diunggah.', 'error');
+    return;
+  }
+
+  files.forEach(file => {
+    if (file.type.startsWith('image/')) {
+      qcoSelectedFiles.push(file);
+    }
+  });
+
+  qcoRenderPhotoPreview();
+  event.target.value = '';
+}
+
+function qcoRemoveFile(index) {
+  qcoSelectedFiles.splice(index, 1);
+  qcoRenderPhotoPreview();
+}
+
+function qcoRenderPhotoPreview() {
+  const infoEl = document.getElementById('qcoPhotoInfo');
+  const countText = document.getElementById('qcoPhotoCountText');
+  const gridEl = document.getElementById('qcoFileList');
+  if (!gridEl) return;
+
+  gridEl.innerHTML = '';
+  if (qcoSelectedFiles.length === 0) {
+    if (infoEl) infoEl.style.display = 'none';
+    return;
+  }
+
+  if (infoEl) infoEl.style.display = 'flex';
+  if (countText) countText.textContent = `${qcoSelectedFiles.length} foto dipilih`;
+
+  qcoSelectedFiles.forEach((file, index) => {
+    const thumb = document.createElement('div');
+    thumb.className = 'ld-photo-thumb';
+    thumb.style.cssText = 'position:relative; width:80px; height:80px; border-radius:10px; overflow:hidden; border:2px solid #7C3AED; box-shadow:0 2px 8px rgba(124,58,237,0.15);';
+
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(file);
+    img.style.cssText = 'width:100%; height:100%; object-fit:cover;';
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.innerHTML = '✕';
+    removeBtn.style.cssText = 'position:absolute; top:4px; right:4px; width:20px; height:20px; border-radius:50%; background:rgba(239,68,68,0.9); color:#fff; border:none; font-size:11px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center;';
+    removeBtn.onclick = () => qcoRemoveFile(index);
+
+    thumb.appendChild(img);
+    thumb.appendChild(removeBtn);
+    gridEl.appendChild(thumb);
+  });
+}
+
+// ── SUBMIT FORM ──
 async function qcoSubmitForm() {
   const tanggal = document.getElementById('qco_tanggal')?.value;
   const no_polisi = document.getElementById('qco_nopol')?.value?.trim();
+  const nama_qc = document.getElementById('qco_nama_qc')?.value || currentUser?.nama_lengkap || currentUser?.username || '';
+  const zona = document.getElementById('qco_zona')?.value || '';
   const kontainer = parseInt(document.getElementById('qco_kontainer')?.value) || 0;
   const styrofoam = parseInt(document.getElementById('qco_styrofoam')?.value) || 0;
   const dus = parseInt(document.getElementById('qco_dus')?.value) || 0;
+  const gacoan = parseInt(document.getElementById('qco_gacoan')?.value) || 0;
+  const dikichi = parseInt(document.getElementById('qco_dikichi')?.value) || 0;
+  const benfarm = parseInt(document.getElementById('qco_benfarm')?.value) || 0;
   const catatan = document.getElementById('qco_catatan')?.value || '';
 
-  // Validasi
   let hasError = false;
   const errTgl = document.getElementById('err-qco_tanggal');
   const errNopol = document.getElementById('err-qco_nopol');
@@ -4950,19 +5113,34 @@ async function qcoSubmitForm() {
   if (!no_polisi) { if (errNopol) errNopol.style.display = 'flex'; hasError = true; }
   if (hasError) return;
 
-  if (kontainer + styrofoam + dus === 0) {
-    showToast('Minimal satu item harus diisi (kontainer, styrofoam, atau dus).', 'error');
+  if (kontainer + styrofoam + dus + gacoan + dikichi + benfarm === 0) {
+    showToast('Minimal satu item harus diisi (kontainer, styrofoam, dus, atau non-group).', 'error');
     return;
   }
 
   const btn = document.getElementById('qcoSubmitBtn');
-  if (btn) { btn.disabled = true; btn.querySelector('.spinner')?.style && (btn.querySelector('.spinner').style.display = 'block'); }
+  if (btn) { btn.disabled = true; const sp = btn.querySelector('.spinner'); if (sp) sp.style.display = 'block'; }
 
   try {
+    const formData = new FormData();
+    formData.append('tanggal', tanggal);
+    formData.append('no_polisi', no_polisi);
+    formData.append('nama_qc', nama_qc);
+    formData.append('zona', zona);
+    formData.append('kontainer', kontainer);
+    formData.append('styrofoam', styrofoam);
+    formData.append('dus', dus);
+    formData.append('non_group', JSON.stringify({ gacoan, dikichi, benfarm }));
+    formData.append('target_rps_info', JSON.stringify(qcoTargetRpsCache || {}));
+    formData.append('catatan', catatan);
+
+    qcoSelectedFiles.forEach(file => {
+      formData.append('foto_outbound', file);
+    });
+
     const res = await fetch('/api/qc-outbound', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tanggal, no_polisi, kontainer, styrofoam, dus, catatan })
+      body: formData
     });
     const result = await res.json();
     if (!res.ok) {
@@ -4970,9 +5148,8 @@ async function qcoSubmitForm() {
     } else {
       showToast('✅ Data QC Outbound berhasil disimpan!', 'success');
       qcoClearForm();
-      // Auto-reload riwayat
       const filterTgl = document.getElementById('qcoFilterTanggal');
-      if (filterTgl && !filterTgl.value) filterTgl.value = tanggal;
+      if (filterTgl) filterTgl.value = tanggal;
       qcoLoadRiwayat();
     }
   } catch(e) {
@@ -4992,12 +5169,21 @@ function qcoClearForm() {
   if (select) select.value = '';
   const info = document.getElementById('qco_armada_info');
   if (info) { info.style.display = 'none'; info.textContent = ''; }
+  const zona = document.getElementById('qco_zona');
+  if (zona) zona.value = '';
+
   document.getElementById('qco_kontainer').value = 0;
   document.getElementById('qco_styrofoam').value = 0;
   document.getElementById('qco_dus').value = 0;
+  document.getElementById('qco_gacoan').value = 0;
+  document.getElementById('qco_dikichi').value = 0;
+  document.getElementById('qco_benfarm').value = 0;
   document.getElementById('qco_catatan').value = '';
+
+  qcoSelectedFiles = [];
+  qcoRenderPhotoPreview();
   qcoUpdateTotal();
-  qcoLoadArmada();
+  qcoOnDateOrArmadaChange();
 }
 
 async function qcoLoadRiwayat() {
@@ -5028,47 +5214,51 @@ async function qcoLoadRiwayat() {
         <thead>
           <tr style="background:linear-gradient(135deg,#7C3AED,#5B21B6); color:#fff;">
             <th style="padding:10px 12px; text-align:center; border-radius:8px 0 0 0;">No.</th>
-            <th style="padding:10px 12px; text-align:left;">No. Polisi</th>
+            <th style="padding:10px 12px; text-align:left;">No. Polisi / QC</th>
             <th style="padding:10px 12px; text-align:center;">📦 Kontainer</th>
             <th style="padding:10px 12px; text-align:center;">🧊 Styrofoam</th>
             <th style="padding:10px 12px; text-align:center;">📫 Dus</th>
+            <th style="padding:10px 12px; text-align:center;">Non-Group</th>
             <th style="padding:10px 12px; text-align:center;">Total</th>
             <th style="padding:10px 12px; text-align:left;">Catatan</th>
-            <th style="padding:10px 12px; text-align:center;">Diinput</th>
+            <th style="padding:10px 12px; text-align:center;">Foto</th>
             <th style="padding:10px 12px; text-align:center; border-radius:0 8px 0 0;">Aksi</th>
           </tr>
         </thead>
         <tbody>`;
 
     data.forEach((e, i) => {
-      const total = (e.kontainer || 0) + (e.styrofoam || 0) + (e.dus || 0);
+      const ng = e.non_group || {};
+      const totNg = (ng.gacoan || 0) + (ng.dikichi || 0) + (ng.benfarm || 0);
+      const total = (e.kontainer || 0) + (e.styrofoam || 0) + (e.dus || 0) + totNg;
       const waktu = e.created_at ? new Date(e.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-';
       const bg = i % 2 === 0 ? 'var(--card-bg,#fff)' : 'rgba(124,58,237,0.03)';
+      
+      const files = e.files || [];
+      let filesHtml = '-';
+      if (files.length > 0) {
+        filesHtml = files.map(f => `<a href="${f.file_path}" target="_blank" style="color:#7C3AED; font-weight:700; text-decoration:underline;">📷 ${files.length} Foto</a>`).join('<br>');
+      }
+
       html += `
         <tr style="background:${bg}; border-bottom:1px solid rgba(124,58,237,0.07);">
           <td style="padding:10px 12px; text-align:center; color:#9CA3AF;">${i+1}</td>
-          <td style="padding:10px 12px; font-weight:700; color:#7C3AED;">${e.no_polisi || '-'}</td>
+          <td style="padding:10px 12px;">
+            <div style="font-weight:700; color:#7C3AED;">${e.no_polisi || '-'}</div>
+            <div style="font-size:11px; color:#64748B;">QC: ${e.nama_qc || e.created_by || '-'} ${e.zona ? '· ' + e.zona : ''}</div>
+          </td>
           <td style="padding:10px 12px; text-align:center; font-weight:600;">${e.kontainer || 0}</td>
           <td style="padding:10px 12px; text-align:center; font-weight:600; color:#0284C7;">${e.styrofoam || 0}</td>
           <td style="padding:10px 12px; text-align:center; font-weight:600; color:#D97706;">${e.dus || 0}</td>
+          <td style="padding:10px 12px; text-align:center; font-size:11px; color:#475569;">G:${ng.gacoan||0} D:${ng.dikichi||0} B:${ng.benfarm||0}</td>
           <td style="padding:10px 12px; text-align:center; font-weight:700; color:#5B21B6;">${total}</td>
           <td style="padding:10px 12px; color:var(--text-muted,#6B7280); font-size:12px;">${e.catatan || '-'}</td>
-          <td style="padding:10px 12px; text-align:center; font-size:11px; color:#9CA3AF;">${waktu}<br><span style="font-size:10px;">${e.created_by || ''}</span></td>
+          <td style="padding:10px 12px; text-align:center; font-size:11px;">${filesHtml}</td>
           <td style="padding:10px 12px; text-align:center;">
             <button onclick="qcoDeleteEntry('${e.id}', '${e.no_polisi}')" style="background:rgba(239,68,68,0.1); color:#DC2626; border:1px solid rgba(239,68,68,0.2); border-radius:6px; padding:4px 10px; font-size:11px; cursor:pointer; font-weight:600;">Hapus</button>
           </td>
         </tr>`;
     });
-
-    html += `
-        <tr style="background:rgba(124,58,237,0.06); font-weight:700;">
-          <td colspan="2" style="padding:10px 12px; text-align:right; color:#7C3AED;">TOTAL:</td>
-          <td style="padding:10px 12px; text-align:center; color:#7C3AED;">${data.reduce((s,e)=>s+(e.kontainer||0),0)}</td>
-          <td style="padding:10px 12px; text-align:center; color:#0284C7;">${data.reduce((s,e)=>s+(e.styrofoam||0),0)}</td>
-          <td style="padding:10px 12px; text-align:center; color:#D97706;">${data.reduce((s,e)=>s+(e.dus||0),0)}</td>
-          <td style="padding:10px 12px; text-align:center; color:#5B21B6;">${data.reduce((s,e)=>s+(e.kontainer||0)+(e.styrofoam||0)+(e.dus||0),0)}</td>
-          <td colspan="3"></td>
-        </tr>`;
 
     html += '</tbody></table></div>';
     container.innerHTML = html;
@@ -5096,9 +5286,13 @@ async function qcoDeleteEntry(id, nopol) {
 window.qcoUpdateTotal = qcoUpdateTotal;
 window.qcoLoadArmada = qcoLoadArmada;
 window.qcoSelectNopol = qcoSelectNopol;
+window.qcoOnDateOrArmadaChange = qcoOnDateOrArmadaChange;
+window.qcoHandleFileSelect = qcoHandleFileSelect;
+window.qcoRemoveFile = qcoRemoveFile;
 window.qcoSubmitForm = qcoSubmitForm;
 window.qcoClearForm = qcoClearForm;
 window.qcoLoadRiwayat = qcoLoadRiwayat;
 window.qcoDeleteEntry = qcoDeleteEntry;
 
 // ===================== END QC OUTBOUND =====================
+

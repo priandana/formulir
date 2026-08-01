@@ -61,7 +61,7 @@ function showOnscreenError(source, err) {
     // All pages that can be protected
     const pages = [
       'dashboard', 'submissions', 'loader', 'data-carian', 'rekap-toko',
-      'status-carian', 'users', 'absensi', 'ketentuan-harga', 'rekap-pendapatan', 'announcements',
+      'status-carian', 'users', 'absensi', 'ketentuan-harga', 'rekap-pendapatan', 'penggajian', 'announcements',
       'export', 'gsheets', 'login-settings', 'admin-accounts',
       'audit-logs'
     ];
@@ -118,6 +118,7 @@ function showOnscreenError(source, err) {
     initTheme();
     initRealtimeNotifications();
     initCustomSelects();
+    initTopbarClock();
     // Tampilkan dashboard atau halaman pertama yang diizinkan
     const isSuperAdmin = currentUser.username && currentUser.username.toLowerCase() === 'admin';
     const allowed = currentUser.allowed_pages || [];
@@ -129,6 +130,57 @@ function showOnscreenError(source, err) {
       showPage('feature-guide');
     }
   })();
+
+  // ============= TOPBAR INFO STRIP =============
+  function initTopbarClock() {
+    function updateClock() {
+      const now = new Date();
+      const days = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+      const d = days[now.getDay()];
+      const date = now.toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' });
+      const time = now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+      const el = document.getElementById('tisClock');
+      if (el) el.textContent = `${d}, ${date} · ${time}`;
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    // Server status ping every 30 sec
+    async function pingServer() {
+      const dot = document.getElementById('tisStatusDot');
+      const txt = document.getElementById('tisStatusText');
+      try {
+        const r = await fetch('/api/check-auth', { signal: AbortSignal.timeout(5000) });
+        if (r.ok) {
+          if (dot) { dot.classList.remove('offline'); }
+          if (txt) txt.textContent = 'Server Online';
+        } else {
+          if (dot) dot.classList.add('offline');
+          if (txt) txt.textContent = 'Server Error';
+        }
+      } catch {
+        if (dot) dot.classList.add('offline');
+        if (txt) txt.textContent = 'Server Offline';
+      }
+    }
+    pingServer();
+    setInterval(pingServer, 30000);
+  }
+
+  function updateTopbarPendingChip(count) {
+    const chip = document.getElementById('tisPendingChip');
+    const divider = document.getElementById('tisPendingDivider');
+    const countEl = document.getElementById('tisPendingCount');
+    if (!chip) return;
+    if (count > 0) {
+      chip.style.display = 'flex';
+      if (divider) divider.style.display = 'block';
+      if (countEl) countEl.textContent = count;
+    } else {
+      chip.style.display = 'none';
+      if (divider) divider.style.display = 'none';
+    }
+  }
 
 
 
@@ -218,6 +270,9 @@ function showOnscreenError(source, err) {
         }
       }
 
+      // Update topbar info strip pending chip
+      updateTopbarPendingChip(pendingCount);
+
       renderRecentTable();
       populateFilterDropdowns();
       // Re-apply filter aktif setelah data di-reload (bukan langsung renderAllTable)
@@ -239,7 +294,7 @@ function showOnscreenError(source, err) {
     return new Date(dt).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
   }
   function posisiBadge(pos) {
-    const cls = pos === 'Picker' ? 'badge-picker' : pos === 'Sorter' ? 'badge-sorter' : 'badge-loader';
+    const cls = pos === 'Picker' ? 'badge-picker' : pos === 'Sorter' ? 'badge-sorter' : pos === 'Return' ? 'badge-return' : 'badge-loader';
     return `<span class="badge ${cls}">${pos}</span>`;
   }
 
@@ -274,6 +329,93 @@ function showOnscreenError(source, err) {
     `).join('');
   }
 
+  // ============= BULK SELECTION =============
+  let bulkSelected = new Set();
+
+  function toggleSelectAll(checkbox) {
+    const page = filteredSubmissions.slice((currentPage-1)*PAGE_SIZE, currentPage*PAGE_SIZE);
+    page.forEach(s => {
+      if (s.status === 'pending') {
+        if (checkbox.checked) bulkSelected.add(s.id);
+        else bulkSelected.delete(s.id);
+      }
+    });
+    updateBulkBar();
+    renderAllTable();
+  }
+
+  function toggleRowCheckbox(id, checked) {
+    if (checked) bulkSelected.add(id);
+    else bulkSelected.delete(id);
+    updateBulkBar();
+  }
+
+  function updateBulkBar() {
+    const bar = document.getElementById('bulkActionBar');
+    const countEl = document.getElementById('bulkSelectedCount');
+    if (!bar) return;
+    if (bulkSelected.size > 0) {
+      bar.classList.add('visible');
+      if (countEl) countEl.textContent = bulkSelected.size;
+    } else {
+      bar.classList.remove('visible');
+    }
+    // update select-all checkbox state
+    const selectAll = document.getElementById('selectAllCheckbox');
+    if (selectAll) {
+      const page = filteredSubmissions.slice((currentPage-1)*PAGE_SIZE, currentPage*PAGE_SIZE);
+      const pendingOnPage = page.filter(s => s.status === 'pending');
+      const allChecked = pendingOnPage.length > 0 && pendingOnPage.every(s => bulkSelected.has(s.id));
+      selectAll.checked = allChecked;
+      selectAll.indeterminate = !allChecked && pendingOnPage.some(s => bulkSelected.has(s.id));
+    }
+  }
+
+  function clearBulkSelection() {
+    bulkSelected.clear();
+    updateBulkBar();
+    renderAllTable();
+  }
+
+  async function bulkUpdateStatus(newStatus) {
+    if (bulkSelected.size === 0) return;
+    const isApproved = newStatus === 'approved';
+    const icon = isApproved ? '🟢' : '🔴';
+    const actionText = isApproved ? 'menyetujui' : 'menolak';
+    const confirmed = await showConfirmModal({
+      title: `${isApproved ? 'Bulk Approve' : 'Bulk Reject'} (${bulkSelected.size} submission)`,
+      message: `Anda akan ${actionText} <b>${bulkSelected.size}</b> submission sekaligus. Tindakan ini tidak dapat dibatalkan.`,
+      icon: icon,
+      okText: isApproved ? `Approve ${bulkSelected.size} Submission` : `Reject ${bulkSelected.size} Submission`,
+      okClass: isApproved ? 'btn-primary' : 'btn-danger'
+    });
+    if (!confirmed) return;
+    const ids = Array.from(bulkSelected);
+    let successCount = 0;
+    let failCount = 0;
+    // Process in parallel, max 5 at a time
+    const chunks = [];
+    for (let i = 0; i < ids.length; i += 5) chunks.push(ids.slice(i, i + 5));
+    for (const chunk of chunks) {
+      await Promise.all(chunk.map(async id => {
+        try {
+          const r = await fetch(`/api/submissions/${id}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+          });
+          const res = await r.json();
+          if (res.success) successCount++;
+          else failCount++;
+        } catch { failCount++; }
+      }));
+    }
+    bulkSelected.clear();
+    await loadData();
+    if (successCount > 0) showToast(`${successCount} submission berhasil di-${newStatus}${failCount > 0 ? `, ${failCount} gagal` : ''}.`, successCount > 0 && failCount === 0 ? 'success' : 'warning');
+    else showToast('Gagal memproses submission.', 'error');
+  }
+
   // ============= ALL SUBMISSIONS TABLE =============
   function renderAllTable() {
     const start = (currentPage - 1) * PAGE_SIZE;
@@ -283,23 +425,52 @@ function showOnscreenError(source, err) {
     if (!filteredSubmissions.length) {
       const isFiltered = allSubmissions.length > 0;
       tbody.innerHTML = isFiltered
-        ? `<tr><td colspan="12"><div class="empty-state"><div class="empty-icon">🔍</div><h3>Tidak ada data yang cocok</h3><p>Filter aktif tidak menemukan data. Coba ubah atau <a href="#" onclick="resetAllFilters(); return false;" style="color:var(--primary); text-decoration:underline;">reset filter</a>.</p></div></td></tr>`
-        : `<tr><td colspan="12"><div class="empty-state"><div class="empty-icon">📋</div><h3>Belum ada data submissions</h3><p>Data akan muncul setelah ada karyawan yang mengisi formulir</p></div></td></tr>`;
-      updatePagination(0); return;
+        ? `<tr><td colspan="13"><div class="empty-state-v2">
+            <svg class="es-illustration" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="50" cy="50" r="45" fill="rgba(37,99,235,0.05)" stroke="rgba(37,99,235,0.12)" stroke-width="2"/>
+              <circle cx="44" cy="42" r="16" stroke="rgba(37,99,235,0.35)" stroke-width="3"/>
+              <line x1="55" y1="54" x2="70" y2="69" stroke="rgba(37,99,235,0.35)" stroke-width="3" stroke-linecap="round"/>
+              <line x1="35" y1="42" x2="53" y2="42" stroke="rgba(37,99,235,0.2)" stroke-width="2" stroke-linecap="round"/>
+              <line x1="44" y1="33" x2="44" y2="51" stroke="rgba(37,99,235,0.2)" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <div class="es-title">Tidak ada data yang cocok</div>
+            <div class="es-desc">Filter aktif tidak menemukan data. Coba ubah atau <a href="#" onclick="resetAllFilters(); return false;" style="color:var(--primary); font-weight:700;">reset filter</a>.</div>
+          </div></td></tr>`
+        : `<tr><td colspan="13"><div class="empty-state-v2">
+            <svg class="es-illustration" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="20" y="15" width="60" height="70" rx="8" fill="rgba(37,99,235,0.05)" stroke="rgba(37,99,235,0.15)" stroke-width="2"/>
+              <rect x="30" y="30" width="40" height="4" rx="2" fill="rgba(37,99,235,0.2)"/>
+              <rect x="30" y="42" width="30" height="4" rx="2" fill="rgba(37,99,235,0.15)"/>
+              <rect x="30" y="54" width="35" height="4" rx="2" fill="rgba(37,99,235,0.15)"/>
+              <circle cx="70" cy="70" r="16" fill="rgba(16,185,129,0.08)" stroke="rgba(16,185,129,0.2)" stroke-width="2"/>
+              <path d="M63 70l4 4 8-8" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <div class="es-title">Belum ada data submissions</div>
+            <div class="es-desc">Data akan muncul setelah karyawan mengisi formulir input pencapaian.</div>
+          </div></td></tr>`;
+      updatePagination(0);
+      updateBulkBar();
+      return;
     }
     tbody.innerHTML = page.map((s, i) => {
       const batches = JSON.parse(s.batch_cluster || '[]');
       const batchPreview = batches.slice(0, 3).join(', ') + (batches.length > 3 ? ` +${batches.length - 3}` : '');
-      const status = s.status || 'approved'; // sudah di-normalize di loadData, fallback untuk keamanan
+      const status = s.status || 'approved';
       
+      // Colorful status badge with pulse dot
       let statusBadge = '';
       if (status === 'pending') {
-        statusBadge = `<span class="badge" style="background:rgba(245,158,11,0.06); color:#D97706; border:1px solid rgba(245,158,11,0.15)">🟡 Pending</span>`;
+        statusBadge = `<span class="badge-status-pending"><span class="badge-status-dot"></span>Pending</span>`;
       } else if (status === 'approved') {
-        statusBadge = `<span class="badge" style="background:rgba(16,185,129,0.06); color:#059669; border:1px solid rgba(16,185,129,0.15)">🟢 Approved</span>`;
+        statusBadge = `<span class="badge-status-approved"><span class="badge-status-dot"></span>Approved</span>`;
       } else {
-        statusBadge = `<span class="badge" style="background:rgba(239,68,68,0.06); color:#DC2626; border:1px solid rgba(239,68,68,0.15)">🔴 Rejected</span>`;
+        statusBadge = `<span class="badge-status-rejected"><span class="badge-status-dot"></span>Rejected</span>`;
       }
+
+      const isBulkChecked = bulkSelected.has(s.id);
+      const checkboxCol = status === 'pending'
+        ? `<td style="text-align:center;"><input type="checkbox" class="bulk-checkbox" ${isBulkChecked ? 'checked' : ''} onchange="toggleRowCheckbox('${s.id}', this.checked)"></td>`
+        : `<td></td>`;
 
       let actionButtons = `
         <button class="btn-icon btn-view" onclick="viewDetail('${s.id}')" title="Lihat detail">
@@ -326,6 +497,7 @@ function showOnscreenError(source, err) {
 
       return `
         <tr style="animation-delay: ${i * 0.03}s">
+          ${checkboxCol}
           <td>${start + i + 1}</td>
           <td>${s.tanggal_carian}</td>
           <td>${s.tanggal_pengerjaan}</td>
@@ -345,6 +517,7 @@ function showOnscreenError(source, err) {
         </tr>`;
     }).join('');
     updatePagination(filteredSubmissions.length);
+    updateBulkBar();
   }
 
   function updatePagination(total) {
@@ -452,10 +625,18 @@ function showOnscreenError(source, err) {
   function updateFilterChips({ q, statusVal, posisiVal, lokasiVal, zonaVal, dateFrom, dateTo }) {
     const chips = [];
     if (q) chips.push({ label: `"${q}"`, clear: () => { document.getElementById('searchInput').value = ''; filterTable(); } });
-    if (posisiVal !== 'all') chips.push({ label: `Posisi: ${posisiVal}`, clear: () => { document.getElementById('filterPosisi').value = 'all'; filterTable(); } });
-    if (lokasiVal !== 'all') chips.push({ label: `Lokasi: ${lokasiVal}`, clear: () => { document.getElementById('filterTipeLokasi').value = 'all'; filterTable(); } });
-    if (zonaVal !== 'all') chips.push({ label: `Zona: ${zonaVal}`, clear: () => { document.getElementById('filterZona').value = 'all'; filterTable(); } });
-    if (statusVal !== 'all') chips.push({ label: `Status: ${statusVal}`, clear: () => { document.getElementById('statusFilterInput').value = 'all'; filterTable(); } });
+    if (posisiVal !== 'all') chips.push({ label: `Posisi: ${posisiVal}`, clear: () => {
+      const el = document.getElementById('filterPosisi'); el.value = 'all'; el.dispatchEvent(new Event('change')); filterTable();
+    }});
+    if (lokasiVal !== 'all') chips.push({ label: `Lokasi: ${lokasiVal}`, clear: () => {
+      const el = document.getElementById('filterTipeLokasi'); el.value = 'all'; el.dispatchEvent(new Event('change')); filterTable();
+    }});
+    if (zonaVal !== 'all') chips.push({ label: `Zona: ${zonaVal}`, clear: () => {
+      const el = document.getElementById('filterZona'); el.value = 'all'; el.dispatchEvent(new Event('change')); filterTable();
+    }});
+    if (statusVal !== 'all') chips.push({ label: `Status: ${statusVal}`, clear: () => {
+      const el = document.getElementById('statusFilterInput'); el.value = 'all'; el.dispatchEvent(new Event('change')); filterTable();
+    }});
     if (dateFrom) chips.push({ label: `Dari: ${dateFrom}`, clear: () => { document.getElementById('filterDateFrom').value = ''; filterTable(); } });
     if (dateTo)   chips.push({ label: `Sampai: ${dateTo}`, clear: () => { document.getElementById('filterDateTo').value = ''; filterTable(); } });
 
@@ -551,10 +732,15 @@ function showOnscreenError(source, err) {
   }
 
   // ============= VIEW DETAIL =============
+  // ============= VIEW DETAIL & EDIT =============
   async function viewDetail(id) {
     const titleEl = document.getElementById('detailModalTitle');
     if (titleEl) titleEl.textContent = 'Detail Submission (Picker & Sorter)';
     document.getElementById('modalBody').innerHTML = '<div class="loading-spinner"><div class="spin"></div></div>';
+    
+    const footer = document.getElementById('detailModalFooter');
+    if (footer) footer.innerHTML = '';
+    
     document.getElementById('detailModal').classList.add('visible');
     try {
       const data = await fetch(`/api/submissions/${id}`).then(r => r.json());
@@ -575,10 +761,108 @@ function showOnscreenError(source, err) {
           ${data.catatan_tambahan ? `<div class="detail-item full"><div class="detail-key">Catatan Tambahan</div><div class="detail-value">${data.catatan_tambahan}</div></div>` : ''}
           <div class="detail-item full"><div class="detail-key">Waktu Submit</div><div class="detail-value">${formatDateTime(data.created_at)}</div></div>
         </div>`;
+        
+      if (footer) {
+        footer.innerHTML = `
+          <button class="btn btn-outline" onclick="closeModal('detailModal')">Tutup</button>
+          <button class="btn btn-primary" id="btnEditSubmission" style="background:var(--primary); color:white; border:none; border-radius:8px; padding:8px 16px; font-weight:600; cursor:pointer;">Edit Data</button>
+        `;
+        document.getElementById('btnEditSubmission').onclick = () => showEditView(data);
+      }
     } catch (err) {
       document.getElementById('modalBody').innerHTML = '<p style="color:var(--error)">Gagal memuat detail.</p>';
     }
   }
+
+  function showEditView(data) {
+    const titleEl = document.getElementById('detailModalTitle');
+    if (titleEl) titleEl.textContent = 'Edit Submission';
+
+    document.getElementById('modalBody').innerHTML = `
+      <div class="edit-submission-form" style="display:flex; flex-direction:column; gap:16px;">
+        <div class="form-group">
+          <label style="font-weight:700; font-size:13px; color:var(--text-muted); display:block; margin-bottom:6px;">Nama</label>
+          <input type="text" class="form-control" value="${data.nama}" disabled style="background:var(--bg-secondary); cursor:not-allowed;">
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:16px;">
+          <div class="form-group">
+            <label style="font-weight:700; font-size:13px; color:var(--text-muted); display:block; margin-bottom:6px;">Tanggal Carian</label>
+            <input type="date" id="editTanggalCarian" class="form-control" value="${data.tanggal_carian}">
+          </div>
+          <div class="form-group">
+            <label style="font-weight:700; font-size:13px; color:var(--text-muted); display:block; margin-bottom:6px;">Tanggal Pengerjaan</label>
+            <input type="date" id="editTanggalPengerjaan" class="form-control" value="${data.tanggal_pengerjaan}">
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:16px;">
+          <div class="form-group">
+            <label style="font-weight:700; font-size:13px; color:var(--text-muted); display:block; margin-bottom:6px;">Posisi</label>
+            <input type="text" class="form-control" value="${data.posisi}" disabled style="background:var(--bg-secondary); cursor:not-allowed;">
+          </div>
+          <div class="form-group">
+            <label style="font-weight:700; font-size:13px; color:var(--text-muted); display:block; margin-bottom:6px;">Jumlah Output</label>
+            <input type="number" id="editJumlahOutput" class="form-control" value="${data.jumlah_output}" min="0">
+          </div>
+        </div>
+        <div class="form-group">
+          <label style="font-weight:700; font-size:13px; color:var(--text-muted); display:block; margin-bottom:6px;">Catatan Tambahan</label>
+          <textarea id="editCatatanTambahan" class="form-control" rows="3" style="resize:vertical;">${data.catatan_tambahan || ''}</textarea>
+        </div>
+      </div>
+    `;
+
+    const footer = document.getElementById('detailModalFooter');
+    if (footer) {
+      footer.innerHTML = `
+        <button class="btn btn-outline" id="btnCancelEdit">Batal</button>
+        <button class="btn btn-success" id="btnSaveEdit" style="background:#10B981; color:white; border:none; border-radius:8px; padding:8px 16px; font-weight:600; cursor:pointer;">Simpan Perubahan</button>
+      `;
+
+      document.getElementById('btnCancelEdit').onclick = () => viewDetail(data.id);
+      document.getElementById('btnSaveEdit').onclick = () => saveSubmissionEdit(data.id);
+    }
+  }
+
+  async function saveSubmissionEdit(id) {
+    const tglCarian = document.getElementById('editTanggalCarian').value;
+    const tglPengerjaan = document.getElementById('editTanggalPengerjaan').value;
+    const jmlOutput = parseInt(document.getElementById('editJumlahOutput').value);
+    const catatan = document.getElementById('editCatatanTambahan').value;
+
+    if (!tglCarian || !tglPengerjaan || isNaN(jmlOutput) || jmlOutput < 0) {
+      showToast('Mohon lengkapi data dengan benar.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btnSaveEdit');
+    if (btn) { btn.disabled = true; btn.textContent = 'Menyimpan...'; }
+
+    try {
+      const res = await fetch(`/api/submissions/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tanggal_carian: tglCarian,
+          tanggal_pengerjaan: tglPengerjaan,
+          jumlah_output: jmlOutput,
+          catatan_tambahan: catatan
+        })
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Gagal menyimpan');
+      
+      showToast('Submission berhasil diperbarui! ✅', 'info');
+      closeModal('detailModal');
+      loadData();
+    } catch(err) {
+      showToast(err.message || 'Gagal menyimpan perubahan.', 'error');
+      if (btn) { btn.disabled = false; btn.textContent = 'Simpan Perubahan'; }
+    }
+  }
+
+  window.viewDetail = viewDetail;
+  window.showEditView = showEditView;
+  window.saveSubmissionEdit = saveSubmissionEdit;
 
   async function deleteSubmission(id) {
     const confirmed = await showConfirmModal({
@@ -590,7 +874,12 @@ function showOnscreenError(source, err) {
     });
     if (!confirmed) return;
     try {
-      await fetch(`/api/submissions/${id}`, { method: 'DELETE' });
+      const r = await fetch(`/api/submissions/${id}`, { method: 'DELETE' });
+      const res = await r.json().catch(() => ({}));
+      if (!r.ok || res.success === false) {
+        showToast(res.error || 'Gagal menghapus data di server.', 'error');
+        return;
+      }
       allSubmissions = allSubmissions.filter(s => s.id !== id);
       filteredSubmissions = filteredSubmissions.filter(s => s.id !== id);
       renderRecentTable(); renderAllTable();
@@ -758,15 +1047,115 @@ function showOnscreenError(source, err) {
   }
 
   // ============= IMPORT EXCEL =============
+  let importDetectedDate = null;
+
+  function detectDateFromFilename(filename) {
+    if (!filename) return null;
+    // Pattern 1: YYYY-MM-DD or YYYY_MM_DD or YYYY.MM.DD
+    let match = filename.match(/(\d{4})[-_.](\d{2})[-_.](\d{2})/);
+    if (match) {
+      return `${match[1]}-${match[2]}-${match[3]}`;
+    }
+
+    // Pattern 2: DD-MM-YYYY or DD_MM_YYYY or DD.MM.YYYY or DD/MM/YYYY
+    match = filename.match(/(\d{1,2})[-_.//](\d{1,2})[-_.//](\d{4})/);
+    if (match) {
+      const d = match[1].padStart(2, '0');
+      const m = match[2].padStart(2, '0');
+      const y = match[3];
+      return `${y}-${m}-${d}`;
+    }
+
+    // Pattern 3: DDMMYYYY (8 digits, e.g. 14072026)
+    match = filename.match(/(\d{2})(\d{2})(20\d{2})/);
+    if (match) {
+      const d = match[1];
+      const m = match[2];
+      const y = match[3];
+      return `${y}-${m}-${d}`;
+    }
+
+    return null;
+  }
+
+  function getDayNameIndo(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    if (isNaN(date)) return '';
+    return date.toLocaleDateString('id-ID', { weekday: 'long' });
+  }
+
+  function formatDateWithDay(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    if (isNaN(date)) return '';
+    return date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  }
+
+  function updateDateDayName() {
+    const inputEl = document.getElementById('importTanggal');
+    const dayNameEl = document.getElementById('importTanggalHari');
+    if (inputEl && dayNameEl) {
+      const val = inputEl.value;
+      if (val) {
+        dayNameEl.textContent = getDayNameIndo(val);
+        dayNameEl.style.display = 'inline-block';
+      } else {
+        dayNameEl.textContent = '';
+        dayNameEl.style.display = 'none';
+      }
+    }
+  }
+
+  function checkImportDate() {
+    const warningEl = document.getElementById('importDateWarning');
+    const warningTextEl = document.getElementById('importDateWarningText');
+    const inputEl = document.getElementById('importTanggal');
+    if (!warningEl || !warningTextEl || !inputEl) return;
+
+    if (!importSelectedFile) {
+      warningEl.style.display = 'none';
+      return;
+    }
+
+    const detected = detectDateFromFilename(importSelectedFile.name);
+    importDetectedDate = detected;
+
+    if (detected && inputEl.value !== detected) {
+      const formattedDetected = formatDateWithDay(detected);
+      const formattedInput = formatDateWithDay(inputEl.value);
+      warningTextEl.innerHTML = `Tanggal file terdeteksi: <strong>${formattedDetected}</strong>, sedangkan Anda memilih: <strong>${formattedInput}</strong>.`;
+      warningEl.style.display = 'flex';
+    } else {
+      warningEl.style.display = 'none';
+    }
+  }
+
+  function applyDetectedDate() {
+    if (importDetectedDate) {
+      const inputEl = document.getElementById('importTanggal');
+      if (inputEl) {
+        inputEl.value = importDetectedDate;
+        updateDateDayName();
+        checkImportDate();
+        showToast('Tanggal import disesuaikan dengan nama file.', 'success');
+      }
+    }
+  }
+  window.applyDetectedDate = applyDetectedDate;
+
   function openImportModal() {
     importSelectedFile = null;
     document.getElementById('importFileInfo').style.display = 'none';
     document.getElementById('importResult').style.display = 'none';
     document.getElementById('importFileInput').value = '';
     document.getElementById('btnImport').disabled = true;
+    const warningEl = document.getElementById('importDateWarning');
+    if (warningEl) warningEl.style.display = 'none';
     // Pre-fill date from filter
     const dcDate = document.getElementById('dcDateFilter').value;
     if (dcDate) document.getElementById('importTanggal').value = dcDate;
+    updateDateDayName();
     document.getElementById('importModal').classList.add('visible');
   }
 
@@ -791,6 +1180,9 @@ function showOnscreenError(source, err) {
     const dz = document.getElementById('importDropZone');
     dz.style.borderColor = 'var(--primary)';
     dz.style.background = 'rgba(108,60,225,0.08)';
+
+    // Check date warning
+    checkImportDate();
   }
 
   function clearImportFile() {
@@ -801,6 +1193,8 @@ function showOnscreenError(source, err) {
     const dz = document.getElementById('importDropZone');
     dz.style.borderColor = '';
     dz.style.background = '';
+    const warningEl = document.getElementById('importDateWarning');
+    if (warningEl) warningEl.style.display = 'none';
   }
 
   // Setup drag/drop for import zone
@@ -815,6 +1209,18 @@ function showOnscreenError(source, err) {
         if (file) handleImportFile(file);
       });
     }
+
+    const importTanggalInput = document.getElementById('importTanggal');
+    if (importTanggalInput) {
+      importTanggalInput.addEventListener('change', () => {
+        updateDateDayName();
+        checkImportDate();
+      });
+      importTanggalInput.addEventListener('input', () => {
+        updateDateDayName();
+        checkImportDate();
+      });
+    }
   });
 
   async function doImport() {
@@ -822,6 +1228,47 @@ function showOnscreenError(source, err) {
     const tanggal = document.getElementById('importTanggal').value;
     if (!tanggal) { showToast('Tanggal carian wajib diisi.', 'error'); return; }
     const mode = document.querySelector('input[name="importMode"]:checked').value;
+
+    // Hitung tanggal hari ini
+    const todayStr = new Date().toISOString().split('T')[0];
+    let dateRelative = '';
+    if (tanggal === todayStr) {
+      dateRelative = ' (HARI INI)';
+    } else {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+      
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      
+      if (tanggal === tomorrowStr) {
+        dateRelative = ' (BESOK)';
+      } else if (tanggal === yesterdayStr) {
+        dateRelative = ' (KEMARIN)';
+      } else if (tanggal > tomorrowStr) {
+        dateRelative = ' (MASA DEPAN)';
+      } else {
+        dateRelative = ' (MASA LALU)';
+      }
+    }
+
+    const formattedDate = formatDateWithDay(tanggal);
+    const modeText = mode === 'replace' 
+      ? 'Replace (Menghapus total data lama pada tanggal tersebut)' 
+      : 'Merge (Menumpuk/menambah data)';
+    const okClass = mode === 'replace' ? 'btn-danger' : 'btn-primary';
+
+    const confirmed = await showConfirmModal({
+      title: 'Konfirmasi Import Data',
+      message: `Apakah Anda yakin ingin melakukan import data carian berikut?\n\n• File: ${importSelectedFile.name}\n• Tanggal Carian: ${formattedDate}${dateRelative}\n• Mode: ${modeText}\n\nPastikan tanggal import sudah sesuai untuk menghindari miss-upload!`,
+      icon: mode === 'replace' ? '🚨' : '📝',
+      okText: 'Ya, Import Sekarang',
+      okClass: okClass
+    });
+
+    if (!confirmed) return;
 
     const btn = document.getElementById('btnImport');
     btn.disabled = true;
@@ -839,21 +1286,47 @@ function showOnscreenError(source, err) {
       resultEl.style.display = 'block';
 
       if (data.success) {
+        // Pisahkan skipped biasa vs warning batch kosong
+        const batchWarnings = (data.skipped_detail || []).filter(s => s.startsWith('⚠️'));
+        const normalSkipped = (data.skipped_detail || []).filter(s => !s.startsWith('⚠️'));
+
         resultEl.className = 'import-result success';
         resultEl.innerHTML = `
           <div class="ir-title">✅ ${data.message}</div>
-          ${data.skipped_detail && data.skipped_detail.length > 0 ? `
+          ${batchWarnings.length > 0 ? `
+            <div style="margin-top:10px;padding:10px 12px;background:rgba(234,179,8,0.12);border:1px solid rgba(234,179,8,0.35);border-radius:8px;">
+              <div style="font-weight:700;color:#FCD34D;margin-bottom:6px;">⚠️ Peringatan: Ada baris yang dilewati karena BATCH kosong</div>
+              <ul style="margin:0;padding-left:18px;color:#FDE68A;font-size:12px;">
+                ${batchWarnings.map(s => `<li>${s.replace('⚠️ ', '')}</li>`).join('')}
+              </ul>
+              <div style="margin-top:6px;font-size:11px;color:#FDE68A;opacity:0.8;">Pastikan kolom BATCH di file Excel sudah terisi untuk semua baris toko.</div>
+            </div>
+          ` : ''}
+          ${normalSkipped.length > 0 ? `
             <div style="margin-top:8px;font-size:12px;">Baris dilewati:</div>
-            <ul>${data.skipped_detail.map(s => `<li>${s}</li>`).join('')}</ul>
+            <ul>${normalSkipped.map(s => `<li>${s}</li>`).join('')}</ul>
           ` : ''}`;
         showToast(data.message, 'success');
         // Update filter date and reload
         document.getElementById('dcDateFilter').value = tanggal;
         await loadDataCarian();
       } else {
+        // Cek apakah error karena batch kosong
+        const isBatchError = data.empty_batch_errors && data.empty_batch_errors.length > 0;
         resultEl.className = 'import-result error';
-        resultEl.innerHTML = `<div class="ir-title">❌ ${data.error}</div>${data.hint ? `<div style="margin-top:4px;font-size:12px;">${data.hint}</div>` : ''}${data.skipped ? `<ul>${data.skipped.map(s=>`<li>${s}</li>`).join('')}</ul>` : ''}`;
-        showToast('Import gagal.', 'error');
+        resultEl.innerHTML = `
+          <div class="ir-title">❌ ${data.error}</div>
+          ${isBatchError ? `
+            <div style="margin-top:10px;padding:10px 12px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;">
+              <div style="font-weight:700;color:#FCA5A5;margin-bottom:6px;">Detail zona bermasalah:</div>
+              <ul style="margin:0;padding-left:18px;color:#FCA5A5;font-size:12px;">
+                ${data.empty_batch_errors.map(e => `<li>${e}</li>`).join('')}
+              </ul>
+            </div>
+          ` : ''}
+          ${data.hint ? `<div style="margin-top:8px;font-size:12px;color:var(--text-muted);">💡 ${data.hint}</div>` : ''}
+          ${!isBatchError && data.skipped ? `<ul>${data.skipped.map(s=>`<li>${s}</li>`).join('')}</ul>` : ''}`;
+        showToast('Import gagal: ' + (isBatchError ? 'Kolom BATCH kosong.' : 'Cek detail error.'), 'error');
       }
     } catch(err) {
       showToast('Gagal menghubungi server.', 'error');
@@ -1013,7 +1486,7 @@ function showOnscreenError(source, err) {
     currentView = page;
     const sidebar = document.getElementById('sidebar');
     if (sidebar) sidebar.classList.remove('open');
-    ['dashboard','submissions','data-carian','rekap-toko','status-carian','welcome','users','loader','absensi','export','gsheets','login-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga','rekap-pendapatan'].forEach(p => {
+    ['dashboard','submissions','data-carian','rekap-toko','status-carian','welcome','users','loader','return-validation','absensi','export','gsheets','login-settings','periode-aktif','phl-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga','rekap-pendapatan','penggajian'].forEach(p => {
       const el = document.getElementById('page-' + p);
       if (el) el.style.display = p === page ? 'block' : 'none';
     });
@@ -1027,20 +1500,24 @@ function showOnscreenError(source, err) {
       welcome: 'Selamat Datang',
       users: 'Manajemen User Operasional',
       loader: 'Hasil Entry Loader',
+      'return-validation': 'Validasi Return Kontainer',
       export: 'Export Data',
       gsheets: 'Google Sheets Integration',
       'login-settings': 'Pengaturan Tampilan Login',
+      'periode-aktif': 'Periode Aktif (Tutup Buku)',
+      'phl-settings': 'Pengaturan Karyawan PHL',
       'admin-accounts': 'Manajemen Akun Administrator',
       'audit-logs': 'Log Aktivitas Sistem (Audit Trail)',
       'feature-guide': 'Panduan Fitur Baru',
       'absensi': 'Manajemen Absensi',
       'announcements': 'Manajemen Pengumuman',
       'ketentuan-harga': 'Ketentuan Harga',
-      'rekap-pendapatan': 'Rekap Pendapatan Pekerja'
+      'rekap-pendapatan': 'Rekap Pendapatan Pekerja',
+      'penggajian': 'Rekap Penggajian (HR Payroll)'
     };
     document.getElementById('pageTitle').textContent = titles[page] || page;
 
-    ['dashboard','submissions','data-carian','rekap-toko','status-carian','welcome','users','loader','absensi','export','gsheets','login-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga'].forEach(p => {
+    ['dashboard','submissions','data-carian','rekap-toko','status-carian','welcome','users','loader','return-validation','absensi','export','gsheets','login-settings','periode-aktif','phl-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga','rekap-pendapatan','penggajian'].forEach(p => {
       const nav = document.getElementById('nav-' + p);
       if (nav) {
         const isActive = p === page;
@@ -1060,17 +1537,27 @@ function showOnscreenError(source, err) {
     if (page === 'rekap-toko') loadRekapToko();
     if (page === 'users') loadUsers();
     if (page === 'loader') loadLoaderEntries();
+    if (page === 'return-validation') loadAdminReturnEntries();
     if (page === 'absensi') { if (typeof window.initAbsensiPage === 'function') window.initAbsensiPage(); }
     if (page === 'gsheets') loadGSheetsStatus();
-    if (page === 'login-settings') loadLoginSettings();
+    if (page === 'login-settings') {
+      loadLoginSettings();
+      loadMaintenanceSettings();
+    }
     if (page === 'admin-accounts') loadAdminAccounts();
-    if (page === 'audit-logs') loadAuditLogs(1);
+    if (page === 'audit-logs') {
+      loadAuditLogUsers();
+      loadAuditLogs(1);
+    }
     if (page === 'announcements') loadAnnouncements();
     if (page === 'dashboard') loadMonitoringMPP();
     if (page === 'ketentuan-harga') loadKetentuanHarga();
     if (page === 'rekap-pendapatan') loadRekapPendapatan();
     if (page === 'status-carian') loadStatusCarian();
     if (page === 'welcome') renderWelcomePage();
+    if (page === 'penggajian') initPenggajianPage();
+    if (page === 'phl-settings') { if (typeof window.loadPhlAdminSettings === 'function') window.loadPhlAdminSettings(); }
+    if (page === 'periode-aktif') loadPeriodeAktifSettings();
   }
 
   // Toggle navigation collapsible group
@@ -1082,6 +1569,92 @@ function showOnscreenError(source, err) {
   }
   window.toggleNavGroup = toggleNavGroup;
 
+  // ============= PERIODE AKTIF (TUTUP BUKU) =============
+  async function loadPeriodeAktifSettings() {
+    const statusEl = document.getElementById('periodeAktifStatusText');
+    const tanggalEl = document.getElementById('periodeAktifTanggal');
+    const previewEl = document.getElementById('periodeAktifPreview');
+    const previewResetEl = document.getElementById('periodeAktifPreviewReset');
+    const displayEl = document.getElementById('periodeAktifTanggalDisplay');
+    if (statusEl) statusEl.textContent = 'Memuat...';
+    try {
+      const r = await fetch('/api/settings/periode-aktif');
+      const data = await r.json();
+      const tgl = data.tanggal_mulai || '';
+      if (tanggalEl) tanggalEl.value = tgl;
+      if (tgl) {
+        const fmtTgl = new Date(tgl + 'T00:00:00').toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+        if (statusEl) statusEl.textContent = `Periode aktif sejak ${fmtTgl}`;
+        if (displayEl) displayEl.textContent = fmtTgl;
+        if (previewEl) previewEl.style.display = 'block';
+        if (previewResetEl) previewResetEl.style.display = 'none';
+      } else {
+        if (statusEl) statusEl.textContent = 'Belum ada periode aktif — menampilkan semua waktu';
+        if (previewEl) previewEl.style.display = 'none';
+        if (previewResetEl) previewResetEl.style.display = 'block';
+      }
+    } catch (err) {
+      console.error('loadPeriodeAktifSettings error:', err);
+      if (statusEl) statusEl.textContent = 'Gagal memuat pengaturan';
+    }
+  }
+  window.loadPeriodeAktifSettings = loadPeriodeAktifSettings;
+
+  async function savePeriodeAktif() {
+    const tanggalEl = document.getElementById('periodeAktifTanggal');
+    const tanggal = tanggalEl ? tanggalEl.value.trim() : '';
+    if (!tanggal) {
+      showToast('Masukkan tanggal mulai periode terlebih dahulu, atau gunakan tombol Reset.', 'warning');
+      return;
+    }
+    try {
+      const r = await fetch('/api/settings/periode-aktif', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tanggal_mulai: tanggal })
+      });
+      const res = await r.json();
+      if (res.success) {
+        showToast(`Periode aktif disimpan: mulai ${tanggal}`, 'success');
+        loadPeriodeAktifSettings();
+      } else {
+        showToast(res.error || 'Gagal menyimpan.', 'error');
+      }
+    } catch (err) {
+      showToast('Koneksi gagal.', 'error');
+    }
+  }
+  window.savePeriodeAktif = savePeriodeAktif;
+
+  async function resetPeriodeAktif() {
+    const confirmed = await showConfirmModal({
+      title: 'Reset Periode Aktif',
+      message: 'Dashboard karyawan akan kembali menampilkan data dari semua waktu. Lanjutkan?',
+      icon: '📊',
+      okText: 'Ya, Reset',
+      okClass: 'btn-outline'
+    });
+    if (!confirmed) return;
+    try {
+      const r = await fetch('/api/settings/periode-aktif', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tanggal_mulai: null })
+      });
+      const res = await r.json();
+      if (res.success) {
+        showToast('Periode aktif direset. Kembali ke semua waktu.', 'success');
+        const tanggalEl = document.getElementById('periodeAktifTanggal');
+        if (tanggalEl) tanggalEl.value = '';
+        loadPeriodeAktifSettings();
+      } else {
+        showToast(res.error || 'Gagal mereset.', 'error');
+      }
+    } catch (err) {
+      showToast('Koneksi gagal.', 'error');
+    }
+  }
+  window.resetPeriodeAktif = resetPeriodeAktif;
 
 
   // ============= MODAL HELPERS =============
@@ -1114,6 +1687,7 @@ function showOnscreenError(source, err) {
       document.getElementById('confirmIcon').textContent = icon;
       document.getElementById('confirmTitle').textContent = title;
       document.getElementById('confirmMessage').textContent = message;
+      document.getElementById('confirmMessage').style.whiteSpace = 'pre-line';
       
       const btnOk = document.getElementById('confirmBtnOk');
       const btnCancel = document.getElementById('confirmBtnCancel');
@@ -1168,12 +1742,21 @@ function showOnscreenError(source, err) {
 
   function renderUsersTable() {
     const tbody = document.getElementById('usersTableBody');
+    const filterType = document.getElementById('userFilterTipe')?.value || '';
+    const filteredUsers = filterType ? allUsers.filter(u => u.tipe_karyawan === filterType) : allUsers;
+
     if (!allUsers.length) {
       tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">👥</div><h3>Belum ada user operasional</h3><p>Gunakan form di atas untuk membuat user baru</p></div></td></tr>`;
       return;
     }
-    tbody.innerHTML = allUsers.map((u, i) => {
-      const posBadge = u.posisi === 'Picker' ? 'badge-picker' : u.posisi === 'Sorter' ? 'badge-sorter' : 'badge-loader';
+
+    if (!filteredUsers.length) {
+      tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state" style="padding: 24px;"><div class="empty-icon" style="font-size:32px;margin-bottom:8px;">🔍</div><h3>Tidak ada data</h3><p style="font-size:12px;color:var(--text-muted);">Tidak ada user operasional dengan tipe karyawan: <b>${filterType}</b></p></div></td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filteredUsers.map((u, i) => {
+      const posBadge = u.posisi === 'Picker' ? 'badge-picker' : u.posisi === 'Sorter' ? 'badge-sorter' : u.posisi === 'Return' ? 'badge-return' : 'badge-loader';
       const tipeBadge = u.tipe_karyawan === 'PHL' ? 'badge-phl' : u.tipe_karyawan === 'Productivity' ? 'badge-prod' : 'badge-other';
       // is_active: null/undefined dianggap aktif (data lama)
       const isActive = u.is_active !== false;
@@ -1201,6 +1784,11 @@ function showOnscreenError(source, err) {
           <td>${formatDate(u.created_at)}</td>
           <td>
             <div class="action-btns">
+              ${isActive ? `
+                <button class="btn-icon btn-impersonate" style="color:#0284c7;background:rgba(14,165,233,0.08);border:1px solid rgba(14,165,233,0.2);" onclick="impersonateUser('${u.id}', '${safeNama}')" title="Login / Intip Tampilan Sebagai User Ini">
+                  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                </button>
+              ` : ''}
               <button class="btn-icon btn-toggle-status ${isActive ? 'btn-deactivate' : 'btn-activate'}" onclick="toggleUserStatus('${u.id}', '${safeNama}', ${isActive})" title="${toggleTitle}">
                 ${toggleIcon}
               </button>
@@ -1215,6 +1803,38 @@ function showOnscreenError(source, err) {
         </tr>`;
     }).join('');
   }
+  window.filterUsersTable = renderUsersTable;
+
+  async function impersonateUser(userId, nama) {
+    const confirmed = await showConfirmModal({
+      title: 'Login Sebagai User',
+      message: `Anda akan beralih sesi dan melihat tampilan sebagai user "${nama}".\n\nAnda dapat kembali ke sesi Admin kapan saja via tombol di bagian atas layar.`,
+      icon: '🔑',
+      okText: 'Berpindah Sesi',
+      okClass: 'btn-primary'
+    });
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch('/api/admin/impersonate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      }).then(r => r.json());
+
+      if (res.success) {
+        showToast(`Beralih sesi ke ${nama}...`, 'success');
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 400);
+      } else {
+        showToast(res.error || 'Gagal beralih sesi user.', 'error');
+      }
+    } catch(err) {
+      showToast('Gagal menghubungi server.', 'error');
+    }
+  }
+  window.impersonateUser = impersonateUser;
 
   async function addUser() {
     const nama_lengkap = document.getElementById('newNamaLengkap').value.trim();
@@ -1667,7 +2287,7 @@ function showOnscreenError(source, err) {
 
       // Determine jabatan from entry — Loader entries default to 'Loader'
       const jabatan = e.posisi || 'Loader';
-      const jabatanBadge = jabatan === 'Picker' ? 'badge-picker' : jabatan === 'Sorter' ? 'badge-sorter' : 'badge-loader';
+      const jabatanBadge = jabatan === 'Picker' ? 'badge-picker' : jabatan === 'Sorter' ? 'badge-sorter' : jabatan === 'Return' ? 'badge-return' : 'badge-loader';
 
       return `
         <tr style="animation-delay:${i*0.03}s">
@@ -2018,6 +2638,60 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
     }
   }
 
+  async function loadMaintenanceSettings() {
+    try {
+      const res = await fetch('/api/settings/maintenance-status');
+      if (!res.ok) throw new Error('Gagal mengambil data settings.');
+      const data = await res.json();
+      
+      document.getElementById('maintActive').checked = !!data.active;
+      document.getElementById('maintTitleInput').value = data.title || '';
+      document.getElementById('maintMessageInput').value = data.message || '';
+      document.getElementById('maintEstimatedEnd').value = data.estimated_end || '';
+    } catch (err) {
+      showToast('❌ Gagal memuat pengaturan pemeliharaan.', 'error');
+    }
+  }
+
+  async function saveMaintenanceSettings(e) {
+    if (e) e.preventDefault();
+    
+    const active = document.getElementById('maintActive').checked;
+    const title = document.getElementById('maintTitleInput').value.trim();
+    const message = document.getElementById('maintMessageInput').value.trim();
+    const estimated_end = document.getElementById('maintEstimatedEnd').value.trim();
+
+    const btn = document.getElementById('btnSaveMaintenanceSettings');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Menyimpan...';
+    }
+
+    try {
+      const res = await fetch('/api/settings/maintenance-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active, title, message, estimated_end })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast('🛠️ Pengaturan pemeliharaan berhasil disimpan!', 'success');
+      } else {
+        showToast('❌ Gagal menyimpan pengaturan: ' + (data.error || 'Unknown error'), 'error');
+      }
+    } catch (err) {
+      showToast('❌ Terjadi kesalahan jaringan.', 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Simpan Konfigurasi';
+      }
+    }
+  }
+
+  window.loadMaintenanceSettings = loadMaintenanceSettings;
+  window.saveMaintenanceSettings = saveMaintenanceSettings;
+
 
 
   // ============================================================
@@ -2027,6 +2701,8 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
   let allRekapData = [];      // raw rows from API
   let filteredRekapData = []; // after search/filter
   let rekapZones = [];        // ordered zone list detected from data
+  let rekapCurrentPage = 1;
+  const rekapPageSize = 50;
 
   // Tipe lokasi ordering
   const ZONA_TIPE = z => {
@@ -2067,6 +2743,7 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
       const data = await fetch(`/api/rekap-toko?tanggal=${tanggal}`).then(r => r.json());
       allRekapData = Array.isArray(data) ? data : [];
       filteredRekapData = [...allRekapData];
+      rekapCurrentPage = 1;
 
       if (allRekapData.length === 0) {
         thead.innerHTML = '';
@@ -2077,6 +2754,8 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
         </td></tr>`;
         document.getElementById('rekapSummaryBar').style.display = 'none';
         document.getElementById('rekapPageInfo').textContent = '0 data';
+        const pControls = document.getElementById('rekapPaginationControls');
+        if (pControls) pControls.innerHTML = '';
         return;
       }
 
@@ -2112,6 +2791,7 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
       const matchG = !grp || r.group_mob === grp;
       return matchQ && matchG;
     });
+    rekapCurrentPage = 1;
     renderRekapTable();
   }
 
@@ -2221,18 +2901,29 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
     row1 += '</tr>'; row2 += '</tr>'; row3 += '</tr>';
     thead.innerHTML = row1 + row2 + row3;
 
+    // === PAGINATION CALCULATION ===
+    const totalToko = tokoList.length;
+    const totalPages = Math.ceil(totalToko / rekapPageSize) || 1;
+    if (rekapCurrentPage > totalPages) rekapCurrentPage = totalPages;
+    if (rekapCurrentPage < 1) rekapCurrentPage = 1;
+
+    // Sliced toko list
+    const slicedTokoList = tokoList.slice((rekapCurrentPage - 1) * rekapPageSize, rekapCurrentPage * rekapPageSize);
+
     // === BUILD BODY ===
-    if (!tokoList.length) {
+    if (!totalToko) {
       const totalCols = 2 + rekapZones.length * 3;
       tbody.innerHTML = `<tr><td colspan="${totalCols}" style="text-align:center;padding:40px;color:#475569;">
         <div style="font-size:26px;margin-bottom:10px;">🔍</div>
         <div>Tidak ada toko ditemukan</div>
       </td></tr>`;
       document.getElementById('rekapPageInfo').textContent = '0 toko';
+      const pControls = document.getElementById('rekapPaginationControls');
+      if (pControls) pControls.innerHTML = '';
       return;
     }
 
-    const rows = tokoList.map(([namaToko, info], idx) => {
+    const rows = slicedTokoList.map(([namaToko, info], idx) => {
       const storeCode = info.kcc || '';
       const displayName = namaToko.replace(/\s*\[[^\]]+\]$/, '');
 
@@ -2367,10 +3058,36 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
 
     tbody.innerHTML = rows + targetRow + actualRow + pctRow;
 
-    const tokoCount = tokoList.length;
-    document.getElementById('rekapSubtitle').textContent = `${tokoCount} toko`;
+    const startIdx = totalToko > 0 ? (rekapCurrentPage - 1) * rekapPageSize + 1 : 0;
+    const endIdx = Math.min(rekapCurrentPage * rekapPageSize, totalToko);
+    document.getElementById('rekapSubtitle').textContent = `${totalToko} toko`;
     document.getElementById('rekapPageInfo').textContent =
-      `Menampilkan ${tokoCount} dari ${new Set(allRekapData.map(r=>r.nama_toko)).size} toko`;
+      `Menampilkan ${startIdx}-${endIdx} dari ${totalToko} toko (Total global: ${new Set(allRekapData.map(r=>r.nama_toko)).size})`;
+
+    const paginationControls = document.getElementById('rekapPaginationControls');
+    if (paginationControls) {
+      paginationControls.innerHTML = `
+        <button class="btn btn-outline btn-sm" id="rekapBtnPrev" ${rekapCurrentPage === 1 ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : 'style="cursor:pointer;"'}>< Sebelum</button>
+        <span style="font-size:12px; font-weight:600; color:var(--text-normal);">Halaman ${rekapCurrentPage} dari ${totalPages}</span>
+        <button class="btn btn-outline btn-sm" id="rekapBtnNext" ${rekapCurrentPage === totalPages ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : 'style="cursor:pointer;"'}>Berikutnya ></button>
+      `;
+
+      document.getElementById('rekapBtnPrev').onclick = () => {
+        if (rekapCurrentPage > 1) {
+          rekapCurrentPage--;
+          renderRekapTable();
+          document.querySelector('.rekap-toko-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      };
+
+      document.getElementById('rekapBtnNext').onclick = () => {
+        if (rekapCurrentPage < totalPages) {
+          rekapCurrentPage++;
+          renderRekapTable();
+          document.querySelector('.rekap-toko-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      };
+    }
   }
 
   // ===== DARK MODE LOGIC =====
@@ -2496,14 +3213,101 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
     }, 400);
   }
 
+  // Format log details nicely with colors, strong text, and badges
+  function formatLogDetails(text, action) {
+    if (!text) return '-';
+    let formatted = text;
+
+    // Highlight statuses
+    formatted = formatted.replace(/\b(approved|disetujui)\b/gi, '<span style="color:#10b981; font-weight:700; background:rgba(16,185,129,0.1); padding:2px 6px; border-radius:4px;">disetujui</span>');
+    formatted = formatted.replace(/\b(rejected|ditolak)\b/gi, '<span style="color:#ef4444; font-weight:700; background:rgba(239,68,68,0.1); padding:2px 6px; border-radius:4px;">ditolak</span>');
+    formatted = formatted.replace(/\b(pending)\b/gi, '<span style="color:#f59e0b; font-weight:700; background:rgba(245,158,11,0.1); padding:2px 6px; border-radius:4px;">pending</span>');
+    
+    // Highlight absensi
+    formatted = formatted.replace(/\b(HADIR)\b/g, '<span style="color:#0ea5e9; font-weight:700; background:rgba(14,165,233,0.12); padding:2px 6px; border-radius:4px;">HADIR</span>');
+    
+    // Highlight date format YYYY-MM-DD
+    formatted = formatted.replace(/(\d{4}-\d{2}-\d{2})/g, '<code style="background:rgba(96,165,250,0.12); color:#60a5fa; padding:2px 6px; border-radius:4px; font-family:monospace; font-weight:600;">$1</code>');
+    
+    // Highlight key parameters (key=val or key: val)
+    formatted = formatted.replace(/(\busername|\bnama|\bposisi|\bOutput|\bZona|\bJumlah kontainer|\bNo\. Polisi)=(\s*[^,\s\}]+)/gi, '<strong>$1</strong>=<span style="color:#60a5fa; font-weight:600;">$2</span>');
+    formatted = formatted.replace(/(\busername|\bnama|\bposisi|\bOutput|\bZona|\bJumlah kontainer|\bNo\. Polisi):\s*([^\n\r,;]+)/gi, '<strong>$1</strong>: <span style="color:#60a5fa; font-weight:600;">$2</span>');
+    
+    // Highlight excel sheets
+    formatted = formatted.replace(/(sheet|tabel|file)\s+['"“]?([^'"“”\s,]+)['"”]?/gi, '$1 <span style="color:#a78bfa; font-weight:600; text-decoration:underline;">$2</span>');
+
+    return formatted;
+  }
+
+  async function loadAuditLogUsers() {
+    try {
+      const users = await fetch('/api/audit-logs/users').then(r => r.json());
+      const select = document.getElementById('logUserFilter');
+      if (!select) return;
+      
+      const currentVal = select.value;
+      let html = '<option value="">Semua Admin</option>';
+      if (Array.isArray(users)) {
+        users.forEach(u => {
+          html += `<option value="${u}"${u === currentVal ? ' selected' : ''}>${u}</option>`;
+        });
+      }
+      select.innerHTML = html;
+    } catch(err) {
+      console.error('loadAuditLogUsers error:', err);
+    }
+  }
+
+  function resetLogFilters() {
+    document.getElementById('logSearchInput').value = '';
+    const actionFilter = document.getElementById('logActionFilter');
+    if (actionFilter) actionFilter.value = '';
+    const userFilter = document.getElementById('logUserFilter');
+    if (userFilter) userFilter.value = '';
+    const dateStart = document.getElementById('logDateStartFilter');
+    if (dateStart) dateStart.value = '';
+    const dateEnd = document.getElementById('logDateEndFilter');
+    if (dateEnd) dateEnd.value = '';
+    loadAuditLogs(1);
+  }
+
+  function exportAuditLogsExcel() {
+    const search = document.getElementById('logSearchInput').value.trim();
+    const actionType = document.getElementById('logActionFilter')?.value || '';
+    const adminUser = document.getElementById('logUserFilter')?.value || '';
+    const dateStart = document.getElementById('logDateStartFilter')?.value || '';
+    const dateEnd = document.getElementById('logDateEndFilter')?.value || '';
+    
+    let url = `/api/audit-logs/export?search=${encodeURIComponent(search)}`;
+    if (actionType) url += `&actionType=${encodeURIComponent(actionType)}`;
+    if (adminUser) url += `&adminUser=${encodeURIComponent(adminUser)}`;
+    if (dateStart) url += `&dateStart=${encodeURIComponent(dateStart)}`;
+    if (dateEnd) url += `&dateEnd=${encodeURIComponent(dateEnd)}`;
+    
+    window.location.href = url;
+  }
+
   async function loadAuditLogs(page = 1) {
     const tbody = document.getElementById('auditLogsTableBody');
     const search = document.getElementById('logSearchInput').value.trim();
-    if (tbody && page === 1 && !search) {
+    
+    const actionType = document.getElementById('logActionFilter')?.value || '';
+    const adminUser = document.getElementById('logUserFilter')?.value || '';
+    const dateStart = document.getElementById('logDateStartFilter')?.value || '';
+    const dateEnd = document.getElementById('logDateEndFilter')?.value || '';
+
+    if (tbody && page === 1) {
       tbody.innerHTML = '<tr><td colspan="4"><div class="loading-spinner"><div class="spin"></div></div></td></tr>';
     }
+    
     try {
-      const res = await fetch(`/api/audit-logs?page=${page}&limit=15&search=${encodeURIComponent(search)}`).then(r => r.json());
+      let url = `/api/audit-logs?page=${page}&limit=15&search=${encodeURIComponent(search)}`;
+      if (actionType) url += `&actionType=${encodeURIComponent(actionType)}`;
+      if (adminUser) url += `&adminUser=${encodeURIComponent(adminUser)}`;
+      if (dateStart) url += `&dateStart=${encodeURIComponent(dateStart)}`;
+      if (dateEnd) url += `&dateEnd=${encodeURIComponent(dateEnd)}`;
+
+      const res = await fetch(url).then(r => r.json());
       const logs = res.logs || [];
       const total = res.total || 0;
       
@@ -2520,20 +3324,54 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
                         dt.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit', second:'2-digit', timeZone:'Asia/Jakarta' });
         
         let actionClass = 'log-badge-other';
-        const action = l.action || 'OTHER';
-        if (action.includes('LOGIN')) actionClass = 'log-badge-login';
-        else if (action.includes('ABSENSI')) actionClass = 'log-badge-absensi';
-        else if (action.includes('CREATE')) actionClass = 'log-badge-create';
-        else if (action.includes('UPDATE')) actionClass = 'log-badge-update';
-        else if (action.includes('DELETE')) actionClass = 'log-badge-delete';
-        else if (action.includes('PUSH')) actionClass = 'log-badge-sheets';
-        else if (action.includes('IMPORT')) actionClass = 'log-badge-excel';
+        let actionText = l.action || 'OTHER';
+        const action = l.action || '';
+        
+        if (action.includes('LOGIN')) {
+          actionClass = 'log-badge-login';
+          actionText = '🔑 ' + actionText;
+        } else if (action.includes('LOGOUT')) {
+          actionClass = 'log-badge-login';
+          actionText = '🚪 ' + actionText;
+        } else if (action.includes('CHANGE_PASSWORD')) {
+          actionClass = 'log-badge-login';
+          actionText = '🔒 ' + actionText;
+        } else if (action.includes('ABSENSI')) {
+          actionClass = 'log-badge-absensi';
+          actionText = '📅 ' + actionText;
+        } else if (action.includes('CREATE_USER') || action.includes('CREATE_ADMIN')) {
+          actionClass = 'log-badge-create';
+          actionText = '👤 ' + actionText;
+        } else if (action.includes('CREATE')) {
+          actionClass = 'log-badge-create';
+          actionText = '➕ ' + actionText;
+        } else if (action.includes('UPDATE_SUBMISSION_STATUS')) {
+          actionClass = 'log-badge-update';
+          actionText = '📝 ' + actionText;
+        } else if (action.includes('UPDATE')) {
+          actionClass = 'log-badge-update';
+          actionText = '✏️ ' + actionText;
+        } else if (action.includes('DELETE')) {
+          actionClass = 'log-badge-delete';
+          actionText = '🗑️ ' + actionText;
+        } else if (action.includes('PUSH')) {
+          actionClass = 'log-badge-sheets';
+          actionText = '☁️ ' + actionText;
+        } else if (action.includes('IMPORT') || action.includes('EXPORT')) {
+          actionClass = 'log-badge-excel';
+          actionText = '📊 ' + actionText;
+        } else {
+          actionClass = 'log-badge-other';
+          actionText = '⚙️ ' + actionText;
+        }
 
-        return `<tr>
-          <td style="white-space:nowrap;font-family:monospace;font-size:12px;">${dateStr}</td>
-          <td><strong>${l.username}</strong></td>
-          <td><span class="log-badge-action ${actionClass}">${action}</span></td>
-          <td style="font-size:13px;color:var(--text-mid);">${l.details || '-'}</td>
+        const formattedDetails = formatLogDetails(l.details, l.action);
+
+        return `<tr style="transition: background 0.15s; border-bottom: 1px solid var(--card-border);">
+          <td style="white-space:nowrap;font-family:monospace;font-size:12px;color:var(--text-muted);">${dateStr}</td>
+          <td><strong style="color:var(--text);">${l.username}</strong></td>
+          <td><span class="log-badge-action ${actionClass}" style="letter-spacing:0.2px; font-weight:700;">${actionText}</span></td>
+          <td style="font-size:13px;color:var(--text);line-height:1.4;">${formattedDetails}</td>
         </tr>`;
       }).join('');
       
@@ -2744,6 +3582,9 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
   window.closeLightbox    = closeLightbox;
   window.loadAuditLogs    = loadAuditLogs;
   window.filterLogs       = filterLogs;
+  window.loadAuditLogUsers = loadAuditLogUsers;
+  window.resetLogFilters  = resetLogFilters;
+  window.exportAuditLogsExcel = exportAuditLogsExcel;
   window.initCustomSelects = initCustomSelects;
   window.showPage         = showPage;
   window.loadStatusCarian = loadStatusCarian;
@@ -3113,6 +3954,7 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
           <div class="ann-admin-body">
             <div class="ann-admin-title">${ann.title}</div>
             <div class="ann-admin-content">${autoLink(ann.content)}</div>
+            ${ann.image_url ? `<div style="margin-top:10px; max-width:200px; border-radius:8px; overflow:hidden; border:1px solid var(--border);"><img src="${ann.image_url}" style="width:100%; display:block;"></div>` : ''}
             <div class="ann-admin-meta">
               <span class="ann-type-badge ${ann.type}">${ann.type}</span>
               <span>${ann.is_active ? '🟢 Aktif' : '⚫ Nonaktif'}</span>
@@ -3139,14 +3981,36 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
     const type    = document.querySelector('input[name="annType"]:checked')?.value || 'info';
     const preview = document.getElementById('annPreview');
     if (!preview) return;
+
+    let imgHtml = '';
+    const previewImgEl = document.getElementById('annImagePreviewEl');
+    if (previewImgEl && previewImgEl.src && document.getElementById('annImagePreviewContainer').style.display !== 'none') {
+      imgHtml = `<div class="ann-banner-image" style="margin-top: 10px; border-radius: 8px; overflow: hidden; max-height: 200px; border: 1px solid rgba(255,255,255,0.2);"><img src="${previewImgEl.src}" style="width: 100%; height: 100%; object-fit: cover; display: block;"></div>`;
+    }
+
     preview.className = `ann-banner ${type}`;
     preview.innerHTML = `
       <div class="ann-banner-emoji">${emoji}</div>
       <div class="ann-banner-body">
         <div class="ann-banner-title">${title}</div>
         <div class="ann-banner-content">${autoLink(content)}</div>
+        ${imgHtml}
       </div>`;
   }
+
+  let _existingImageUrl = '';
+
+  function clearAnnImage() {
+    const fileInput = document.getElementById('annImageInput');
+    if (fileInput) fileInput.value = '';
+    const container = document.getElementById('annImagePreviewContainer');
+    const imgEl = document.getElementById('annImagePreviewEl');
+    if (container) container.style.display = 'none';
+    if (imgEl) imgEl.src = '';
+    _existingImageUrl = '';
+    buildAnnPreview();
+  }
+  window.clearAnnImage = clearAnnImage;
 
   function openAnnouncementModal(ann = null) {
     document.getElementById('annId').value        = ann?.id || '';
@@ -3154,16 +4018,51 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
     document.getElementById('annTitle').value     = ann?.title   || '';
     document.getElementById('annContent').value   = ann?.content || '';
     document.getElementById('announcementModalTitle').textContent = ann ? 'Edit Pengumuman' : 'Buat Pengumuman Baru';
+
+    const fileInput = document.getElementById('annImageInput');
+    if (fileInput) fileInput.value = '';
+
+    _existingImageUrl = ann?.image_url || '';
+    const container = document.getElementById('annImagePreviewContainer');
+    const imgEl = document.getElementById('annImagePreviewEl');
+
+    if (_existingImageUrl && container && imgEl) {
+      imgEl.src = _existingImageUrl;
+      container.style.display = 'block';
+    } else {
+      if (container) container.style.display = 'none';
+      if (imgEl) imgEl.src = '';
+    }
+
     const type = ann?.type || 'info';
     document.querySelectorAll('input[name="annType"]').forEach(r => { r.checked = r.value === type; });
     buildAnnPreview();
     const modal = document.getElementById('announcementModal');
     modal.classList.add('visible');
+
     // Live preview
     ['annEmoji','annTitle','annContent'].forEach(id => {
       const el = document.getElementById(id);
       if (el) { el.oninput = buildAnnPreview; }
     });
+
+    if (fileInput) {
+      fileInput.onchange = () => {
+        const file = fileInput.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            if (imgEl && container) {
+              imgEl.src = e.target.result;
+              container.style.display = 'block';
+              buildAnnPreview();
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+    }
+
     document.querySelectorAll('input[name="annType"]').forEach(r => { r.onchange = buildAnnPreview; });
   }
   window.openAnnouncementModal = openAnnouncementModal;
@@ -3185,14 +4084,28 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
     const content = document.getElementById('annContent').value.trim();
     const type    = document.querySelector('input[name="annType"]:checked')?.value || 'info';
     if (!title || !content) { showToast('Judul dan isi pengumuman wajib diisi.', 'error'); return; }
+
     const btn = document.getElementById('annSaveBtn');
     btn.disabled = true; btn.textContent = 'Menyimpan...';
+
+    const fd = new FormData();
+    fd.append('emoji', emoji);
+    fd.append('title', title);
+    fd.append('content', content);
+    fd.append('type', type);
+    fd.append('image_url', _existingImageUrl);
+
+    const fileInput = document.getElementById('annImageInput');
+    if (fileInput && fileInput.files[0]) {
+      fd.append('image', fileInput.files[0]);
+    }
+
     try {
       const url    = id ? `/api/announcements/${id}` : '/api/announcements';
       const method = id ? 'PUT' : 'POST';
       const r = await fetch(url, {
-        method, headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emoji, title, content, type })
+        method,
+        body: fd
       });
       if (!r.ok) throw new Error((await r.json()).error || 'Gagal menyimpan');
       showToast(id ? 'Pengumuman diperbarui ✓' : 'Pengumuman berhasil dibuat ✓', 'success');
@@ -3697,6 +4610,11 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
       const pct = rpGrandTotal > 0 ? ((p.total_nilai / rpGrandTotal) * 100) : 0;
       const pctBar = Math.min(pct, 100).toFixed(1);
       const posColor = RP_POSISI_COLOR[p.posisi] || { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0' };
+      const tipe = p.tipe_karyawan || 'Productivity';
+      const tipeBadgeHtml = tipe === 'PHL'
+        ? `<span style="background:#f3e8ff; color:#7c3aed; border:1px solid rgba(124, 58, 237, 0.2); font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px; margin-left:6px;">PHL</span>`
+        : `<span style="background:#e0f2fe; color:#0284c7; border:1px solid rgba(2, 132, 199, 0.2); font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px; margin-left:6px;">Productivity</span>`;
+
       const zonaRows = (p.zona_detail || []).map(z => `
         <tr style="background:var(--sidebar-bg);">
           <td></td>
@@ -3715,7 +4633,10 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
               <div style="font-size:13px; font-weight:600; color:var(--text-primary);">${p.nama}</div>
             </div>
           </td>
-          <td><span style="background:${posColor.bg}; color:${posColor.text}; border:1px solid ${posColor.border}; font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px;">${p.posisi}</span></td>
+          <td>
+            <span style="background:${posColor.bg}; color:${posColor.text}; border:1px solid ${posColor.border}; font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px;">${p.posisi}</span>
+            ${tipeBadgeHtml}
+          </td>
           <td style="text-align:right; font-size:13px; font-weight:600;">${(p.total_pencapaian||0).toLocaleString('id-ID')}</td>
           <td style="text-align:right; font-size:13px; font-weight:700; color:var(--success);">${rpFmt(p.total_nilai)}</td>
           <td>
@@ -3756,10 +4677,12 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
   function rpApplyFilter() {
     const q      = (document.getElementById('rpSearchInput')?.value || '').toLowerCase().trim();
     const posisi = document.getElementById('rpFilterPosisi')?.value || '';
+    const tipe   = document.getElementById('rpFilterTipe')?.value || '';
     rpFiltered = rpAllData.filter(p => {
       const matchQ = !q || (p.nama||'').toLowerCase().includes(q);
       const matchP = !posisi || p.posisi === posisi;
-      return matchQ && matchP;
+      const matchT = !tipe || p.tipe_karyawan === tipe;
+      return matchQ && matchP && matchT;
     });
 
     // Update kartu Total Pekerja yang terfilter
@@ -3792,8 +4715,10 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
     }
 
     const posisi = document.getElementById('rpFilterPosisi')?.value || '';
+    const tipe   = document.getElementById('rpFilterTipe')?.value || '';
     const search = document.getElementById('rpSearchInput')?.value || '';
     if (posisi) url += `&posisi=${encodeURIComponent(posisi)}`;
+    if (tipe) url += `&tipe=${encodeURIComponent(tipe)}`;
     if (search) url += `&search=${encodeURIComponent(search)}`;
 
     window.location.href = url;
@@ -3973,3 +4898,945 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
     } catch { showToast('Gagal menghapus ketentuan harga.', 'error'); }
   }
   window.deleteHarga = deleteHarga;
+
+  // ===================== ABSENSI MODE TOGGLE =====================
+
+  let _absensiMode = 'harian'; // 'harian' | 'rekap'
+
+  function setAbsensiMode(mode) {
+    _absensiMode = mode;
+    const panelHarian  = document.getElementById('panelAbsensiHarian');
+    const panelRekap   = document.getElementById('panelRekapKaryawan');
+    const btnHarian    = document.getElementById('absensiModeHarian');
+    const btnRekap     = document.getElementById('absensiModeRekap');
+    if (!panelHarian || !panelRekap) return;
+
+    if (mode === 'harian') {
+      panelHarian.style.display = '';
+      panelRekap.style.display  = 'none';
+      btnHarian.style.background = 'var(--primary)';
+      btnHarian.style.color      = '#fff';
+      btnHarian.style.border     = '1.5px solid var(--primary)';
+      btnRekap.style.background  = 'var(--card-bg)';
+      btnRekap.style.color       = 'var(--text)';
+      btnRekap.style.border      = '1.5px solid var(--card-border)';
+    } else {
+      panelHarian.style.display = 'none';
+      panelRekap.style.display  = '';
+      btnRekap.style.background  = 'var(--primary)';
+      btnRekap.style.color       = '#fff';
+      btnRekap.style.border      = '1.5px solid var(--primary)';
+      btnHarian.style.background = 'var(--card-bg)';
+      btnHarian.style.color      = 'var(--text)';
+      btnHarian.style.border     = '1.5px solid var(--card-border)';
+      // Populate user dropdown on first open
+      populateRiwayatUserSelect();
+      // Set default date range: first of current month to today
+      const rTM = document.getElementById('riwayatTanggalMulai');
+      const rTA = document.getElementById('riwayatTanggalAkhir');
+      if (rTM && !rTM.value) {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        rTM.value = `${y}-${m}-01`;
+        rTA.value = `${y}-${m}-${String(now.getDate()).padStart(2, '0')}`;
+      }
+    }
+  }
+  window.setAbsensiMode = setAbsensiMode;
+
+  let _riwayatUsersLoaded = false;
+  let _riwayatAllUsers    = [];
+  let _riwayatSelectedId  = '';
+
+  // Posisi badge colors
+  const _comboPosisiColor = {
+    'picker': { bg: '#ede9fe', color: '#7c3aed' },
+    'sorter': { bg: '#d1fae5', color: '#065f46' },
+    'loader': { bg: '#fef3c7', color: '#92400e' },
+  };
+
+  async function populateRiwayatUserSelect() {
+    if (_riwayatUsersLoaded) return;
+    try {
+      const res  = await fetch('/api/users', { credentials: 'include' });
+      const data = await res.json();
+      _riwayatAllUsers = (data.users || data || [])
+        .filter(u => u.role === 'operasional' && u.is_active !== false)
+        .sort((a, b) => (a.nama_lengkap || a.username).localeCompare(b.nama_lengkap || b.username));
+      _riwayatUsersLoaded = true;
+      renderRiwayatComboItems('');
+    } catch (e) {
+      console.error('populateRiwayatUserSelect error:', e);
+    }
+  }
+
+  function renderRiwayatComboItems(query) {
+    const container = document.getElementById('riwayatComboItems');
+    if (!container) return;
+    const q = query.toLowerCase().trim();
+    const filtered = q
+      ? _riwayatAllUsers.filter(u => (u.nama_lengkap || u.username).toLowerCase().includes(q))
+      : _riwayatAllUsers;
+
+    let itemsHtml = '';
+
+    // Add "Semua Karyawan" option at the top if search is empty or matches "semua"
+    if (!q || 'semua karyawan'.includes(q) || 'semua'.includes(q)) {
+      const isAllActive = _riwayatSelectedId === 'all';
+      itemsHtml += `<div
+        onclick="selectRiwayatUser('all', 'Semua Karyawan', 'Semua')"
+        style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;transition:background 0.15s;border-radius:0;
+               border-bottom: 1.5px solid var(--border); ${isAllActive ? 'background:rgba(16,185,129,0.08);' : ''}"
+        onmouseover="this.style.background='rgba(16,185,129,0.07)'"
+        onmouseout="this.style.background='${isAllActive ? 'rgba(16,185,129,0.08)' : 'transparent'}'"
+      >
+        <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#10b981,#059669);
+                    display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0;">
+          ALL
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">👥 Semua Karyawan</div>
+          <div style="font-size:10px;color:var(--text-muted);">Rekap / export semua sekaligus</div>
+        </div>
+        <span style="background:rgba(16,185,129,0.1);color:#065f46;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;flex-shrink:0;">Semua</span>
+        ${isAllActive ? '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="color:#10b981;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+      </div>`;
+    }
+
+    if (filtered.length === 0 && !itemsHtml) {
+      container.innerHTML = `<div style="padding:14px 16px;text-align:center;color:var(--text-muted);font-size:13px;">Tidak ada karyawan ditemukan</div>`;
+      return;
+    }
+
+    itemsHtml += filtered.map(u => {
+      const nama    = u.nama_lengkap || u.username;
+      const inisial = nama[0].toUpperCase();
+      const pos     = (u.posisi || '').toLowerCase();
+      const pc      = _comboPosisiColor[pos] || { bg: '#f1f5f9', color: '#475569' };
+      const isActive = u.id === _riwayatSelectedId;
+      return `<div
+        onclick="selectRiwayatUser('${u.id}', '${nama.replace(/'/g,"\\'")}', '${u.posisi || ''}')"
+        style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;transition:background 0.15s;border-radius:0;
+               ${isActive ? 'background:rgba(99,102,241,0.08);' : ''}"
+        onmouseover="this.style.background='rgba(99,102,241,0.07)'"
+        onmouseout="this.style.background='${isActive ? 'rgba(99,102,241,0.08)' : 'transparent'}'"
+      >
+        <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--primary),#8b5cf6);
+                    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0;">
+          ${inisial}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nama}</div>
+          ${u.nik ? `<div style="font-size:10px;color:var(--text-muted);">NIK: ${u.nik}</div>` : ''}
+        </div>
+        <span style="background:${pc.bg};color:${pc.color};font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;flex-shrink:0;">${u.posisi || '-'}</span>
+        ${isActive ? '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="color:var(--primary);flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+      </div>`;
+    }).join('');
+
+    container.innerHTML = itemsHtml;
+  }
+
+  function openRiwayatCombo() {
+    const list    = document.getElementById('riwayatComboList');
+    const box     = document.getElementById('riwayatComboBox');
+    const chevron = document.getElementById('riwayatComboChevron');
+    if (!list) return;
+    list.style.display = '';
+    box.style.borderColor = 'var(--primary)';
+    box.style.boxShadow   = '0 0 0 3px rgba(99,102,241,0.15)';
+    if (chevron) chevron.style.transform = 'rotate(180deg)';
+    renderRiwayatComboItems(document.getElementById('riwayatComboInput')?.value || '');
+  }
+
+  function closeRiwayatCombo() {
+    const list    = document.getElementById('riwayatComboList');
+    const box     = document.getElementById('riwayatComboBox');
+    const chevron = document.getElementById('riwayatComboChevron');
+    if (!list) return;
+    list.style.display = 'none';
+    box.style.borderColor = '';
+    box.style.boxShadow   = '';
+    if (chevron) chevron.style.transform = 'rotate(0deg)';
+    // If nothing selected, reset input text
+    if (!_riwayatSelectedId) {
+      const inp = document.getElementById('riwayatComboInput');
+      if (inp) inp.value = '';
+    }
+  }
+
+  function toggleRiwayatCombo() {
+    const list = document.getElementById('riwayatComboList');
+    if (list && list.style.display === 'none') openRiwayatCombo();
+    else closeRiwayatCombo();
+  }
+  window.toggleRiwayatCombo = toggleRiwayatCombo;
+
+  function filterRiwayatCombo() {
+    const q = document.getElementById('riwayatComboInput')?.value || '';
+    // Clear selection when typing new query
+    if (_riwayatSelectedId) {
+      _riwayatSelectedId = '';
+      document.getElementById('riwayatUserSelect').value = '';
+      document.getElementById('riwayatComboAvatar').style.display = 'none';
+      document.getElementById('riwayatComboBadge').style.display = 'none';
+    }
+    openRiwayatCombo();
+    renderRiwayatComboItems(q);
+  }
+  window.filterRiwayatCombo = filterRiwayatCombo;
+  window.openRiwayatCombo   = openRiwayatCombo;
+
+  function selectRiwayatUser(id, nama, posisi) {
+    _riwayatSelectedId = id;
+    document.getElementById('riwayatUserSelect').value = id;
+
+    // Update input text
+    const inp = document.getElementById('riwayatComboInput');
+    if (inp) inp.value = nama;
+
+    // Show avatar
+    const avatar = document.getElementById('riwayatComboAvatar');
+    if (avatar) {
+      avatar.textContent = id === 'all' ? 'ALL' : nama[0].toUpperCase();
+      avatar.style.display = 'flex';
+      avatar.style.background = id === 'all' ? 'linear-gradient(135deg,#10b981,#059669)' : 'var(--primary)';
+    }
+
+    // Show badge
+    const badge  = document.getElementById('riwayatComboBadge');
+    if (badge) {
+      if (id === 'all') {
+        badge.innerHTML = `<span style="background:rgba(16,185,129,0.1);color:#065f46;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;">Semua</span>`;
+      } else {
+        const pos    = (posisi || '').toLowerCase();
+        const pc     = _comboPosisiColor[pos] || { bg: '#f1f5f9', color: '#475569' };
+        badge.innerHTML = `<span style="background:${pc.bg};color:${pc.color};font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;">${posisi || '-'}</span>`;
+      }
+      badge.style.display = '';
+    }
+
+    closeRiwayatCombo();
+    renderRiwayatComboItems('');
+  }
+  window.selectRiwayatUser = selectRiwayatUser;
+
+
+  // Close combo when clicking outside
+  document.addEventListener('click', function(e) {
+    const combo = document.getElementById('riwayatCombo');
+    if (combo && !combo.contains(e.target)) closeRiwayatCombo();
+  });
+
+  async function loadRiwayatUser() {
+    const userId  = document.getElementById('riwayatUserSelect')?.value;
+    const mulai   = document.getElementById('riwayatTanggalMulai')?.value;
+    const akhir   = document.getElementById('riwayatTanggalAkhir')?.value;
+    const resultEl  = document.getElementById('riwayatResult');
+    const summaryEl = document.getElementById('riwayatSummary');
+
+    if (!userId)  { showToast('Pilih karyawan terlebih dahulu.', 'error'); return; }
+    if (!mulai)   { showToast('Pilih tanggal mulai.', 'error'); return; }
+    if (!akhir)   { showToast('Pilih tanggal akhir.', 'error'); return; }
+    if (akhir < mulai) { showToast('Tanggal akhir tidak boleh sebelum tanggal mulai.', 'error'); return; }
+
+    if (resultEl) resultEl.innerHTML = `<div style="text-align:center;padding:32px 0;"><div class="loading-spinner"><div class="spin"></div></div></div>`;
+    if (summaryEl) summaryEl.style.display = 'none';
+
+    const isAll = userId === 'all';
+    const url = isAll
+      ? `/api/absensi/riwayat-semua-karyawan?tanggal_mulai=${mulai}&tanggal_akhir=${akhir}`
+      : `/api/absensi/riwayat-user?user_id=${encodeURIComponent(userId)}&tanggal_mulai=${mulai}&tanggal_akhir=${akhir}`;
+
+    try {
+      const res  = await fetch(url, { credentials: 'include' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal memuat data.');
+
+      if (isAll) {
+        // Combined stats for all employees
+        const totalUsers = data.users.length;
+        const totalHadir = data.users.reduce((sum, u) => sum + u.total_hadir, 0);
+        const totalTidakHadir = data.users.reduce((sum, u) => sum + u.total_tidak_hadir, 0);
+        const totalDays  = data.total_hari;
+
+        document.getElementById('riwayatStatHadir').textContent       = totalHadir;
+        document.getElementById('riwayatStatTidakHadir').textContent  = totalTidakHadir;
+        document.getElementById('riwayatStatTotal').textContent       = totalDays;
+
+        const avgPct = totalUsers > 0
+          ? (data.users.reduce((sum, u) => sum + parseFloat(u.pct), 0) / totalUsers).toFixed(1)
+          : '0';
+        document.getElementById('riwayatStatPct').textContent         = avgPct + '%';
+        if (summaryEl) summaryEl.style.display = 'block';
+
+        // Render summary table for all users
+        if (resultEl) renderRiwayatSemuaKaryawanResult(resultEl, data);
+      } else {
+        // Individual stats
+        document.getElementById('riwayatStatHadir').textContent       = data.total_hadir;
+        document.getElementById('riwayatStatTidakHadir').textContent  = data.total_tidak_hadir;
+        document.getElementById('riwayatStatTotal').textContent       = data.total_hari;
+        const pct = data.total_hari > 0 ? ((data.total_hadir / data.total_hari) * 100).toFixed(1) : '0';
+        document.getElementById('riwayatStatPct').textContent         = pct + '%';
+        if (summaryEl) summaryEl.style.display = 'block';
+
+        // Render single employee calendar view
+        if (resultEl) renderRiwayatResult(resultEl, data);
+      }
+
+    } catch (err) {
+      console.error('loadRiwayatUser error:', err);
+      if (resultEl) resultEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--error);">⚠️ ${err.message}</div>`;
+    }
+  }
+  window.loadRiwayatUser = loadRiwayatUser;
+
+  function renderRiwayatSemuaKaryawanResult(container, data) {
+    const pcColors = {
+      'picker': { bg: '#ede9fe', color: '#7c3aed' },
+      'sorter': { bg: '#d1fae5', color: '#065f46' },
+      'loader': { bg: '#fef3c7', color: '#92400e' }
+    };
+
+    let html = `
+      <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:18px;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:15px;font-weight:800;color:var(--text);">👥 Ringkasan Kehadiran Seluruh Karyawan</div>
+        <div style="font-size:12px;color:var(--text-muted);font-weight:600;">
+          Periode: ${fmtTglFull(data.tanggal_mulai)} — ${fmtTglFull(data.tanggal_akhir)} (${data.total_hari} Hari)
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="border-bottom:2px solid var(--border);text-align:left;color:var(--text-muted);font-weight:700;">
+              <th style="padding:10px 8px;">No</th>
+              <th style="padding:10px 8px;">Nama Karyawan</th>
+              <th style="padding:10px 8px;text-align:center;">Posisi</th>
+              <th style="padding:10px 8px;text-align:center;">NIK</th>
+              <th style="padding:10px 8px;text-align:center;color:#10b981;">Hadir</th>
+              <th style="padding:10px 8px;text-align:center;color:#ef4444;">Tidak Hadir</th>
+              <th style="padding:10px 8px;text-align:center;">% Kehadiran</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    data.users.forEach((item, idx) => {
+      const u = item.user;
+      const nama = u.nama_lengkap || u.username;
+      const pos = (u.posisi || '').toLowerCase();
+      const pc = pcColors[pos] || { bg: '#f1f5f9', color: '#475569' };
+      const pctVal = parseFloat(item.pct);
+
+      let pctColor = '#10b981';
+      if (pctVal < 50) {
+        pctColor = '#ef4444';
+      } else if (pctVal < 80) {
+        pctColor = '#f59e0b';
+      }
+
+      html += `
+        <tr style="border-bottom:1px solid var(--border);transition:background 0.2s;" onmouseover="this.style.background='rgba(99,102,241,0.02)'" onmouseout="this.style.background='transparent'">
+          <td style="padding:12px 8px;color:var(--text-muted);font-weight:600;">${idx + 1}</td>
+          <td style="padding:12px 8px;font-weight:700;color:var(--text);">${nama}</td>
+          <td style="padding:12px 8px;text-align:center;">
+            <span style="background:${pc.bg};color:${pc.color};font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;">${u.posisi || '-'}</span>
+          </td>
+          <td style="padding:12px 8px;text-align:center;color:var(--text-muted);font-family:monospace;">${u.nik || '-'}</td>
+          <td style="padding:12px 8px;text-align:center;font-weight:700;color:#10b981;">${item.total_hadir} hari</td>
+          <td style="padding:12px 8px;text-align:center;font-weight:700;color:#ef4444;">${item.total_tidak_hadir} hari</td>
+          <td style="padding:12px 8px;">
+            <div style="display:flex;align-items:center;gap:8px;justify-content:center;">
+              <span style="font-weight:800;color:${pctColor};min-width:45px;text-align:right;">${item.pct}%</span>
+              <div style="width:70px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;flex-shrink:0;">
+                <div style="width:${item.pct}%;height:100%;background:${pctColor};border-radius:3px;"></div>
+              </div>
+            </div>
+          </td>
+        </tr>
+      `;
+    });
+
+    html += `
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    container.innerHTML = html;
+  }
+
+
+  function renderRiwayatResult(container, data) {
+    const hadirSet = new Set(data.hadir);
+
+    // Group all dates by month
+    const allDates = [...data.hadir, ...data.tidak_hadir].sort();
+    const byMonth  = {};
+    allDates.forEach(d => {
+      const [y, m] = d.split('-');
+      const key = `${y}-${m}`;
+      if (!byMonth[key]) byMonth[key] = [];
+      byMonth[key].push(d);
+    });
+
+    const bulanNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    const hariNames  = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+
+    let html = '';
+
+    // User info header
+    const u = data.user;
+    if (u) {
+      html += `<div style="display:flex;align-items:center;gap:12px;padding:0 0 16px;border-bottom:1px solid var(--border);margin-bottom:20px;">
+        <div style="width:44px;height:44px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;flex-shrink:0;">
+          ${(u.nama_lengkap || u.username || '?')[0].toUpperCase()}
+        </div>
+        <div>
+          <div style="font-size:15px;font-weight:800;color:var(--text);">${u.nama_lengkap || u.username}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:1px;">${u.posisi || ''} ${u.nik ? '· NIK: ' + u.nik : ''}</div>
+        </div>
+        <div style="margin-left:auto;font-size:12px;color:var(--text-muted);text-align:right;">
+          ${fmtTglFull(data.tanggal_mulai)} — ${fmtTglFull(data.tanggal_akhir)}
+        </div>
+      </div>`;
+    }
+
+    // Calendar per month
+    Object.keys(byMonth).sort().forEach(monthKey => {
+      const [y, m] = monthKey.split('-');
+      const monthLabel = `${bulanNames[parseInt(m) - 1]} ${y}`;
+
+      // Build full calendar for this month
+      const firstDay  = new Date(`${y}-${m}-01T00:00:00`);
+      const lastDay   = new Date(parseInt(y), parseInt(m), 0); // last day of month
+      const startDow  = firstDay.getDay(); // 0=Sun
+      const totalDays = lastDay.getDate();
+
+      let calHtml = `<div style="margin-bottom:24px;">
+        <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+          📆 ${monthLabel}
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;max-width:350px;">`;
+
+      // Day headers
+      hariNames.forEach(h => {
+        calHtml += `<div style="text-align:center;font-size:10px;font-weight:700;color:var(--text-muted);padding:4px 0;">${h}</div>`;
+      });
+
+      // Empty cells before first day
+      for (let i = 0; i < startDow; i++) {
+        calHtml += `<div></div>`;
+      }
+
+      // Day cells
+      for (let day = 1; day <= totalDays; day++) {
+        const dateStr = `${y}-${m}-${String(day).padStart(2, '0')}`;
+        const isInRange = dateStr >= data.tanggal_mulai && dateStr <= data.tanggal_akhir;
+        const isHadir   = hadirSet.has(dateStr);
+
+        let cellStyle = 'text-align:center;border-radius:8px;padding:5px 2px;font-size:12px;font-weight:600;';
+        if (!isInRange) {
+          cellStyle += 'color:var(--text-muted);opacity:0.4;';
+        } else if (isHadir) {
+          cellStyle += 'background:#10b981;color:#fff;';
+        } else {
+          cellStyle += 'background:rgba(239,68,68,0.12);color:#ef4444;border:1px solid rgba(239,68,68,0.2);';
+        }
+
+        const icon = !isInRange ? '' : (isHadir ? '' : '');
+        calHtml += `<div style="${cellStyle}" title="${dateStr}${isInRange ? (isHadir ? ' ✅ Hadir' : ' ❌ Tidak Hadir') : ''}">${day}</div>`;
+      }
+
+      calHtml += `</div>`;
+
+      // List view for this month
+      const monthDates = byMonth[monthKey].filter(d => d >= data.tanggal_mulai && d <= data.tanggal_akhir);
+      const hadirBulan = monthDates.filter(d => hadirSet.has(d));
+      const tidakHadirBulan = monthDates.filter(d => !hadirSet.has(d));
+
+      calHtml += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">`;
+      if (hadirBulan.length > 0) {
+        calHtml += `<div style="font-size:11px;color:#10b981;font-weight:600;">✅ Hadir ${hadirBulan.length} hari</div>`;
+      }
+      if (tidakHadirBulan.length > 0) {
+        calHtml += `<div style="font-size:11px;color:#ef4444;font-weight:600;">❌ Tidak hadir ${tidakHadirBulan.length} hari</div>`;
+      }
+      calHtml += `</div></div>`;
+
+      html += calHtml;
+    });
+
+    // Detail list: tidak hadir
+    if (data.tidak_hadir.length > 0) {
+      html += `<div style="margin-top:8px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em;">Daftar Hari Tidak Hadir</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          ${data.tidak_hadir.map(d =>
+            `<span style="background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;">${fmtTglFull(d)}</span>`
+          ).join('')}
+        </div>
+      </div>`;
+    }
+
+    container.innerHTML = html || `<div style="text-align:center;padding:32px;color:var(--text-muted);">Tidak ada data.</div>`;
+  }
+
+  function fmtTglFull(tgl) {
+    if (!tgl) return '';
+    const [y, m, d] = tgl.split('-');
+    const bln = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+    return `${parseInt(d)} ${bln[parseInt(m)-1]} ${y}`;
+  }
+
+  async function exportRiwayatExcel() {
+    const userId = document.getElementById('riwayatUserSelect')?.value;
+    const mulai  = document.getElementById('riwayatTanggalMulai')?.value;
+    const akhir  = document.getElementById('riwayatTanggalAkhir')?.value;
+
+    if (!userId) { showToast('Pilih karyawan terlebih dahulu.', 'error'); return; }
+    if (!mulai)  { showToast('Pilih tanggal mulai.', 'error'); return; }
+    if (!akhir)  { showToast('Pilih tanggal akhir.', 'error'); return; }
+
+    const btn = document.getElementById('btnExportRiwayat');
+    const origHTML = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.disabled  = true;
+      btn.innerHTML = `<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="animation:spin 1s linear infinite;"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Menyiapkan...`;
+      btn.style.opacity = '0.8';
+    }
+
+    try {
+      const isAll = userId === 'all';
+      const url = isAll
+        ? `/api/absensi/export-semua-karyawan?tanggal_mulai=${mulai}&tanggal_akhir=${akhir}`
+        : `/api/absensi/export-riwayat-user?user_id=${encodeURIComponent(userId)}&tanggal_mulai=${mulai}&tanggal_akhir=${akhir}`;
+
+      const res = await fetch(url, { credentials: 'include' });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Gagal mengekspor data.');
+      }
+
+      const blob     = await res.blob();
+      const dlUrl    = URL.createObjectURL(blob);
+      const a        = document.createElement('a');
+      const filename = res.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1]
+                       || (isAll ? `Rekap_Absensi_Semua_Karyawan_${mulai}_sd_${akhir}.xlsx` : `Absensi_${mulai}_sd_${akhir}.xlsx`);
+      a.href     = dlUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(dlUrl);
+
+      showToast('✅ Export Excel berhasil diunduh!', 'success');
+    } catch (err) {
+      console.error('exportRiwayatExcel error:', err);
+      showToast('Gagal export: ' + err.message, 'error');
+    } finally {
+      if (btn) {
+        btn.disabled  = false;
+        btn.innerHTML = origHTML;
+        btn.style.opacity = '1';
+      }
+    }
+  }
+  window.exportRiwayatExcel = exportRiwayatExcel;
+
+
+  // ===================== REKAP PENGGAJIAN MODULE (HR) =====================
+
+  function initPenggajianPage() {
+    const tM = document.getElementById('penggajianTanggalMulai');
+    const tA = document.getElementById('penggajianTanggalAkhir');
+    if (tM && !tM.value) {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      tM.value = `${y}-${m}-01`;
+      tA.value = `${y}-${m}-${String(now.getDate()).padStart(2, '0')}`;
+    }
+  }
+  window.initPenggajianPage = initPenggajianPage;
+
+  async function loadRekapPenggajian() {
+    const mulai = document.getElementById('penggajianTanggalMulai')?.value;
+    const akhir = document.getElementById('penggajianTanggalAkhir')?.value;
+    
+    const resultEl = document.getElementById('penggajianResult');
+    const summaryEl = document.getElementById('penggajianSummary');
+
+    if (!mulai) { showToast('Pilih tanggal mulai.', 'error'); return; }
+    if (!akhir) { showToast('Pilih tanggal akhir.', 'error'); return; }
+    if (akhir < mulai) { showToast('Tanggal akhir tidak boleh sebelum tanggal mulai.', 'error'); return; }
+
+    if (resultEl) resultEl.innerHTML = `<div style="text-align:center;padding:32px 0;"><div class="loading-spinner"><div class="spin"></div></div></div>`;
+    if (summaryEl) summaryEl.style.display = 'none';
+
+    try {
+      const url = `/api/hr/penggajian?tanggal_mulai=${mulai}&tanggal_akhir=${akhir}`;
+      const res = await fetch(url, { credentials: 'include' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal memuat data.');
+
+      // Calculate totals
+      let totalHadirCombined = 0;
+      let totalTidakHadirCombined = 0;
+      let totalEarningsCarian = 0;
+
+      data.pekerja.forEach(p => {
+        totalHadirCombined += p.total_hadir;
+        totalTidakHadirCombined += p.total_tidak_hadir;
+        totalEarningsCarian += p.pendapatan_carian;
+      });
+
+      const totalPossibleDays = totalHadirCombined + totalTidakHadirCombined;
+      const avgAttendance = totalPossibleDays > 0 
+        ? ((totalHadirCombined / totalPossibleDays) * 100).toFixed(1) + '%'
+        : '0.0%';
+
+      const avgEarnings = data.pekerja.length > 0
+        ? Math.round(totalEarningsCarian / data.pekerja.length)
+        : 0;
+
+      // Update stat cards
+      document.getElementById('pgStatHadir').textContent = avgAttendance;
+      document.getElementById('pgStatTidakHadir').textContent = `Rp ${avgEarnings.toLocaleString('id-ID')}`;
+      document.getElementById('pgStatCarian').textContent = `Rp ${totalEarningsCarian.toLocaleString('id-ID')}`;
+      
+      if (summaryEl) summaryEl.style.display = 'block';
+
+      // Render table
+      renderPenggajianTable(resultEl, data.pekerja);
+
+    } catch (err) {
+      console.error('loadRekapPenggajian error:', err);
+      if (resultEl) resultEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--error);">⚠️ ${err.message}</div>`;
+    }
+  }
+  window.loadRekapPenggajian = loadRekapPenggajian;
+
+  function renderPenggajianTable(container, pekerjaList) {
+    const pcColors = {
+      'picker': { bg: '#ede9fe', color: '#7c3aed' },
+      'sorter': { bg: '#d1fae5', color: '#065f46' },
+      'loader': { bg: '#fef3c7', color: '#92400e' }
+    };
+
+    let html = `
+      <div class="table-wrap">
+        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+          <thead>
+            <tr style="border-bottom:2px solid var(--border); text-align:left; color:var(--text-muted); font-weight:700;">
+              <th style="padding:10px 8px;">No</th>
+              <th style="padding:10px 8px;">Nama Karyawan</th>
+              <th style="padding:10px 8px; text-align:center;">Posisi</th>
+              <th style="padding:10px 8px; text-align:center;">Tipe</th>
+              <th style="padding:10px 8px; text-align:center;">NIK</th>
+              <th style="padding:10px 8px; text-align:center;">Hari Hadir</th>
+              <th style="padding:10px 8px; text-align:center;">Tidak Hadir</th>
+              <th style="padding:10px 8px; text-align:center;">% Kehadiran</th>
+              <th style="padding:10px 8px; text-align:right; color:#059669;">Pendapatan Hasil Carian</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    pekerjaList.forEach((p, idx) => {
+      const nama = p.user.nama_lengkap || p.user.username || p.nama;
+      const pos = (p.user.posisi || '').toLowerCase();
+      const pc = pcColors[pos] || { bg: '#f1f5f9', color: '#475569' };
+      const pctVal = parseFloat(p.attendance_pct || 0);
+      
+      const tipe = p.user.tipe_karyawan || 'Productivity';
+      const tipeStyle = tipe === 'PHL' 
+        ? { bg: '#f3e8ff', color: '#7c3aed' }
+        : { bg: '#e0f2fe', color: '#0284c7' };
+
+      let pctColor = '#10b981';
+      if (pctVal < 50) pctColor = '#ef4444';
+      else if (pctVal < 80) pctColor = '#f59e0b';
+
+      html += `
+        <tr style="border-bottom:1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(99,102,241,0.02)'" onmouseout="this.style.background='transparent'">
+          <td style="padding:12px 8px; color:var(--text-muted); font-weight:600;">${idx + 1}</td>
+          <td style="padding:12px 8px; font-weight:700; color:var(--text);">${nama}</td>
+          <td style="padding:12px 8px; text-align:center;">
+            <span style="background:${pc.bg}; color:${pc.color}; font-size:10px; font-weight:700; padding:3px 8px; border-radius:20px;">${p.user.posisi || '-'}</span>
+          </td>
+          <td style="padding:12px 8px; text-align:center;">
+            <span style="background:${tipeStyle.bg}; color:${tipeStyle.color}; font-size:10px; font-weight:700; padding:3px 8px; border-radius:20px;">${tipe}</span>
+          </td>
+          <td style="padding:12px 8px; text-align:center; color:var(--text-muted); font-family:monospace;">${p.user.nik || '-'}</td>
+          <td style="padding:12px 8px; text-align:center; font-weight:700; color:#10b981;">${p.total_hadir} hari</td>
+          <td style="padding:12px 8px; text-align:center; font-weight:700; color:#ef4444;">${p.total_tidak_hadir} hari</td>
+          <td style="padding:12px 8px; text-align:center; font-weight:700; color:${pctColor};">${p.attendance_pct}%</td>
+          <td style="padding:12px 8px; text-align:right; font-weight:800; color:#059669; font-size:14px;">Rp ${p.pendapatan_carian.toLocaleString('id-ID')}</td>
+        </tr>
+      `;
+    });
+
+    html += `
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    container.innerHTML = html;
+  }
+
+  async function exportPenggajianExcel() {
+    const mulai = document.getElementById('penggajianTanggalMulai')?.value;
+    const akhir = document.getElementById('penggajianTanggalAkhir')?.value;
+
+    if (!mulai) { showToast('Pilih tanggal mulai.', 'error'); return; }
+    if (!akhir) { showToast('Pilih tanggal akhir.', 'error'); return; }
+
+    const btn = document.getElementById('btnExportPenggajian');
+    const origHTML = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="animation:spin 1s linear infinite;"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Menyiapkan...`;
+      btn.style.opacity = '0.8';
+    }
+
+    try {
+      const url = `/api/hr/penggajian/export?tanggal_mulai=${mulai}&tanggal_akhir=${akhir}`;
+      const res = await fetch(url, { credentials: 'include' });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Gagal mengekspor data.');
+      }
+
+      const blob = await res.blob();
+      const dlUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const filename = res.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1]
+                       || `Rekap_Penggajian_${mulai}_sd_${akhir}.xlsx`;
+      a.href = dlUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(dlUrl);
+
+      showToast('✅ Laporan Penggajian Excel berhasil diunduh!', 'success');
+    } catch (err) {
+      console.error('exportPenggajianExcel error:', err);
+      showToast('Gagal export: ' + err.message, 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = origHTML;
+        btn.style.opacity = '1';
+      }
+    }
+  }
+  window.exportPenggajianExcel = exportPenggajianExcel;
+
+  // ===================== END ABSENSI REKAP MODULE =====================
+// =====================================================================
+// ================== ADMIN: VALIDASI RETURN ===========================
+// =====================================================================
+
+async function loadAdminReturnEntries() {
+  const container = document.getElementById('returnValidationContent');
+  if (!container) return;
+  container.innerHTML = '<div style="text-align:center;padding:48px;color:var(--text-muted);font-size:13px;">Memuat data return...</div>';
+
+  const tglFilter = document.getElementById('rvFilterTanggal')?.value || '';
+  const statusFilter = document.getElementById('rvFilterStatus')?.value || '';
+  const searchQuery = (document.getElementById('rvFilterSearch')?.value || '').trim().toLowerCase();
+
+  try {
+    let url = '/api/return-entries?';
+    if (tglFilter) url += `tanggal_return=${tglFilter}&`;
+    if (statusFilter) url += `status=${statusFilter}&`;
+
+    const r = await fetch(url);
+    let entries = await r.json();
+    if (!Array.isArray(entries)) entries = [];
+
+    // Client-side search filter
+    if (searchQuery) {
+      entries = entries.filter(e =>
+        (e.no_polisi || '').toLowerCase().includes(searchQuery) ||
+        (e.nama_return || '').toLowerCase().includes(searchQuery)
+      );
+    }
+
+    // Update quick stats
+    const totCount = entries.length;
+    const pendingCount = entries.filter(e => e.status === 'submitted').length;
+    const validCount = entries.filter(e => e.status === 'validated').length;
+    const revCount = entries.filter(e => e.status === 'revised').length;
+
+    const elTot = document.getElementById('rvStatTotal');
+    const elPen = document.getElementById('rvStatPending');
+    const elVal = document.getElementById('rvStatValidated');
+    const elRev = document.getElementById('rvStatRevised');
+
+    if (elTot) elTot.textContent = totCount;
+    if (elPen) elPen.textContent = pendingCount;
+    if (elVal) elVal.textContent = validCount;
+    if (elRev) elRev.textContent = revCount;
+
+    if (entries.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center;padding:54px 24px;background:var(--card-bg);border-radius:16px;border:2px dashed rgba(100,116,139,0.18);">
+          <div style="width:52px;height:52px;border-radius:50%;background:rgba(13,148,136,0.1);display:flex;align-items:center;justify-content:center;margin:0 auto 14px auto;">
+            <svg width="26" height="26" fill="none" stroke="#0D9488" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+            </svg>
+          </div>
+          <div style="font-size:15px;font-weight:800;color:var(--text);margin-bottom:4px;">Belum Ada Entry Return</div>
+          <div style="font-size:13px;color:var(--text-muted);max-width:380px;margin:0 auto;line-height:1.4;">Tidak ada data return kontainer yang sesuai dengan filter. Coba ubah filter tanggal, status, atau kata kunci pencarian.</div>
+        </div>`;
+      return;
+    }
+
+    const statusBadge = (s) => {
+      const map = {
+        submitted: { bg:'rgba(245,158,11,0.12)', border:'rgba(245,158,11,0.3)', color:'#B45309', text:'⏳ Menunggu Validasi' },
+        validated: { bg:'rgba(16,185,129,0.12)', border:'rgba(16,185,129,0.3)', color:'#047857', text:'✅ Tervalidasi' },
+        revised:   { bg:'rgba(239,68,68,0.12)',  border:'rgba(239,68,68,0.3)',  color:'#B91C1C', text:'🔁 Perlu Revisi' }
+      };
+      const s2 = map[s] || { bg:'rgba(100,116,139,0.1)', border:'rgba(100,116,139,0.2)', color:'#64748b', text:s };
+      return `<span style="background:${s2.bg};border:1px solid ${s2.border};color:${s2.color};padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;display:inline-flex;align-items:center;gap:4px;">${s2.text}</span>`;
+    };
+
+    const rows = entries.map((e, idx) => {
+      const selisihVal = e.total_selisih || 0;
+      let selBg = '#ECFDF5', selBorder = '#A7F3D0', selColor = '#059669', selLabel = '✓ Sesuai';
+      if (selisihVal > 0) { selBg = '#FEF3C7'; selBorder = '#FDE68A'; selColor = '#D97706'; selLabel = `−${selisihVal} (Kurang)`; }
+      else if (selisihVal < 0) { selBg = '#FEE2E2'; selBorder = '#FCA5A5'; selColor = '#DC2626'; selLabel = `+${Math.abs(selisihVal)} (Lebih)`; }
+
+      let clusterDetailStr = '';
+      try {
+        const outputs = typeof e.cluster_return_outputs === 'string'
+          ? JSON.parse(e.cluster_return_outputs)
+          : (e.cluster_return_outputs || {});
+
+        const parsePkg = (val) => {
+          if (typeof val === 'number') return `${val} Kont`;
+          if (typeof val === 'object' && val !== null) {
+            const parts = [];
+            if (val.kontainer) parts.push(`${val.kontainer} Kont`);
+            if (val.styrofoam) parts.push(`${val.styrofoam} Stero`);
+            if (val.dus)       parts.push(`${val.dus} Dus`);
+            return parts.length > 0 ? parts.join('/') : '0';
+          }
+          return `${val}`;
+        };
+
+        clusterDetailStr = Object.entries(outputs).map(([gm, qty]) => `<span style="background:rgba(13,148,136,0.08);color:#0F766E;padding:2px 6px;border-radius:5px;font-weight:700;font-size:10px;">${gm}: ${parsePkg(qty)}</span>`).join(' ');
+      } catch(_) { clusterDetailStr = '—'; }
+
+      return `
+        <tr style="border-bottom:1px solid rgba(100,116,139,0.1);transition:background 0.15s;" onmouseover="this.style.background='rgba(13,148,136,0.03)'" onmouseout="this.style.background='transparent'">
+          <td style="padding:12px 14px;font-size:12px;font-weight:700;color:var(--text-muted);">${idx + 1}</td>
+          <td style="padding:12px 14px;">
+            <div style="font-size:13px;font-weight:800;color:var(--text);">${e.tanggal_return || '—'}</div>
+            <div style="font-size:10px;color:var(--text-muted);">Ref Outbound: ${e.tanggal_referensi || '—'}</div>
+          </td>
+          <td style="padding:12px 14px;">
+            <div style="font-size:14px;font-weight:800;color:var(--text);letter-spacing:0.3px;">${e.no_polisi || '—'}</div>
+            <div style="font-size:11px;color:var(--text-muted);">Loader: ${e.nama_return || '—'}</div>
+          </td>
+          <td style="padding:12px 14px;">
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">${clusterDetailStr || '—'}</div>
+          </td>
+          <td style="padding:12px 14px;text-align:center;">
+            <span style="font-size:13px;font-weight:800;color:#6D28D9;background:#F5F3FF;padding:4px 9px;border-radius:8px;border:1px solid #DDD6FE;">${e.total_outbound || 0}</span>
+          </td>
+          <td style="padding:12px 14px;text-align:center;">
+            <span style="font-size:13px;font-weight:800;color:#0F766E;background:#F0FDF4;padding:4px 9px;border-radius:8px;border:1px solid #CCFBF1;">${e.total_kembali || 0}</span>
+          </td>
+          <td style="padding:12px 14px;text-align:center;">
+            <span style="font-size:11px;font-weight:800;color:${selColor};background:${selBg};border:1px solid ${selBorder};padding:4px 10px;border-radius:20px;display:inline-block;">${selLabel}</span>
+          </td>
+          <td style="padding:12px 14px;">${statusBadge(e.status)}</td>
+          <td style="padding:12px 14px;">
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+              ${e.status === 'submitted' ? `
+                <button onclick="adminValidateReturn('${e.id}','validate')"
+                  style="padding:6px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#10B981,#059669);color:#fff;font-size:11px;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(16,185,129,0.25);">✅ Validasi</button>
+                <button onclick="adminValidateReturn('${e.id}','revise')"
+                  style="padding:6px 12px;border-radius:8px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.08);color:#DC2626;font-size:11px;font-weight:700;cursor:pointer;">🔁 Revisi</button>
+              ` : `
+                <span style="font-size:11px;color:var(--text-muted);font-weight:600;">Oleh <strong>${e.validated_by || 'admin'}</strong></span>
+              `}
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+
+    container.innerHTML = `
+      <div style="overflow-x:auto;border-radius:16px;border:1.5px solid rgba(100,116,139,0.15);background:var(--card-bg);box-shadow:0 4px 16px rgba(0,0,0,0.02);">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:900px;">
+          <thead>
+            <tr style="background:rgba(100,116,139,0.06);border-bottom:1.5px solid rgba(100,116,139,0.15);">
+              <th style="padding:12px 14px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);">No</th>
+              <th style="padding:12px 14px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);">Tanggal Return</th>
+              <th style="padding:12px 14px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);">Armada &amp; Loader</th>
+              <th style="padding:12px 14px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);">Detail per Cluster</th>
+              <th style="padding:12px 14px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#6D28D9;">Outbound</th>
+              <th style="padding:12px 14px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#0F766E;">Kembali DC</th>
+              <th style="padding:12px 14px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);">Selisih</th>
+              <th style="padding:12px 14px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);">Status</th>
+              <th style="padding:12px 14px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);">Aksi Validasi</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div style="margin-top:12px;font-size:12px;color:var(--text-muted);display:flex;justify-content:space-between;align-items:center;padding:0 4px;">
+        <span>Menampilkan <strong>${entries.length}</strong> entry return</span>
+      </div>`;
+  } catch(e) {
+    container.innerHTML = `<div style="text-align:center;padding:48px;color:#ef4444;font-size:13px;background:var(--card-bg);border-radius:14px;border:1.5px solid rgba(239,68,68,0.2);">Gagal memuat data return. Pastikan koneksi internet lancar dan tabel return_entries tersedia.</div>`;
+  }
+}
+
+async function adminValidateReturn(id, action) {
+  const label = action === 'validate' ? 'memvalidasi' : 'meminta revisi';
+  const catatanAdmin = action === 'revise' ? prompt('Catatan untuk team return (opsional):') : '';
+  if (catatanAdmin === null) return; // user cancel
+
+  try {
+    const r = await fetch(`/api/return-entries/${id}/validate`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, catatan_admin: catatanAdmin || '' })
+    });
+    const data = await r.json();
+    if (r.ok && data.success) {
+      showToast(`Berhasil ${label} entry return ✅`, 'success');
+      loadAdminReturnEntries();
+    } else {
+      showToast(data.error || `Gagal ${label}.`, 'error');
+    }
+  } catch(e) {
+    showToast(`Gagal ${label}.`, 'error');
+  }
+}
+
+window.loadAdminReturnEntries = loadAdminReturnEntries;
+window.adminValidateReturn = adminValidateReturn;
+
+// ===================== END ADMIN VALIDASI RETURN =====================
+
+function exportReturnExcel() {
+  const tgl = document.getElementById('rvFilterTanggal')?.value || '';
+  const status = document.getElementById('rvFilterStatus')?.value || '';
+  let url = '/api/export-return?';
+  if (tgl) url += `tanggal_return=${tgl}&`;
+  if (status) url += `status=${status}&`;
+  window.open(url, '_blank');
+}
+window.exportReturnExcel = exportReturnExcel;

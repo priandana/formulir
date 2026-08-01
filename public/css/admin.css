@@ -209,6 +209,22 @@
     .topbar h2 { font-size: 18px; font-weight: 800; color: var(--text); }
     .topbar-actions { display: flex; gap: 10px; align-items: center; }
 
+    /* Topbar clock wrap — subtle inline in topbar */
+    .topbar-clock-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: rgba(37,99,235,0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      margin-right: 4px;
+    }
+    @media (max-width: 900px) {
+      .topbar-clock-wrap { display: none; }
+    }
+
+
     /* Buttons */
     .btn { padding: 9px 18px; border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid transparent; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); display: flex; align-items: center; gap: 6px; }
     .btn:hover { transform: translateY(-1px); }
@@ -849,6 +865,7 @@
     .badge-picker { background: rgba(59,130,246,0.06); color: #1D4ED8; border: 1px solid rgba(59,130,246,0.15); }
     .badge-sorter { background: rgba(16,185,129,0.06); color: #047857; border: 1px solid rgba(16,185,129,0.15); }
     .badge-loader { background: rgba(245,158,11,0.06); color: #B45309; border: 1px solid rgba(245,158,11,0.15); }
+    .badge-return { background: rgba(20,184,166,0.08); color: #0f766e; border: 1px solid rgba(20,184,166,0.2); }
     .badge-prod { background: rgba(96, 165, 250,0.06); color: #6D28D9; border: 1px solid rgba(96, 165, 250,0.15); }
     .badge-phl { background: rgba(236,72,153,0.06); color: #BE185D; border: 1px solid rgba(236,72,153,0.15); }
     .badge-other { background: rgba(107,114,128,0.06); color: #4B5563; border: 1px solid rgba(107,114,128,0.15); }
@@ -2063,6 +2080,7 @@ body.dark-mode .guide-card-icon.absensi-icon { background: rgba(14,165,233,0.15)
 body.dark-mode .badge-picker { background: rgba(96,165,250,0.12); color: #60A5FA; border-color: rgba(96,165,250,0.2); }
 body.dark-mode .badge-sorter { background: rgba(52,211,153,0.12); color: #34D399; border-color: rgba(52,211,153,0.2); }
 body.dark-mode .badge-loader { background: rgba(251,191,36,0.12); color: #FBBF24; border-color: rgba(251,191,36,0.2); }
+body.dark-mode .badge-return { background: rgba(45,212,191,0.12); color: #2dd4bf; border-color: rgba(45,212,191,0.2); }
 body.dark-mode .badge-prod { background: rgba(167,139,250,0.12); color: #A78BFA; border-color: rgba(167,139,250,0.2); }
 body.dark-mode .badge-phl { background: rgba(244,114,182,0.12); color: #F472B6; border-color: rgba(244,114,182,0.2); }
 body.dark-mode .badge-other { background: rgba(156,163,175,0.12); color: #9CA3AF; border-color: rgba(156,163,175,0.2); }
@@ -2678,4 +2696,328 @@ body.dark-mode .custom-select-trigger-text.placeholder-text {
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.2;
+}
+
+/* =====================================================
+   [NEW] SKELETON LOADING
+   ===================================================== */
+@keyframes skeletonShimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+.skeleton-row td {
+  padding: 14px 20px !important;
+  border-bottom: 1px solid rgba(37,99,235,0.04) !important;
+}
+.skeleton-cell {
+  height: 14px;
+  border-radius: 6px;
+  background: linear-gradient(90deg,
+    rgba(37,99,235,0.05) 25%,
+    rgba(37,99,235,0.12) 50%,
+    rgba(37,99,235,0.05) 75%
+  );
+  background-size: 600px 100%;
+  animation: skeletonShimmer 1.4s infinite linear;
+  display: inline-block;
+  width: 100%;
+}
+.skeleton-cell.w-sm  { width: 50px; }
+.skeleton-cell.w-md  { width: 90px; }
+.skeleton-cell.w-lg  { width: 130px; }
+.skeleton-cell.w-xl  { width: 160px; }
+.skeleton-cell.badge-shape { width: 70px; height: 22px; border-radius: 6px; }
+.skeleton-cell.circle { width: 28px; height: 28px; border-radius: 8px; }
+
+/* =====================================================
+   [NEW] STATUS BADGE — Colorful with pulse
+   ===================================================== */
+.badge-status-pending,
+.badge-status-approved,
+.badge-status-rejected {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+  position: relative;
+  overflow: hidden;
+}
+.badge-status-approved {
+  background: linear-gradient(135deg, rgba(16,185,129,0.12), rgba(5,150,105,0.08));
+  color: #047857;
+  border: 1.5px solid rgba(16,185,129,0.3);
+  box-shadow: 0 2px 8px rgba(16,185,129,0.1);
+}
+.badge-status-pending {
+  background: linear-gradient(135deg, rgba(245,158,11,0.12), rgba(217,119,6,0.08));
+  color: #B45309;
+  border: 1.5px solid rgba(245,158,11,0.35);
+  box-shadow: 0 2px 8px rgba(245,158,11,0.1);
+}
+.badge-status-rejected {
+  background: linear-gradient(135deg, rgba(239,68,68,0.1), rgba(220,38,38,0.06));
+  color: #B91C1C;
+  border: 1.5px solid rgba(239,68,68,0.25);
+  box-shadow: 0 2px 8px rgba(239,68,68,0.08);
+}
+.badge-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.badge-status-approved .badge-status-dot {
+  background: #10B981;
+  animation: dotPulseGreen 2s infinite;
+}
+.badge-status-pending .badge-status-dot {
+  background: #F59E0B;
+  animation: dotPulseAmber 1.5s infinite;
+}
+.badge-status-rejected .badge-status-dot {
+  background: #EF4444;
+}
+@keyframes dotPulseGreen {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.4); }
+  50%       { box-shadow: 0 0 0 4px rgba(16,185,129,0); }
+}
+@keyframes dotPulseAmber {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.5); }
+  50%       { box-shadow: 0 0 0 4px rgba(245,158,11,0); }
+}
+
+/* =====================================================
+   [NEW] EMPTY STATE — with SVG illustration
+   ===================================================== */
+.empty-state-v2 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 24px;
+  text-align: center;
+  animation: fadeInUp 0.4s ease;
+}
+.empty-state-v2 .es-illustration {
+  width: 100px;
+  height: 100px;
+  margin-bottom: 20px;
+  opacity: 0.85;
+}
+.empty-state-v2 .es-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.empty-state-v2 .es-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  max-width: 320px;
+  line-height: 1.6;
+}
+.empty-state-v2 .es-action {
+  margin-top: 16px;
+}
+
+/* =====================================================
+   [NEW] TOPBAR INFO STRIP — real-time clock + server status
+   ===================================================== */
+.topbar-info-strip {
+  background: linear-gradient(90deg, rgba(37,99,235,0.04), rgba(99,102,241,0.04));
+  border-bottom: 1px solid rgba(37,99,235,0.06);
+  padding: 5px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 18px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.topbar-info-strip .tis-clock {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+}
+.topbar-info-strip .tis-clock svg { color: var(--primary); }
+.topbar-info-strip .tis-divider {
+  width: 1px;
+  height: 14px;
+  background: var(--card-border);
+}
+.topbar-info-strip .tis-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.tis-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10B981;
+  animation: dotPulseGreen 2s infinite;
+  flex-shrink: 0;
+}
+.tis-status-dot.offline { background: #EF4444; animation: none; }
+.topbar-info-strip .tis-pending {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(245,158,11,0.08);
+  border: 1px solid rgba(245,158,11,0.2);
+  border-radius: 6px;
+  padding: 2px 8px;
+  color: #B45309;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.topbar-info-strip .tis-pending:hover { background: rgba(245,158,11,0.15); }
+.tis-pending-badge {
+  background: #F59E0B;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* =====================================================
+   [NEW] BULK ACTION BAR — submissions
+   ===================================================== */
+.bulk-action-bar {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, rgba(37,99,235,0.06), rgba(99,102,241,0.04));
+  border: 1.5px solid rgba(37,99,235,0.15);
+  border-radius: 14px;
+  margin-bottom: 14px;
+  animation: slideDownBar 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  flex-wrap: wrap;
+}
+@keyframes slideDownBar {
+  from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.bulk-action-bar.visible { display: flex; }
+.bulk-count-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 12px;
+  border-radius: 8px;
+}
+.bulk-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+.btn-bulk-approve {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #059669, #10B981);
+  color: #fff;
+  border: none;
+  border-radius: 9px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(16,185,129,0.25);
+}
+.btn-bulk-approve:hover { opacity: 0.92; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(16,185,129,0.3); }
+.btn-bulk-reject {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: rgba(239,68,68,0.08);
+  color: #B91C1C;
+  border: 1.5px solid rgba(239,68,68,0.25);
+  border-radius: 9px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-bulk-reject:hover { background: rgba(239,68,68,0.14); transform: translateY(-1px); }
+.btn-bulk-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  background: none;
+  color: var(--text-muted);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-left: auto;
+}
+.btn-bulk-clear:hover { color: var(--error); border-color: rgba(239,68,68,0.3); }
+
+/* Checkbox in table */
+.bulk-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--primary);
+  border-radius: 4px;
+}
+.select-all-th {
+  width: 44px;
+  text-align: center !important;
+  padding: 14px 8px !important;
+}
+
+/* Dark mode overrides for new elements */
+body.dark-mode .badge-status-approved {
+  background: linear-gradient(135deg, rgba(16,185,129,0.18), rgba(5,150,105,0.12));
+  border-color: rgba(16,185,129,0.35);
+}
+body.dark-mode .badge-status-pending {
+  background: linear-gradient(135deg, rgba(245,158,11,0.18), rgba(217,119,6,0.12));
+  border-color: rgba(245,158,11,0.4);
+}
+body.dark-mode .badge-status-rejected {
+  background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(220,38,38,0.1));
+  border-color: rgba(239,68,68,0.3);
+}
+body.dark-mode .bulk-action-bar {
+  background: linear-gradient(135deg, rgba(37,99,235,0.1), rgba(99,102,241,0.06));
+}
+body.dark-mode .topbar-info-strip {
+  background: rgba(37,99,235,0.04);
+}
+body.dark-mode .skeleton-cell {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.04) 25%,
+    rgba(255,255,255,0.09) 50%,
+    rgba(255,255,255,0.04) 75%
+  );
+  background-size: 600px 100%;
 }

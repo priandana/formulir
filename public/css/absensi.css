@@ -527,3 +527,29 @@ body.dark-mode .absensi-section-tab.loader:not(.active) .tab-count {
   }
 }
 
+/* Saving/Processing card state */
+.absensi-user-card.saving {
+  pointer-events: none;
+  opacity: 0.75;
+  background: rgba(229, 231, 235, 0.15) !important;
+}
+
+.absensi-check-icon.saving {
+  border-color: var(--primary) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.absensi-mini-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(59, 130, 246, 0.2);
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: absensi-spin 0.8s linear infinite;
+}
+
+@keyframes absensi-spin {
+  to { transform: rotate(360deg); }
+}
+
