@@ -2415,7 +2415,7 @@ module.exports = {
     };
 
     if (isSupabaseEnabled) {
-      const [subData, loaderData, { data: hargaData }] = await Promise.all([
+      const [subData, loaderData, { data: hargaDataRaw }] = await Promise.all([
         this.fetchAllRows('submissions', 'nama, posisi, zona, jumlah_output, tanggal_carian', q =>
           q.gte('tanggal_carian', tanggalMulai).lte('tanggal_carian', tanggalAkhir).eq('status', 'approved')
         ),
@@ -2425,15 +2425,15 @@ module.exports = {
         supabase.from('ketentuan_harga').select('*')
       ]);
 
-      const hargaMap = {};
-      (hargaData || []).forEach(h => { hargaMap[`${h.posisi}|${h.zona}`] = h; });
+      const hargaData = (hargaDataRaw || []);
 
       const details = [];
 
       (subData || []).forEach(s => {
+        const hargaMapDate = this._buildHargaMapForDate(hargaData, s.tanggal_carian);
         const hargaKey  = `${s.posisi}|${s.zona}`;
         const hargaKeyK = `${s.posisi}|${zonaToKategori(s.zona)}`;
-        const h = hargaMap[hargaKey] || hargaMap[hargaKeyK] || null;
+        const h = hargaMapDate[hargaKey] || hargaMapDate[hargaKeyK] || null;
         const jml = parseInt(s.jumlah_output) || 0;
         const hargaVal = h ? h.harga : 0;
         const total = jml * hargaVal;
@@ -2450,7 +2450,8 @@ module.exports = {
       });
 
       (loaderData || []).forEach(l => {
-        const loaderH = hargaMap['Loader|AMBIENT, CHILLER, FREEZER'] || hargaMap['Loader|LOADER'] || null;
+        const hargaMapDate = this._buildHargaMapForDate(hargaData, l.tanggal_carian);
+        const loaderH = hargaMapDate['Loader|AMBIENT, CHILLER, FREEZER'] || hargaMapDate['Loader|LOADER'] || null;
         const jml = parseInt(l.jumlah_kontainer) || 0;
         const hargaVal = loaderH ? loaderH.harga : 0;
         const total = jml * hargaVal;
@@ -2479,15 +2480,13 @@ module.exports = {
       });
       const hargaData = dbData.ketentuan_harga || [];
 
-      const hargaMap = {};
-      hargaData.forEach(h => { hargaMap[`${h.posisi}|${h.zona}`] = h; });
-
       const details = [];
 
       subData.forEach(s => {
+        const hargaMapDate = this._buildHargaMapForDate(hargaData, s.tanggal_carian);
         const hargaKey  = `${s.posisi}|${s.zona}`;
         const hargaKeyK = `${s.posisi}|${zonaToKategori(s.zona)}`;
-        const h = hargaMap[hargaKey] || hargaMap[hargaKeyK] || null;
+        const h = hargaMapDate[hargaKey] || hargaMapDate[hargaKeyK] || null;
         const jml = parseInt(s.jumlah_output) || 0;
         const hargaVal = h ? h.harga : 0;
         const total = jml * hargaVal;
@@ -2504,7 +2503,8 @@ module.exports = {
       });
 
       loaderData.forEach(l => {
-        const loaderH = hargaMap['Loader|AMBIENT, CHILLER, FREEZER'] || hargaMap['Loader|LOADER'] || null;
+        const hargaMapDate = this._buildHargaMapForDate(hargaData, l.tanggal_carian);
+        const loaderH = hargaMapDate['Loader|AMBIENT, CHILLER, FREEZER'] || hargaMapDate['Loader|LOADER'] || null;
         const jml = parseInt(l.jumlah_kontainer) || 0;
         const hargaVal = loaderH ? loaderH.harga : 0;
         const total = jml * hargaVal;
@@ -2811,12 +2811,13 @@ module.exports = {
         .from('ketentuan_harga')
         .select('*')
         .order('posisi', { ascending: true })
-        .order('zona', { ascending: true });
+        .order('zona', { ascending: true })
+        .order('berlaku_dari', { ascending: false });
       if (error) { console.error('Supabase getKetentuanHarga error:', error); throw error; }
       return data || [];
     } else {
       const db = load();
-      return (db.ketentuan_harga || []).sort((a, b) => a.posisi.localeCompare(b.posisi) || a.zona.localeCompare(b.zona));
+      return (db.ketentuan_harga || []).sort((a, b) => a.posisi.localeCompare(b.posisi) || a.zona.localeCompare(b.zona) || String(b.berlaku_dari||'').localeCompare(String(a.berlaku_dari||'')));
     }
   },
 
@@ -2827,6 +2828,8 @@ module.exports = {
         .select('*')
         .eq('posisi', posisi)
         .eq('zona', zona)
+        .order('berlaku_dari', { ascending: false })
+        .limit(1)
         .maybeSingle();
       if (error) { console.error('Supabase getKetentuanHargaByKey error:', error); throw error; }
       return data || null;
@@ -2836,12 +2839,13 @@ module.exports = {
     }
   },
 
-  async insertKetentuanHarga({ posisi, zona, harga, satuan, keterangan }) {
+  async insertKetentuanHarga({ posisi, zona, harga, satuan, keterangan, berlaku_dari }) {
     const now = new Date().toISOString();
+    const berlakuDate = berlaku_dari || new Date().toISOString().slice(0, 10);
     if (isSupabaseEnabled) {
       const { data, error } = await supabase
         .from('ketentuan_harga')
-        .insert([{ posisi, zona, harga: parseFloat(harga) || 0, satuan, keterangan: keterangan || null }])
+        .insert([{ posisi, zona, harga: parseFloat(harga) || 0, satuan, keterangan: keterangan || null, berlaku_dari: berlakuDate }])
         .select()
         .single();
       if (error) { console.error('Supabase insertKetentuanHarga error:', error); throw error; }
@@ -2849,39 +2853,62 @@ module.exports = {
     } else {
       const db = load();
       if (!db.ketentuan_harga) db.ketentuan_harga = [];
-      const existing = db.ketentuan_harga.find(h => h.posisi === posisi && h.zona === zona);
-      if (existing) throw new Error('Harga untuk kombinasi posisi dan zona ini sudah ada.');
-      const record = { id: uuidv4(), posisi, zona, harga: parseFloat(harga) || 0, satuan, keterangan: keterangan || null, created_at: now, updated_at: now };
+      const existing = db.ketentuan_harga.find(h => h.posisi === posisi && h.zona === zona && h.berlaku_dari === berlakuDate);
+      if (existing) throw new Error('Harga untuk kombinasi posisi, zona, dan tanggal berlaku ini sudah ada.');
+      const record = { id: uuidv4(), posisi, zona, harga: parseFloat(harga) || 0, satuan, keterangan: keterangan || null, berlaku_dari: berlakuDate, created_at: now, updated_at: now };
       db.ketentuan_harga.push(record);
       save(db);
       return record;
     }
   },
 
-  async updateKetentuanHarga(id, { harga, keterangan }) {
+  // updateKetentuanHarga: Ambil posisi+zona dari row yg di-edit, lalu INSERT baris baru dgn berlaku_dari baru
+  async updateKetentuanHarga(id, { harga, keterangan, berlaku_dari }) {
     const now = new Date().toISOString();
+    let existing;
+    if (isSupabaseEnabled) {
+      const { data } = await supabase.from('ketentuan_harga').select('posisi,zona,satuan').eq('id', id).single();
+      existing = data;
+    } else {
+      const db = load();
+      existing = (db.ketentuan_harga || []).find(h => h.id === id);
+    }
+    if (!existing) throw new Error('Ketentuan harga tidak ditemukan.');
+
+    const berlakuDate = berlaku_dari || now.slice(0, 10);
+    const satuan = existing.satuan;
+
     if (isSupabaseEnabled) {
       const { data, error } = await supabase
         .from('ketentuan_harga')
-        .update({ harga: parseFloat(harga) || 0, keterangan: keterangan || null, updated_at: now })
-        .eq('id', id)
+        .insert([{ posisi: existing.posisi, zona: existing.zona, harga: parseFloat(harga) || 0, satuan, keterangan: keterangan || null, berlaku_dari: berlakuDate }])
         .select()
         .single();
-      if (error) { console.error('Supabase updateKetentuanHarga error:', error); throw error; }
+      if (error) {
+        if (error.code === '23505') throw new Error('Harga untuk tanggal berlaku ini sudah ada. Gunakan tanggal lain.');
+        console.error('Supabase updateKetentuanHarga (insert new period) error:', error);
+        throw error;
+      }
       return data;
     } else {
       const db = load();
       if (!db.ketentuan_harga) db.ketentuan_harga = [];
-      const idx = db.ketentuan_harga.findIndex(h => h.id === id);
-      if (idx === -1) throw new Error('Ketentuan harga tidak ditemukan.');
-      db.ketentuan_harga[idx] = { ...db.ketentuan_harga[idx], harga: parseFloat(harga) || 0, keterangan: keterangan || null, updated_at: now };
+      const dup = db.ketentuan_harga.find(h => h.posisi === existing.posisi && h.zona === existing.zona && h.berlaku_dari === berlakuDate);
+      if (dup) throw new Error('Harga untuk tanggal berlaku ini sudah ada. Gunakan tanggal lain.');
+      const record = { id: uuidv4(), posisi: existing.posisi, zona: existing.zona, harga: parseFloat(harga) || 0, satuan, keterangan: keterangan || null, berlaku_dari: berlakuDate, created_at: now, updated_at: now };
+      db.ketentuan_harga.push(record);
       save(db);
-      return db.ketentuan_harga[idx];
+      return record;
     }
   },
 
   async deleteKetentuanHarga(id) {
     if (isSupabaseEnabled) {
+      const { data: row } = await supabase.from('ketentuan_harga').select('posisi,zona').eq('id', id).single();
+      if (row) {
+        const { count } = await supabase.from('ketentuan_harga').select('id', { count: 'exact', head: true }).eq('posisi', row.posisi).eq('zona', row.zona);
+        if (count <= 1) throw new Error('Tidak dapat menghapus satu-satunya harga untuk kombinasi posisi dan zona ini.');
+      }
       const { error } = await supabase.from('ketentuan_harga').delete().eq('id', id);
       if (error) { console.error('Supabase deleteKetentuanHarga error:', error); throw error; }
       return true;
@@ -2890,10 +2917,30 @@ module.exports = {
       if (!db.ketentuan_harga) db.ketentuan_harga = [];
       const idx = db.ketentuan_harga.findIndex(h => h.id === id);
       if (idx === -1) throw new Error('Ketentuan harga tidak ditemukan.');
+      const { posisi, zona } = db.ketentuan_harga[idx];
+      const sameKey = db.ketentuan_harga.filter(h => h.posisi === posisi && h.zona === zona);
+      if (sameKey.length <= 1) throw new Error('Tidak dapat menghapus satu-satunya harga untuk kombinasi posisi dan zona ini.');
       db.ketentuan_harga.splice(idx, 1);
       save(db);
       return true;
     }
+  },
+
+  /**
+   * Helper: Dari array semua harga historis, kembalikan hargaMap yang berlaku pada tanggal tertentu.
+   * Untuk tiap kombinasi posisi+zona, ambil row dengan berlaku_dari TERBESAR yang <= tanggal.
+   */
+  _buildHargaMapForDate(allHargaData, tanggal) {
+    const map = {};
+    (allHargaData || []).forEach(h => {
+      const berlaku = h.berlaku_dari ? String(h.berlaku_dari).slice(0, 10) : '1970-01-01';
+      if (berlaku > tanggal) return; // belum berlaku pada tanggal ini
+      const key = `${h.posisi}|${h.zona}`;
+      if (!map[key] || berlaku > String(map[key].berlaku_dari || '').slice(0, 10)) {
+        map[key] = h;
+      }
+    });
+    return map;
   },
 
   // ============= REKAP PENDAPATAN =============
@@ -2933,7 +2980,7 @@ module.exports = {
     let result = { pekerja: [], grand_total: 0, total_by_posisi: { picker: 0, sorter: 0, loader: 0 }, leaderboard: [] };
 
     if (isSupabaseEnabled) {
-      // CATATAN: .limit(10000) wajib â€” Supabase default hanya 1000 rows
+      // CATATAN: .limit(10000) wajib — Supabase default hanya 1000 rows
       const [subData, loaderData, { data: hargaData }] = await Promise.all([
         this.fetchAllRows('submissions', 'nama, posisi, zona, jumlah_output, tanggal_carian', q =>
           q.gte('tanggal_carian', tanggalMulai).lte('tanggal_carian', tanggalAkhir).eq('status', 'approved')
@@ -2944,17 +2991,16 @@ module.exports = {
         supabase.from('ketentuan_harga').select('*')
       ]);
 
-      const hargaMap = {};
-      (hargaData || []).forEach(h => { hargaMap[`${h.posisi}|${h.zona}`] = h; });
-
-      // Aggregate Picker & Sorter per nama+posisi (cross-zona)
+      // Aggregate Picker & Sorter per nama+posisi (cross-zona) — harga per tanggal carian
       const subAgg = {};
       (subData || []).forEach(s => {
         const key = `${s.nama}|${s.posisi}`;
         if (!subAgg[key]) subAgg[key] = { nama: s.nama, posisi: s.posisi, total_pencapaian: 0, total_nilai: 0, zona_detail: {} };
+        // Lookup harga yang berlaku pada tanggal_carian submission ini
+        const hargaMapDate = this._buildHargaMapForDate(hargaData, s.tanggal_carian);
         const hargaKey  = `${s.posisi}|${s.zona}`;
         const hargaKeyK = `${s.posisi}|${zonaToKategori(s.zona)}`;
-        const h = hargaMap[hargaKey] || hargaMap[hargaKeyK] || null;
+        const h = hargaMapDate[hargaKey] || hargaMapDate[hargaKeyK] || null;
         const jml = parseInt(s.jumlah_output) || 0;
         const nilai = h ? jml * h.harga : 0;
         subAgg[key].total_pencapaian += jml;
@@ -2965,12 +3011,13 @@ module.exports = {
         subAgg[key].zona_detail[zk].nilai      += nilai;
       });
 
-      // Aggregate Loader per nama
+      // Aggregate Loader per nama — harga per tanggal carian
       const loaderAgg = {};
       (loaderData || []).forEach(l => {
         const key = l.nama;
         if (!loaderAgg[key]) loaderAgg[key] = { nama: l.nama, posisi: 'Loader', total_pencapaian: 0, total_nilai: 0, zona_detail: {} };
-        const loaderH = hargaMap['Loader|AMBIENT, CHILLER, FREEZER'] || hargaMap['Loader|LOADER'] || null;
+        const hargaMapDate = this._buildHargaMapForDate(hargaData, l.tanggal_carian);
+        const loaderH = hargaMapDate['Loader|AMBIENT, CHILLER, FREEZER'] || hargaMapDate['Loader|LOADER'] || null;
         const jml = parseInt(l.jumlah_kontainer) || 0;
         const nilai = loaderH ? jml * loaderH.harga : 0;
         loaderAgg[key].total_pencapaian += jml;
@@ -3024,17 +3071,15 @@ module.exports = {
       });
       const hargaData = db.ketentuan_harga || [];
 
-      const hargaMap = {};
-      hargaData.forEach(h => { hargaMap[`${h.posisi}|${h.zona}`] = h; });
-
-      // Aggregate Picker & Sorter per nama+posisi (cross-zona)
+      // Aggregate Picker & Sorter per nama+posisi (cross-zona) — harga per tanggal carian
       const subAgg = {};
       subData.forEach(s => {
         const key = `${s.nama}|${s.posisi}`;
         if (!subAgg[key]) subAgg[key] = { nama: s.nama, posisi: s.posisi, total_pencapaian: 0, total_nilai: 0, zona_detail: {} };
+        const hargaMapDate = this._buildHargaMapForDate(hargaData, s.tanggal_carian);
         const hargaKey  = `${s.posisi}|${s.zona}`;
         const hargaKeyK = `${s.posisi}|${zonaToKategori(s.zona)}`;
-        const h = hargaMap[hargaKey] || hargaMap[hargaKeyK] || null;
+        const h = hargaMapDate[hargaKey] || hargaMapDate[hargaKeyK] || null;
         const jml = parseInt(s.jumlah_output) || 0;
         const nilai = h ? jml * h.harga : 0;
         subAgg[key].total_pencapaian += jml;
@@ -3045,12 +3090,13 @@ module.exports = {
         subAgg[key].zona_detail[zk].nilai      += nilai;
       });
 
-      // Aggregate Loader per nama
+      // Aggregate Loader per nama — harga per tanggal carian
       const loaderAgg = {};
       loaderData.forEach(l => {
         const key = l.nama;
         if (!loaderAgg[key]) loaderAgg[key] = { nama: l.nama, posisi: 'Loader', total_pencapaian: 0, total_nilai: 0, zona_detail: {} };
-        const loaderH = hargaMap['Loader|AMBIENT, CHILLER, FREEZER'] || hargaMap['Loader|LOADER'] || null;
+        const hargaMapDate = this._buildHargaMapForDate(hargaData, l.tanggal_carian);
+        const loaderH = hargaMapDate['Loader|AMBIENT, CHILLER, FREEZER'] || hargaMapDate['Loader|LOADER'] || null;
         const jml = parseInt(l.jumlah_kontainer) || 0;
         const nilai = loaderH ? jml * loaderH.harga : 0;
         loaderAgg[key].total_pencapaian += jml;

@@ -439,15 +439,23 @@
               </div>
             </div>
 
-            <!-- Row 2: Harga & Keterangan -->
+            <!-- Row 2: Harga & Berlaku Dari -->
             <div class="form-row" style="margin-bottom:16px;">
               <div class="form-group">
                 <label for="hargaNominal">Harga per Satuan (Rp) <span class="req">*</span></label>
                 <input type="number" id="hargaNominal" class="form-control" placeholder="Contoh: 408 atau 4.08" min="0" step="0.01" required>
               </div>
               <div class="form-group">
+                <label for="hargaBerlakuDari">Berlaku Mulai Tanggal <span class="req">*</span></label>
+                <input type="date" id="hargaBerlakuDari" class="form-control" required>
+              </div>
+            </div>
+
+            <!-- Row 3: Keterangan -->
+            <div class="form-row" style="margin-bottom:16px;">
+              <div class="form-group" style="flex:1;">
                 <label for="hargaKeterangan">Keterangan</label>
-                <input type="text" id="hargaKeterangan" class="form-control" placeholder="Opsional (misal: Khusus Chiller)">
+                <input type="text" id="hargaKeterangan" class="form-control" placeholder="Opsional (misal: Penyesuaian harga baru)">
               </div>
             </div>
 
@@ -482,11 +490,11 @@
           <table>
             <thead>
               <tr>
-                <th>Posisi</th><th>Zona</th><th>Harga per Satuan</th><th>Satuan</th><th>Keterangan</th><th>Terakhir Diubah</th><th>Aksi</th>
+                <th>Posisi</th><th>Zona</th><th>Harga per Satuan</th><th>Satuan</th><th>Berlaku Dari</th><th>Keterangan</th><th>Terakhir Diubah</th><th>Aksi</th>
               </tr>
             </thead>
             <tbody id="hargaTableBody">
-              <tr><td colspan="7"><div class="loading-spinner"><div class="spin"></div></div></td></tr>
+              <tr><td colspan="8"><div class="loading-spinner"><div class="spin"></div></div></td></tr>
             </tbody>
           </table>
         </div>

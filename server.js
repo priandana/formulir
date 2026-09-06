@@ -58,13 +58,15 @@ async function syncLoaderEntriesToSheets() {
     const allEntries = await db.getAllLoaderEntries();
     const allFiles = await db.getAllFiles();
 
-    // Map files in memory by submission_id to avoid N+1 queries
+    // Map files in memory by loader_entry_id (loader files pakai loader_entry_id, bukan submission_id)
     const filesMap = new Map();
     for (const f of allFiles) {
-      if (!filesMap.has(f.submission_id)) {
-        filesMap.set(f.submission_id, []);
+      const key = f.loader_entry_id;
+      if (!key) continue; // skip file milik submission biasa
+      if (!filesMap.has(key)) {
+        filesMap.set(key, []);
       }
-      filesMap.get(f.submission_id).push(f);
+      filesMap.get(key).push(f);
     }
 
     await googleSheets.pushAllLoaderEntries(allEntries, filesMap);
@@ -2517,7 +2519,47 @@ app.get('/api/submissions/:id', requireAuth, async (req, res) => {
     const submission = await db.getSubmissionById(req.params.id);
     if (!submission) return res.status(404).json({ error: 'Data tidak ditemukan.' });
     const files = await db.getFilesBySubmissionId(req.params.id);
-    res.json({ ...submission, files });
+
+    // Ambil data kapasitas carian (batch capacity) untuk submission ini
+    let carian_capacity = null;
+    try {
+      const batches = Array.isArray(submission.batch_cluster)
+        ? submission.batch_cluster
+        : JSON.parse(submission.batch_cluster || '[]');
+      if (batches.length > 0 && submission.tanggal_carian && submission.posisi && submission.zona) {
+        const capacities = await db.getMultipleBatchesCapacity(
+          submission.tanggal_carian,
+          submission.posisi,
+          submission.zona,
+          batches
+        );
+        // Gabungkan kapasitas semua batch yang terkait submission ini
+        let total_carian = 0, sudah_diisi = 0, ada_data = false;
+        for (const b of batches) {
+          const cap = capacities[b];
+          if (cap && cap.ada_data_carian) {
+            ada_data = true;
+            total_carian += cap.total_output || 0;
+            sudah_diisi += (cap.total_output || 0) - (cap.sisa || 0);
+          }
+        }
+        if (ada_data) {
+          carian_capacity = {
+            ada_data_carian: true,
+            total_output: total_carian,
+            sudah_diisi,
+            sisa: total_carian - sudah_diisi,
+            satuan: submission.posisi === 'Picker' ? 'pcs' : 'kontainer',
+            batches
+          };
+        }
+      }
+    } catch (capErr) {
+      console.error('Fetch carian capacity error:', capErr);
+      // tidak fatal – lanjut tanpa data kapasitas
+    }
+
+    res.json({ ...submission, files, carian_capacity });
   } catch (err) {
     console.error('Fetch submission detail error:', err);
     res.status(500).json({ error: 'Gagal memuat detail.' });
@@ -2937,12 +2979,15 @@ app.post('/api/google-sheets/push', requireAdmin, async (req, res) => {
     }
 
     if (shouldPushLoader) {
+      // Map files by loader_entry_id (bukan submission_id) karena file loader disimpan di kolom loader_entry_id
       const loaderFilesMap = new Map();
       for (const f of allFiles) {
-        if (!loaderFilesMap.has(f.submission_id)) {
-          loaderFilesMap.set(f.submission_id, []);
+        const key = f.loader_entry_id;
+        if (!key) continue; // skip file milik submission biasa
+        if (!loaderFilesMap.has(key)) {
+          loaderFilesMap.set(key, []);
         }
-        loaderFilesMap.get(f.submission_id).push(f);
+        loaderFilesMap.get(key).push(f);
       }
       const loaderResult = await googleSheets.pushAllLoaderEntries(loaderEntries, loaderFilesMap);
       result.success = result.success && loaderResult.success;
@@ -5073,10 +5118,10 @@ app.get('/api/ketentuan-harga', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/ketentuan-harga â€” tambah ketentuan harga baru
+// POST /api/ketentuan-harga — tambah ketentuan harga baru
 app.post('/api/ketentuan-harga', requireAuth, async (req, res) => {
   try {
-    const { posisi, zona, harga, keterangan } = req.body;
+    const { posisi, zona, harga, keterangan, berlaku_dari } = req.body;
     if (!posisi || !zona || harga === undefined || harga === null || harga === '') {
       return res.status(400).json({ error: 'Posisi, zona, dan harga wajib diisi.' });
     }
@@ -5084,29 +5129,35 @@ app.post('/api/ketentuan-harga', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Posisi tidak valid.' });
     }
     const finalSatuan = posisi === 'Picker' ? 'pcs' : 'kontainer';
-    const record = await db.insertKetentuanHarga({ posisi, zona, harga: parseFloat(harga), satuan: finalSatuan, keterangan });
+    const record = await db.insertKetentuanHarga({ posisi, zona, harga: parseFloat(harga), satuan: finalSatuan, keterangan, berlaku_dari: berlaku_dari || null });
     res.json({ success: true, data: record });
   } catch (err) {
     console.error('POST ketentuan-harga error:', err);
-    if (err.message && err.message.includes('sudah ada')) {
+    if (err.message && (err.message.includes('sudah ada') || err.message.includes('23505'))) {
       return res.status(409).json({ error: err.message });
     }
     res.status(500).json({ error: 'Gagal menyimpan ketentuan harga.' });
   }
 });
 
-// PUT /api/ketentuan-harga/:id â€” edit harga
+// PUT /api/ketentuan-harga/:id — tambah periode harga baru (insert new row, harga lama tetap ada)
 app.put('/api/ketentuan-harga/:id', requireAuth, async (req, res) => {
   try {
-    const { harga, keterangan } = req.body;
+    const { harga, keterangan, berlaku_dari } = req.body;
     if (harga === undefined || harga === null || harga === '') {
       return res.status(400).json({ error: 'Harga wajib diisi.' });
     }
-    const record = await db.updateKetentuanHarga(req.params.id, { harga: parseFloat(harga), keterangan });
+    if (!berlaku_dari) {
+      return res.status(400).json({ error: 'Tanggal berlaku (berlaku_dari) wajib diisi.' });
+    }
+    const record = await db.updateKetentuanHarga(req.params.id, { harga: parseFloat(harga), keterangan, berlaku_dari });
     res.json({ success: true, data: record });
   } catch (err) {
     console.error('PUT ketentuan-harga error:', err);
-    res.status(500).json({ error: 'Gagal mengupdate ketentuan harga.' });
+    if (err.message && (err.message.includes('sudah ada') || err.message.includes('23505'))) {
+      return res.status(409).json({ error: err.message });
+    }
+    res.status(500).json({ error: 'Gagal menyimpan periode harga baru.' });
   }
 });
 

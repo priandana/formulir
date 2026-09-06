@@ -49,6 +49,8 @@ function showOnscreenError(source, err) {
   const PAGE_SIZE = 15;
   let currentUser = { username: '', allowed_pages: [] };
   let currentView = 'dashboard';
+  let appReady = false;      // true setelah init selesai
+  let pendingPage = null;    // halaman yang diklik user sebelum init selesai
 
   let allDataCarian = [];
   let filteredDataCarian = [];
@@ -119,16 +121,16 @@ function showOnscreenError(source, err) {
     initRealtimeNotifications();
     initCustomSelects();
     initTopbarClock();
-    // Tampilkan dashboard atau halaman pertama yang diizinkan
+    // Init selesai — tandai appReady agar showPage bisa berjalan
+    appReady = true;
+
+    // Kalau user sempat klik menu sebelum init selesai, navigate ke sana
+    // Kalau tidak, navigate ke default (dashboard atau halaman pertama yang diizinkan)
     const isSuperAdmin = currentUser.username && currentUser.username.toLowerCase() === 'admin';
     const allowed = currentUser.allowed_pages || [];
-    if (isSuperAdmin || allowed.includes('dashboard')) {
-      showPage('dashboard');
-    } else if (allowed.length > 0) {
-      showPage(allowed[0]);
-    } else {
-      showPage('feature-guide');
-    }
+    const targetPage = pendingPage || (isSuperAdmin || allowed.includes('dashboard') ? 'dashboard' : (allowed.length > 0 ? allowed[0] : 'feature-guide'));
+    pendingPage = null;
+    showPage(targetPage);
   })();
 
   // ============= TOPBAR INFO STRIP =============
@@ -745,7 +747,41 @@ function showOnscreenError(source, err) {
     try {
       const data = await fetch(`/api/submissions/${id}`).then(r => r.json());
       const batches = JSON.parse(data.batch_cluster || '[]');
+      const cc = data.carian_capacity;
+
+      // Info box aktual data carian (tampil khusus jika ada)
+      const carianInfoHtml = cc && cc.ada_data_carian ? (() => {
+        const isOver = data.jumlah_output > cc.total_output;
+        const borderColor = isOver ? '#EF4444' : '#F59E0B';
+        const bgColor = isOver ? 'rgba(239,68,68,0.07)' : 'rgba(245,158,11,0.07)';
+        const icon = isOver ? '🚨' : '⚠️';
+        const label = isOver ? 'Melebihi kapasitas carian!' : 'Data Aktual Carian';
+        return `
+          <div style="margin-bottom:14px; padding:12px 16px; background:${bgColor}; border:1.5px solid ${borderColor}; border-radius:12px; font-size:13px;">
+            <div style="font-weight:700; color:${borderColor}; margin-bottom:8px;">${icon} ${label}</div>
+            <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">
+              <div style="text-align:center;">
+                <div style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">Total Carian</div>
+                <div style="font-size:17px; font-weight:800; color:var(--text);">${cc.total_output.toLocaleString('id-ID')}</div>
+                <div style="font-size:11px; color:var(--text-muted);">${cc.satuan}</div>
+              </div>
+              <div style="text-align:center; border-left:1px solid ${borderColor}33; border-right:1px solid ${borderColor}33;">
+                <div style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">Sudah Diisi</div>
+                <div style="font-size:17px; font-weight:800; color:#F59E0B;">${cc.sudah_diisi.toLocaleString('id-ID')}</div>
+                <div style="font-size:11px; color:var(--text-muted);">${cc.satuan}</div>
+              </div>
+              <div style="text-align:center;">
+                <div style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">Input Karyawan</div>
+                <div style="font-size:17px; font-weight:800; color:${isOver ? '#EF4444' : '#10B981'};">${data.jumlah_output.toLocaleString('id-ID')}</div>
+                <div style="font-size:11px; color:var(--text-muted);">${cc.satuan}</div>
+              </div>
+            </div>
+            ${isOver ? `<div style="margin-top:8px; padding:6px 10px; background:rgba(239,68,68,0.12); border-radius:6px; color:#FCA5A5; font-size:12px; text-align:center;">Kelebihan: ${(data.jumlah_output - cc.total_output).toLocaleString('id-ID')} ${cc.satuan}</div>` : ''}
+          </div>`;
+      })() : '';
+
       document.getElementById('modalBody').innerHTML = `
+        ${carianInfoHtml}
         <div class="detail-grid">
           <div class="detail-item"><div class="detail-key">Tanggal Carian</div><div class="detail-value">${data.tanggal_carian}</div></div>
           <div class="detail-item"><div class="detail-key">Tanggal Pengerjaan</div><div class="detail-value">${data.tanggal_pengerjaan}</div></div>
@@ -778,6 +814,29 @@ function showOnscreenError(source, err) {
     const titleEl = document.getElementById('detailModalTitle');
     if (titleEl) titleEl.textContent = 'Edit Submission';
 
+    const cc = data.carian_capacity;
+    // Hitung max qty yang diperbolehkan: sisa + apa yang sudah diisi oleh submission ini (karena "sudah_diisi" termasuk submission ini)
+    // Untuk pending: submission ini belum di-approved, jadi sisa = total carian - approved submissions
+    // Jadi max = cc.total_output (kalau semua sisa untuk submission ini)
+    const maxOutput = cc && cc.ada_data_carian ? cc.total_output : null;
+    const satuan = cc ? cc.satuan : (data.posisi === 'Picker' ? 'pcs' : 'kontainer');
+
+    // Info box kapasitas carian untuk form edit
+    const carianEditInfoHtml = cc && cc.ada_data_carian ? (() => {
+      const isOver = data.jumlah_output > cc.total_output;
+      const borderColor = isOver ? '#EF4444' : '#3B82F6';
+      const bgColor = isOver ? 'rgba(239,68,68,0.07)' : 'rgba(59,130,246,0.07)';
+      return `
+        <div style="padding:10px 14px; background:${bgColor}; border:1.5px solid ${borderColor}; border-radius:10px; font-size:12px; margin-bottom:0;">
+          <div style="font-weight:700; color:${borderColor}; margin-bottom:6px;">📊 Data Aktual Carian</div>
+          <div style="display:flex; gap:16px; flex-wrap:wrap;">
+            <span>Total Carian: <strong>${cc.total_output.toLocaleString('id-ID')} ${satuan}</strong></span>
+            <span>Sudah Diisi (approved): <strong>${cc.sudah_diisi.toLocaleString('id-ID')} ${satuan}</strong></span>
+            <span style="color:${borderColor}">Maks Input: <strong>${cc.total_output.toLocaleString('id-ID')} ${satuan}</strong></span>
+          </div>
+        </div>`;
+    })() : '';
+
     document.getElementById('modalBody').innerHTML = `
       <div class="edit-submission-form" style="display:flex; flex-direction:column; gap:16px;">
         <div class="form-group">
@@ -800,8 +859,12 @@ function showOnscreenError(source, err) {
             <input type="text" class="form-control" value="${data.posisi}" disabled style="background:var(--bg-secondary); cursor:not-allowed;">
           </div>
           <div class="form-group">
-            <label style="font-weight:700; font-size:13px; color:var(--text-muted); display:block; margin-bottom:6px;">Jumlah Output</label>
-            <input type="number" id="editJumlahOutput" class="form-control" value="${data.jumlah_output}" min="0">
+            <label style="font-weight:700; font-size:13px; color:var(--text-muted); display:block; margin-bottom:6px;">
+              Jumlah Output${maxOutput !== null ? ` <span style="font-weight:400; color:var(--text-muted);">(maks: ${maxOutput.toLocaleString('id-ID')} ${satuan})</span>` : ''}
+            </label>
+            ${carianEditInfoHtml}
+            <input type="number" id="editJumlahOutput" class="form-control" value="${data.jumlah_output}" min="0"${maxOutput !== null ? ` max="${maxOutput}"` : ''} style="margin-top:8px;" oninput="validateEditOutput(${maxOutput})">
+            <div id="editOutputWarning" style="display:none; margin-top:6px; padding:6px 10px; background:rgba(239,68,68,0.1); border-radius:6px; color:#FCA5A5; font-size:12px;"></div>
           </div>
         </div>
         <div class="form-group">
@@ -819,11 +882,26 @@ function showOnscreenError(source, err) {
       `;
 
       document.getElementById('btnCancelEdit').onclick = () => viewDetail(data.id);
-      document.getElementById('btnSaveEdit').onclick = () => saveSubmissionEdit(data.id);
+      document.getElementById('btnSaveEdit').onclick = () => saveSubmissionEdit(data.id, maxOutput);
     }
   }
 
-  async function saveSubmissionEdit(id) {
+  function validateEditOutput(maxOutput) {
+    const val = parseInt(document.getElementById('editJumlahOutput').value);
+    const warnEl = document.getElementById('editOutputWarning');
+    const saveBtn = document.getElementById('btnSaveEdit');
+    if (maxOutput !== null && !isNaN(val) && val > maxOutput) {
+      warnEl.style.display = 'block';
+      warnEl.textContent = `⚠️ Input melebihi kapasitas carian (${maxOutput.toLocaleString('id-ID')}). Harap sesuaikan.`;
+      if (saveBtn) saveBtn.disabled = true;
+    } else {
+      warnEl.style.display = 'none';
+      if (saveBtn) saveBtn.disabled = false;
+    }
+  }
+  window.validateEditOutput = validateEditOutput;
+
+  async function saveSubmissionEdit(id, maxOutput) {
     const tglCarian = document.getElementById('editTanggalCarian').value;
     const tglPengerjaan = document.getElementById('editTanggalPengerjaan').value;
     const jmlOutput = parseInt(document.getElementById('editJumlahOutput').value);
@@ -831,6 +909,11 @@ function showOnscreenError(source, err) {
 
     if (!tglCarian || !tglPengerjaan || isNaN(jmlOutput) || jmlOutput < 0) {
       showToast('Mohon lengkapi data dengan benar.', 'error');
+      return;
+    }
+
+    if (maxOutput !== null && jmlOutput > maxOutput) {
+      showToast(`Jumlah output tidak boleh melebihi kapasitas carian (${maxOutput.toLocaleString('id-ID')}).`, 'error');
       return;
     }
 
@@ -1469,6 +1552,12 @@ function showOnscreenError(source, err) {
 
   // ============= PAGE NAVIGATION =============
   function showPage(page) {
+    // Kalau init belum selesai, simpan halaman yang diminta dan tunggu
+    if (!appReady) {
+      pendingPage = page;
+      return;
+    }
+
     const isSuperAdmin = currentUser.username && currentUser.username.toLowerCase() === 'admin';
     const allowed = currentUser.allowed_pages || [];
     const isAllowed = isSuperAdmin || page === 'feature-guide' || allowed.includes(page);
@@ -4777,30 +4866,54 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
   async function loadKetentuanHarga() {
     const tbody = document.getElementById('hargaTableBody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="7"><div class="loading-spinner"><div class="spin"></div></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8"><div class="loading-spinner"><div class="spin"></div></div></td></tr>';
+
+    const tglInput = document.getElementById('hargaBerlakuDari');
+    if (tglInput && !tglInput.value) {
+      tglInput.value = new Date().toLocaleDateString('en-CA');
+    }
+
     try {
       const data = await fetch('/api/ketentuan-harga').then(r => r.json());
       if (!Array.isArray(data) || data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:32px; color:var(--text-secondary); font-size:13px;"><div style="font-size:32px; margin-bottom:10px;">💰</div>Belum ada ketentuan harga. Tambahkan melalui form di sebelah kiri.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:32px; color:var(--text-secondary); font-size:13px;"><div style="font-size:32px; margin-bottom:10px;">💰</div>Belum ada ketentuan harga. Tambahkan melalui form di atas.</td></tr>';
         return;
       }
       const posisiBadgeColor = { 'Picker': '#8b5cf6', 'Sorter': '#10b981', 'Loader': '#f59e0b' };
+      const todayStr = new Date().toLocaleDateString('en-CA');
+      const seenActive = {};
+
       tbody.innerHTML = data.map(h => {
         const color = posisiBadgeColor[h.posisi] || '#6b7280';
         const updatedAt = h.updated_at ? new Date(h.updated_at).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+        const tglBerlaku = h.berlaku_dari ? new Date(h.berlaku_dari + 'T00:00:00').toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+        
+        const key = `${h.posisi}|${h.zona}`;
+        const berlakuStr = (h.berlaku_dari || '').slice(0, 10);
+        let badgeStatus = '';
+        if (berlakuStr > todayStr) {
+          badgeStatus = '<span class="badge" style="background:rgba(59,130,246,0.15); color:#3b82f6; font-size:10px; font-weight:700; margin-left:6px; padding:2px 6px; border-radius:6px; border:1px solid rgba(59,130,246,0.3);">Mendatang</span>';
+        } else if (!seenActive[key]) {
+          seenActive[key] = true;
+          badgeStatus = '<span class="badge" style="background:rgba(16,185,129,0.15); color:#10b981; font-size:10px; font-weight:700; margin-left:6px; padding:2px 6px; border-radius:6px; border:1px solid rgba(16,185,129,0.3);">Aktif</span>';
+        } else {
+          badgeStatus = '<span class="badge" style="background:rgba(107,114,128,0.15); color:#6b7280; font-size:10px; font-weight:600; margin-left:6px; padding:2px 6px; border-radius:6px; border:1px solid rgba(107,114,128,0.3);">Riwayat</span>';
+        }
+
         return `<tr>
           <td><span class="badge" style="background:${color}20; color:${color}; font-size:11px; padding:3px 8px; border-radius:8px;">${h.posisi}</span></td>
           <td style="font-size:12px;">${h.zona}</td>
           <td style="font-weight:700; color:var(--success);">Rp ${(h.harga || 0).toLocaleString('id-ID', { minimumFractionDigits: Number.isInteger(h.harga) ? 0 : 2, maximumFractionDigits: 2 })}</td>
           <td><span style="font-size:11px; color:var(--text-secondary);">${h.satuan}</span></td>
+          <td style="font-size:12px; white-space:nowrap;">${tglBerlaku} ${badgeStatus}</td>
           <td style="font-size:12px; color:var(--text-secondary); max-width:160px;">${h.keterangan || '—'}</td>
           <td style="font-size:11px; color:var(--text-secondary);">${updatedAt}</td>
           <td>
             <div style="display:flex; gap:6px;">
-              <button class="btn btn-outline btn-icon" onclick="editHarga('${h.id}','${h.posisi}','${h.zona}',${h.harga},'${(h.keterangan||'').replace(/'/g,"\\'")}','${h.satuan}')" title="Edit">
+              <button class="btn btn-outline btn-icon" onclick="editHarga('${h.id}','${h.posisi}','${h.zona}',${h.harga},'${(h.keterangan||'').replace(/'/g,"\\'")}','${h.satuan}','${(h.berlaku_dari||'').slice(0,10)}')" title="Perbarui / Tambah Periode">
                 <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
               </button>
-              <button class="btn btn-danger btn-icon" onclick="deleteHarga('${h.id}')" title="Hapus">
+              <button class="btn btn-danger btn-icon" onclick="deleteHarga('${h.id}')" title="Hapus Periode Ini">
                 <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
               </button>
             </div>
@@ -4808,19 +4921,25 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
         </tr>`;
       }).join('');
     } catch (err) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:var(--error);">Gagal memuat ketentuan harga.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px; color:var(--error);">Gagal memuat ketentuan harga.</td></tr>';
     }
   }
   window.loadKetentuanHarga = loadKetentuanHarga;
 
   async function submitHargaForm(e) {
     e.preventDefault();
-    const editId    = document.getElementById('hargaEditId').value;
-    const posisi    = document.getElementById('hargaPosisi').value;
-    const zona      = document.getElementById('hargaZona').value;
-    const harga     = document.getElementById('hargaNominal').value;
-    const keterangan = document.getElementById('hargaKeterangan').value;
-    const btn       = document.getElementById('hargaSubmitBtn');
+    const editId      = document.getElementById('hargaEditId').value;
+    const posisi      = document.getElementById('hargaPosisi').value;
+    const zona        = document.getElementById('hargaZona').value;
+    const harga       = document.getElementById('hargaNominal').value;
+    const berlaku_dari = document.getElementById('hargaBerlakuDari') ? document.getElementById('hargaBerlakuDari').value : '';
+    const keterangan  = document.getElementById('hargaKeterangan').value;
+    const btn         = document.getElementById('hargaSubmitBtn');
+
+    if (!berlaku_dari) {
+      showToast('Tanggal berlaku mulai wajib diisi.', 'error');
+      return;
+    }
 
     btn.disabled = true; btn.textContent = 'Menyimpan...';
     try {
@@ -4829,18 +4948,18 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
         res = await fetch(`/api/ketentuan-harga/${editId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ harga: parseFloat(harga), keterangan })
+          body: JSON.stringify({ harga: parseFloat(harga), keterangan, berlaku_dari })
         });
       } else {
         res = await fetch('/api/ketentuan-harga', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ posisi, zona, harga: parseFloat(harga), keterangan })
+          body: JSON.stringify({ posisi, zona, harga: parseFloat(harga), keterangan, berlaku_dari })
         });
       }
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Gagal menyimpan.');
-      showToast(editId ? 'Ketentuan harga diperbarui!' : 'Ketentuan harga ditambahkan!', 'success');
+      showToast(editId ? 'Periode harga baru berhasil disimpan!' : 'Ketentuan harga ditambahkan!', 'success');
       cancelHargaEdit();
       loadKetentuanHarga();
     } catch (err) {
@@ -4851,7 +4970,7 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
   }
   window.submitHargaForm = submitHargaForm;
 
-  function editHarga(id, posisi, zona, harga, keterangan, satuan) {
+  function editHarga(id, posisi, zona, harga, keterangan, satuan, berlaku_dari) {
     document.getElementById('hargaEditId').value    = id;
     document.getElementById('hargaPosisi').value    = posisi;
     document.getElementById('hargaPosisi').disabled = true;
@@ -4860,9 +4979,12 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
     document.getElementById('hargaZona').disabled   = true;
     document.getElementById('hargaNominal').value   = harga;
     document.getElementById('hargaSatuan').value    = satuan;
+    if (document.getElementById('hargaBerlakuDari')) {
+      document.getElementById('hargaBerlakuDari').value = berlaku_dari || new Date().toLocaleDateString('en-CA');
+    }
     document.getElementById('hargaKeterangan').value = keterangan;
-    document.getElementById('hargaFormTitle').textContent = 'Edit Ketentuan Harga';
-    document.getElementById('hargaSubmitBtn').innerHTML = '<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg> Perbarui Harga';
+    document.getElementById('hargaFormTitle').textContent = `Perbarui Harga (${posisi} — ${zona})`;
+    document.getElementById('hargaSubmitBtn').innerHTML = '<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg> Simpan Periode Baru';
     document.getElementById('hargaCancelEditBtn').style.display = 'inline-flex';
     document.getElementById('hargaNominal').focus();
     // Scroll form into view
@@ -4877,6 +4999,9 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
     document.getElementById('hargaZona').disabled = false;
     document.getElementById('hargaZona').innerHTML = '<option value="">— Pilih zona dulu —</option>';
     document.getElementById('hargaSatuan').value = '';
+    if (document.getElementById('hargaBerlakuDari')) {
+      document.getElementById('hargaBerlakuDari').value = new Date().toLocaleDateString('en-CA');
+    }
     document.getElementById('hargaFormTitle').textContent = 'Tambah Ketentuan Harga';
     document.getElementById('hargaSubmitBtn').innerHTML = '<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan Ketentuan Harga';
     document.getElementById('hargaCancelEditBtn').style.display = 'none';
@@ -4886,16 +5011,19 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
   async function deleteHarga(id) {
     const confirmed = await showConfirmModal({
       title: 'Hapus Ketentuan Harga',
-      message: 'Yakin ingin menghapus ketentuan harga ini? Tindakan tidak dapat dibatalkan.',
+      message: 'Yakin ingin menghapus periode harga ini? Tindakan tidak dapat dibatalkan.',
       icon: '🗑️', okText: 'Hapus', okClass: 'btn-danger'
     });
     if (!confirmed) return;
     try {
       const res = await fetch(`/api/ketentuan-harga/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error();
-      showToast('Ketentuan harga dihapus.', 'success');
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Gagal menghapus.');
+      showToast('Periode ketentuan harga dihapus.', 'success');
       loadKetentuanHarga();
-    } catch { showToast('Gagal menghapus ketentuan harga.', 'error'); }
+    } catch (err) {
+      showToast(err.message || 'Gagal menghapus ketentuan harga.', 'error');
+    }
   }
   window.deleteHarga = deleteHarga;
 
