@@ -3768,6 +3768,222 @@ module.exports = {
     return { id: conversationId };
   },
 
+  async getSystemAdminUser() {
+    if (!isSupabaseEnabled) return null;
+    // Prefer user with username = 'admin' (case-insensitive)
+    const { data: adminUser } = await supabase
+      .from('users')
+      .select('id, username, nama_lengkap, role')
+      .ilike('username', 'admin')
+      .limit(1)
+      .maybeSingle();
+    if (adminUser) return adminUser;
+
+    // Fallback to any active user with role = 'admin'
+    const { data: fallback } = await supabase
+      .from('users')
+      .select('id, username, nama_lengkap, role')
+      .eq('role', 'admin')
+      .eq('is_active', true)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    return fallback || null;
+  },
+
+  async getSystemAdminId() {
+    const admin = await this.getSystemAdminUser();
+    return admin ? admin.id : null;
+  },
+
+  async getOrCreateSupportConversation(operationalUserId) {
+    if (!isSupabaseEnabled) return null;
+    const systemAdminId = await this.getSystemAdminId();
+    if (!systemAdminId) throw new Error('System Admin tidak ditemukan.');
+    if (operationalUserId === systemAdminId) throw new Error('User adalah admin.');
+
+    const conv = await this.findOrCreateDirectConversation(operationalUserId, systemAdminId, operationalUserId);
+    return conv;
+  },
+
+  async isSupportConversation(conversationId) {
+    if (!isSupabaseEnabled) return false;
+    const systemAdminId = await this.getSystemAdminId();
+    if (!systemAdminId) return false;
+
+    const { data, error } = await supabase
+      .from('chat_participants')
+      .select('id')
+      .eq('conversation_id', conversationId)
+      .eq('user_id', systemAdminId)
+      .is('removed_at', null)
+      .maybeSingle();
+    return !error && !!data;
+  },
+
+  async getAdminSharedInbox({ search = '', filter = 'all' } = {}) {
+    if (!isSupabaseEnabled) return [];
+    const systemAdminId = await this.getSystemAdminId();
+    if (!systemAdminId) return [];
+
+    // Find all direct conversations where systemAdminId is an active participant
+    const { data: adminParts, error: partErr } = await supabase
+      .from('chat_participants')
+      .select(`
+        last_read_message_id,
+        last_read_at,
+        conversation_id,
+        chat_conversations (
+          id,
+          type,
+          created_at,
+          updated_at,
+          last_message_at
+        )
+      `)
+      .eq('user_id', systemAdminId)
+      .is('removed_at', null);
+
+    if (partErr || !adminParts) {
+      console.error('getAdminSharedInbox error:', partErr);
+      return [];
+    }
+
+    const conversations = [];
+    for (const ap of adminParts) {
+      const conv = ap.chat_conversations;
+      if (!conv || conv.type !== 'direct') continue;
+
+      // Find the other participant (the operational user)
+      const { data: otherPart } = await supabase
+        .from('chat_participants')
+        .select(`
+          user_id,
+          users (
+            id,
+            username,
+            nama_lengkap,
+            role,
+            posisi,
+            tipe_karyawan,
+            is_active
+          )
+        `)
+        .eq('conversation_id', conv.id)
+        .neq('user_id', systemAdminId)
+        .is('removed_at', null)
+        .maybeSingle();
+
+      if (!otherPart || !otherPart.users) continue;
+      const user = otherPart.users;
+
+      // Filter by search query
+      if (search) {
+        const q = search.toLowerCase();
+        const matchName = (user.nama_lengkap || '').toLowerCase().includes(q);
+        const matchUser = (user.username || '').toLowerCase().includes(q);
+        const matchPos = (user.posisi || '').toLowerCase().includes(q);
+        if (!matchName && !matchUser && !matchPos) continue;
+      }
+
+      // Filter by filter tab (e.g. 'picker', 'sorter', 'loader', 'return', 'qc outbound')
+      const filterLower = filter.toLowerCase();
+      if (filterLower !== 'all' && filterLower !== 'unread') {
+        const userPosisiLower = (user.posisi || '').toLowerCase().replace(/\s+/g, '_');
+        const targetPosisi = filterLower.replace(/\s+/g, '_');
+        if (userPosisiLower !== targetPosisi) continue;
+      }
+
+      // Unread count for admin team: messages in this conversation where sender != systemAdminId and created_at > last_read_at
+      let unreadQuery = supabase
+        .from('chat_messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('conversation_id', conv.id)
+        .is('deleted_at', null)
+        .neq('sender_user_id', systemAdminId);
+
+      if (ap.last_read_at) {
+        unreadQuery = unreadQuery.gt('created_at', ap.last_read_at);
+      }
+      const { count: unreadCount } = await unreadQuery;
+
+      if (filterLower === 'unread' && (!unreadCount || unreadCount === 0)) {
+        continue;
+      }
+
+      // Get last message
+      const { data: lastMsg } = await supabase
+        .from('chat_messages')
+        .select('id, content, message_type, created_at, sender_user_id, sender_name')
+        .eq('conversation_id', conv.id)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      // Get user presence
+      const { data: presence } = await supabase
+        .from('chat_presence')
+        .select('last_seen_at')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const isOnline = presence && presence.last_seen_at ? (new Date() - new Date(presence.last_seen_at) < 120000) : false;
+
+      conversations.push({
+        id: conv.id,
+        user: {
+          id: user.id,
+          nama_lengkap: user.nama_lengkap || user.username,
+          username: user.username,
+          posisi: user.posisi || '-',
+          tipe_karyawan: user.tipe_karyawan || '-',
+          is_online: isOnline,
+          last_seen_at: presence ? presence.last_seen_at : null
+        },
+        last_message: lastMsg || null,
+        unread_count: unreadCount || 0,
+        updated_at: conv.last_message_at || conv.updated_at || conv.created_at,
+        created_at: conv.created_at
+      });
+    }
+
+    conversations.sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0));
+    return conversations;
+  },
+
+  async getAdminSharedInboxUnreadCount() {
+    if (!isSupabaseEnabled) return 0;
+    const systemAdminId = await this.getSystemAdminId();
+    if (!systemAdminId) return 0;
+
+    const { data: adminParts } = await supabase
+      .from('chat_participants')
+      .select('conversation_id, last_read_at')
+      .eq('user_id', systemAdminId)
+      .is('removed_at', null);
+
+    if (!adminParts || adminParts.length === 0) return 0;
+
+    let total = 0;
+    for (const p of adminParts) {
+      let q = supabase
+        .from('chat_messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('conversation_id', p.conversation_id)
+        .is('deleted_at', null)
+        .neq('sender_user_id', systemAdminId);
+
+      if (p.last_read_at) {
+        q = q.gt('created_at', p.last_read_at);
+      }
+      const { count } = await q;
+      if (count) total += count;
+    }
+    return total;
+  },
+
+
   async createGroupConversation(arg1, arg2, arg3) {
     if (!isSupabaseEnabled) return null;
     let name, memberIds, createdByUserId;
@@ -4152,19 +4368,29 @@ module.exports = {
     return { ...data, isOwn: true };
   },
 
-  async getMessages(conversationId, requestingUserId, { limit = 30, beforeId, afterId, afterCreatedAt } = {}) {
+  async getMessages(conversationId, requestingUserId, { limit = 30, beforeId, afterId, afterCreatedAt, isAdmin = false } = {}) {
     if (!isSupabaseEnabled) return [];
     
-    const periods = await this.getUserMembershipPeriods(conversationId, requestingUserId);
+    let periods = [];
+    if (isAdmin) {
+      const isSupport = await this.isSupportConversation(conversationId);
+      if (isSupport) {
+        periods = [{ joined_at: new Date(0).toISOString(), removed_at: null }];
+      }
+    }
+
+    if (periods.length === 0) {
+      periods = await this.getUserMembershipPeriods(conversationId, requestingUserId);
+    }
     if (!periods || periods.length === 0) return [];
     
     let query = supabase
       .from('chat_messages')
       .select(`
         *,
-        users (username, nama_lengkap),
+        users (username, nama_lengkap, role, posisi),
         chat_attachments (*),
-        reply_to:reply_to_message_id (id, content, message_type, users (username, nama_lengkap))
+        reply_to:reply_to_message_id (id, content, message_type, users (username, nama_lengkap, role, posisi))
       `)
       .eq('conversation_id', conversationId)
       .is('deleted_at', null);
@@ -4204,11 +4430,20 @@ module.exports = {
       });
     });
 
-    return visibleMessages.map(m => ({
-      ...m,
-      sender_name: m.sender_name || (m.users ? (m.users.nama_lengkap || m.users.username) : 'User'),
-      isOwn: m.sender_user_id === requestingUserId
-    }));
+    return visibleMessages.map(m => {
+      const isSenderAdmin = m.users?.role === 'admin';
+      let displayName = m.sender_name || (m.users ? (m.users.nama_lengkap || m.users.username) : 'User');
+      if (isSenderAdmin && !isAdmin) {
+        displayName = 'Admin SS08';
+      }
+      return {
+        ...m,
+        sender_role: m.users?.role || (isSenderAdmin ? 'admin' : 'operasional'),
+        is_admin_sender: isSenderAdmin,
+        sender_name: displayName,
+        isOwn: m.sender_user_id === requestingUserId
+      };
+    });
   },
 
   async editMessage(messageId, senderUserId, newContent) {
@@ -4385,35 +4620,24 @@ module.exports = {
   async getChatEligibleUsers(requestingUserId, searchQuery = '') {
     if (!isSupabaseEnabled) return [];
     
-    // First get chat settings to know allowed roles
-    const settings = await this.getChatSettings();
-    if (!settings.is_enabled) return [];
-    
     let query = supabase
       .from('users')
-      .select('id, username, nama_lengkap, role, posisi')
-      .neq('id', requestingUserId)
-      .is('is_active', true)
-      .in('role', ['admin', 'operasional']);
+      .select('id, username, nama_lengkap, role, posisi, tipe_karyawan')
+      .eq('role', 'operasional')
+      .is('is_active', true);
       
     if (searchQuery) {
       query = query.or(`username.ilike.%${searchQuery}%,nama_lengkap.ilike.%${searchQuery}%`);
     }
+    
+    query = query.order('nama_lengkap', { ascending: true }).limit(50);
     
     const { data, error } = await query;
     if (error) {
       console.error('Supabase getChatEligibleUsers error:', error);
       return [];
     }
-    
-    // Filter operasional roles based on settings
-    const allowedOperasionalRoles = settings.role_access?.operasional || [];
-    
-    return data.filter(u => {
-      if (u.role === 'admin') return true;
-      if (u.role === 'operasional') return allowedOperasionalRoles.includes(u.posisi);
-      return false;
-    });
+    return data || [];
   },
 
   async archiveConversation(conversationId, userId) {

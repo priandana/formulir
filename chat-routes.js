@@ -109,9 +109,26 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
       const conversationId = typeof getConvId === 'function' ? getConvId(req) : req.params[getConvId];
       if (!conversationId) return res.status(400).json({ error: 'Conversation ID required' });
       
+      // If user is admin: check if this is a support conversation
+      if (req.user.role === 'admin') {
+        const isSupport = await db.isSupportConversation(conversationId);
+        if (isSupport) {
+          req.isSupportAdmin = true;
+          return next();
+        }
+      }
+
       const isActive = await db.isActiveParticipant(conversationId, req.user.userId);
       if (!isActive) return res.status(403).json({ error: 'Anda bukan partisipan aktif dalam obrolan ini.' });
       
+      // If operational user, ensure this is their support conversation (blocks peer-to-peer DMs)
+      if (req.user.role !== 'admin') {
+        const isSupport = await db.isSupportConversation(conversationId);
+        if (!isSupport) {
+          return res.status(403).json({ error: 'Percakapan langsung antar-karyawan dinonaktifkan. Silakan gunakan Live Chat untuk menghubungi Admin.' });
+        }
+      }
+
       next();
     } catch (err) {
       console.error(err);
@@ -125,10 +142,30 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
       const conversationId = typeof getConvId === 'function' ? getConvId(req) : req.params[getConvId];
       if (!conversationId) return res.status(400).json({ error: 'Conversation ID required' });
       
+      // If user is admin: check if this is a support conversation
+      if (req.user.role === 'admin') {
+        const isSupport = await db.isSupportConversation(conversationId);
+        if (isSupport) {
+          req.isSupportAdmin = true;
+          req.participantPeriods = [{ joined_at: new Date(0).toISOString(), removed_at: null, role: 'admin' }];
+          req.participantInfo = req.participantPeriods[0];
+          return next();
+        }
+      }
+
       const periods = await db.getUserMembershipPeriods(conversationId, req.user.userId);
       if (!periods || periods.length === 0) {
         return res.status(403).json({ error: 'Anda tidak memiliki akses ke obrolan ini.' });
       }
+
+      // If operational user, ensure this is their support conversation (blocks peer-to-peer DMs)
+      if (req.user.role !== 'admin') {
+        const isSupport = await db.isSupportConversation(conversationId);
+        if (!isSupport) {
+          return res.status(403).json({ error: 'Percakapan langsung antar-karyawan dinonaktifkan.' });
+        }
+      }
+
       req.participantPeriods = periods;
       req.participantInfo = periods[periods.length - 1];
       next();
@@ -220,52 +257,100 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
     }
   });
 
+  // GET /api/chat/support - Operational user gets or auto-creates their support conversation with Admin
+  app.get('/api/chat/support', requireAuth, requireChatAccess, async (req, res) => {
+    try {
+      if (req.user.role === 'admin') {
+        return res.status(400).json({ error: 'Admin menggunakan Shared Inbox di panel admin.' });
+      }
+
+      const conv = await db.getOrCreateSupportConversation(req.user.userId);
+      res.json({
+        success: true,
+        conversation: {
+          id: conv.id,
+          type: 'direct',
+          title: 'Admin SS08',
+          name: 'Admin SS08',
+          subtitle: 'Pusat Bantuan Operasional',
+          status: 'ACTIVE'
+        }
+      });
+    } catch (err) {
+      console.error('Error in /api/chat/support:', err);
+      res.status(500).json({ error: err.message || 'Gagal membuka percakapan dengan Admin' });
+    }
+  });
+
+  // GET /api/chat/admin/inbox - Admin gets shared inbox of all operational users
+  app.get('/api/chat/admin/inbox', requireAdmin, async (req, res) => {
+    try {
+      const { search = '', filter = 'all' } = req.query;
+      const inbox = await db.getAdminSharedInbox({ search, filter });
+      res.json(inbox);
+    } catch (err) {
+      console.error('Error in /api/chat/admin/inbox:', err);
+      res.status(500).json({ error: 'Gagal mengambil inbox admin' });
+    }
+  });
+
+  // POST /api/chat/admin/start-conversation - Admin starts a chat with an operational user
+  app.post('/api/chat/admin/start-conversation', requireAdmin, async (req, res) => {
+    try {
+      const { target_user_id } = req.body;
+      if (!target_user_id) return res.status(400).json({ error: 'Target user ID diperlukan.' });
+
+      const conv = await db.getOrCreateSupportConversation(target_user_id);
+      res.json({ success: true, conversation: conv });
+    } catch (err) {
+      console.error('Error in /api/chat/admin/start-conversation:', err);
+      res.status(500).json({ error: err.message || 'Gagal memulai percakapan' });
+    }
+  });
+
   // GET /api/chat/conversations
   app.get('/api/chat/conversations', requireAuth, requireChatAccess, async (req, res) => {
     try {
-      const conversations = await db.getUserConversations(req.user.userId);
-      res.json(conversations);
+      if (req.user.role === 'admin') {
+        const inbox = await db.getAdminSharedInbox({ search: req.query.search, filter: req.query.filter });
+        return res.json(inbox);
+      }
+      // Operational user: return only their support conversation
+      const conv = await db.getOrCreateSupportConversation(req.user.userId);
+      res.json([{
+        id: conv.id,
+        type: 'direct',
+        name: 'Admin SS08',
+        display_name: 'Admin SS08',
+        is_support: true
+      }]);
     } catch (err) {
       res.status(500).json({ error: 'Gagal mengambil percakapan' });
     }
   });
 
-  // POST /api/chat/conversations/direct
+  // POST /api/chat/conversations/direct - Strictly blocked for operational peer-to-peer!
   app.post('/api/chat/conversations/direct', requireAuth, requireChatAccess, requireChatWriteAllowed, async (req, res) => {
     try {
-      const { target_user_id } = req.body;
-      if (!target_user_id) return res.status(400).json({ error: 'Target user ID diperlukan.' });
-      if (target_user_id === req.user.userId) return res.status(400).json({ error: 'Tidak dapat mengirim pesan ke diri sendiri.' });
-      
-      if (!req.chatSettings.allow_direct_message) {
-        return res.status(403).json({ error: 'Direct message dinonaktifkan.' });
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Percakapan langsung antar-karyawan dinonaktifkan. Silakan hubungi Admin SS08 melalui Pusat Bantuan.' });
       }
       
-      const conv = await db.findOrCreateDirectConversation(req.user.userId, target_user_id, req.user.userId);
+      const { target_user_id } = req.body;
+      if (!target_user_id) return res.status(400).json({ error: 'Target user ID diperlukan.' });
+      
+      const conv = await db.getOrCreateSupportConversation(target_user_id);
       res.json({ success: true, conversation: conv });
     } catch (err) {
       res.status(500).json({ error: err.message || 'Gagal membuat percakapan' });
     }
   });
 
-  // POST /api/chat/conversations/group
-  app.post('/api/chat/conversations/group', requireAdmin, requireChatWriteAllowed, async (req, res) => {
-    try {
-      const { name, member_ids } = req.body;
-      if (!name || name.length > 100) return res.status(400).json({ error: 'Nama grup tidak valid (maksimal 100 karakter).' });
-      if (!Array.isArray(member_ids) || member_ids.length === 0) return res.status(400).json({ error: 'Daftar anggota tidak valid.' });
-      
-      if (!req.chatSettings.allow_group_chat) {
-        return res.status(403).json({ error: 'Group chat dinonaktifkan.' });
-      }
-      
-      const conv = await db.createGroupConversation(name, member_ids, req.user.userId);
-      await db.insertAuditLog(req.user.username, 'CREATE_GROUP_CHAT', `Membuat grup chat: ${name}`);
-      res.json({ success: true, conversation: conv });
-    } catch (err) {
-      res.status(500).json({ error: err.message || 'Gagal membuat grup' });
-    }
+  // POST /api/chat/conversations/group - Group chat disabled!
+  app.post('/api/chat/conversations/group', requireAdmin, async (req, res) => {
+    return res.status(403).json({ error: 'Fitur grup chat dinonaktifkan.' });
   });
+
 
   // GET /api/chat/conversations/:conversationId
   app.get('/api/chat/conversations/:conversationId', requireAuth, requireChatParticipantOrFormer('conversationId'), async (req, res) => {
@@ -283,14 +368,11 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
       let { limit, before_id, after_id } = req.query;
       limit = Math.min(parseInt(limit) || 30, 50);
       
-      // Use participant info to restrict query up to removed_at
-      const removedAt = req.participantInfo.removed_at || null;
-      
       const result = await db.getMessages(req.params.conversationId, req.user.userId, { 
         limit, 
         beforeId: before_id, 
         afterId: after_id,
-        removedAt 
+        isAdmin: req.user.role === 'admin'
       });
       
       res.json(result);
@@ -318,10 +400,13 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
       if (rateLimit && rateLimit.allowed === false) {
         return res.status(429).json({ error: 'Anda mengirim pesan terlalu cepat.' });
       }
+
+      const senderName = req.user.nama_lengkap || req.user.username;
       
       const msg = await db.sendMessage({
         conversationId,
         senderId: req.user.userId,
+        senderName: senderName,
         content,
         messageType: message_type,
         replyTo: reply_to_message_id,
@@ -364,13 +449,13 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
       const msg = await db.getMessage(messageId);
       if (!msg) return res.status(404).json({ error: 'Pesan tidak ditemukan' });
       
-      // Admin can delete any message in conversations they are active participants in.
       let canDelete = false;
       if (msg.sender_user_id === req.user.userId) {
         canDelete = true;
       } else if (req.user.role === 'admin') {
+        const isSupport = await db.isSupportConversation(msg.conversation_id);
         const isActive = await db.isActiveParticipant(msg.conversation_id, req.user.userId);
-        if (isActive) canDelete = true;
+        if (isSupport || isActive) canDelete = true;
       }
       
       if (!canDelete) return res.status(403).json({ error: 'Akses ditolak.' });
@@ -388,14 +473,21 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
       const message_id = req.body.message_id || req.body.last_read_message_id;
       if (!message_id) return res.status(400).json({ error: 'Message ID diperlukan' });
       
-      // Verify message belongs to this conversation (prevent cross-conversation last_read injection)
       const msg = await db.getMessage(message_id);
       if (!msg) return res.status(404).json({ error: 'Pesan tidak ditemukan' });
       if (msg.conversation_id !== req.params.conversationId) {
         return res.status(400).json({ error: 'Message ID tidak sesuai dengan percakapan ini' });
       }
 
-      await db.updateLastRead(req.params.conversationId, req.user.userId, message_id);
+      if (req.user.role === 'admin') {
+        // Update last read on systemAdminId so entire admin team sees it as read
+        const systemAdminId = await db.getSystemAdminId();
+        if (systemAdminId) {
+          await db.updateLastRead(req.params.conversationId, systemAdminId, message_id);
+        }
+      } else {
+        await db.updateLastRead(req.params.conversationId, req.user.userId, message_id);
+      }
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ error: 'Gagal update status dibaca' });
@@ -405,8 +497,12 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
   // GET /api/chat/unread-count & /api/chat/unread
   const handleUnreadCount = async (req, res) => {
     try {
+      if (req.user.role === 'admin') {
+        const total = await db.getAdminSharedInboxUnreadCount();
+        return res.json({ success: true, total_unread: total, unread_count: total });
+      }
       const counts = await db.getUnreadCounts(req.user.userId);
-      const total = typeof counts === 'number' ? counts : (counts.total_unread || counts.count || 0);
+      const total = typeof counts === 'number' ? counts : (counts?.total_unread || counts?.count || 0);
       res.json({ success: true, total_unread: total, unread_count: total });
     } catch (err) {
       res.status(500).json({ error: 'Gagal mengambil unread count' });
@@ -423,8 +519,11 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
       const { conversation_id } = req.body;
       if (!conversation_id) return res.status(400).json({ error: 'Conversation ID diperlukan' });
       
-      const isActive = await db.isActiveParticipant(conversation_id, req.user.userId);
-      if (!isActive) return res.status(403).json({ error: 'Anda bukan partisipan aktif' });
+      const isSupport = await db.isSupportConversation(conversation_id);
+      const isParticipant = await db.isActiveParticipant(conversation_id, req.user.userId);
+      if (!isParticipant && !(req.user.role === 'admin' && isSupport)) {
+        return res.status(403).json({ error: 'Anda bukan partisipan aktif' });
+      }
       
       const file = req.file;
       if (!file) return res.status(400).json({ error: 'File diperlukan' });
@@ -446,15 +545,16 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
       
       if (uploadErr) throw uploadErr;
       
-      // Optional caption or attachment-only (content can be null)
       const caption = req.body.caption || req.body.content || null;
       const content = caption ? stripNullBytes(caption.trim()) : null;
+      const senderName = req.user.nama_lengkap || req.user.username;
 
       let msg;
       try {
         msg = await db.sendMessage({
           conversationId: conversation_id,
           senderId: req.user.userId,
+          senderName: senderName,
           content: content,
           messageType: 'attachment',
           attachmentInfo: {
@@ -465,7 +565,6 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
           }
         });
       } catch (dbErr) {
-        // Rollback storage upload on DB failure
         await db.supabase.storage.from('chat-attachments').remove([uuidFilename]);
         throw dbErr;
       }
@@ -477,6 +576,7 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
     }
   });
 
+
   // GET /api/chat/attachments/:attachmentId
   app.get('/api/chat/attachments/:attachmentId', requireAuth, async (req, res) => {
     try {
@@ -487,16 +587,21 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
       const msg = await db.getMessage(attachment.message_id);
       if (!msg) return res.status(404).json({ error: 'Pesan terkait tidak ditemukan' });
       
-      // Enforce membership period access
-      const periods = await db.getUserMembershipPeriods(msg.conversation_id, req.user.userId);
-      if (!periods || periods.length === 0) return res.status(403).json({ error: 'Akses ditolak' });
-      
-      const msgTime = new Date(msg.created_at).getTime();
-      const canRead = periods.some(p => {
-        const joinTime = new Date(p.joined_at).getTime();
-        const removeTime = p.removed_at ? new Date(p.removed_at).getTime() : Infinity;
-        return msgTime >= joinTime && msgTime <= removeTime;
-      });
+      const isSupport = await db.isSupportConversation(msg.conversation_id);
+      let canRead = false;
+      if (req.user.role === 'admin' && isSupport) {
+        canRead = true;
+      } else {
+        const periods = await db.getUserMembershipPeriods(msg.conversation_id, req.user.userId);
+        if (periods && periods.length > 0) {
+          const msgTime = new Date(msg.created_at).getTime();
+          canRead = periods.some(p => {
+            const joinTime = new Date(p.joined_at).getTime();
+            const removeTime = p.removed_at ? new Date(p.removed_at).getTime() : Infinity;
+            return msgTime >= joinTime && msgTime <= removeTime;
+          });
+        }
+      }
       
       if (!canRead) return res.status(403).json({ error: 'Akses ditolak' });
       
@@ -559,9 +664,12 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
     }
   });
 
-  // GET /api/chat/users
-  app.get('/api/chat/users', requireAuth, requireChatAccess, async (req, res) => {
+  // GET /api/chat/users - Admin only! Operational users strictly blocked.
+  app.get('/api/chat/users', requireAuth, async (req, res) => {
     try {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Akses ditolak. Direktori pengguna hanya untuk Administrator.' });
+      }
       const { search } = req.query;
       const users = await db.getChatEligibleUsers(req.user.userId, search);
       res.json(users);
@@ -574,7 +682,6 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
   app.get('/api/chat/presence/:conversationId', requireAuth, requireActiveChatParticipant('conversationId'), async (req, res) => {
     try {
       const presence = await db.getPresence(req.params.conversationId);
-      // Compute is_online here or inside db.getPresence
       const updatedPresence = presence.map(p => ({
         ...p,
         is_online: p.last_seen_at ? (new Date() - new Date(p.last_seen_at) < 120000) : false
@@ -617,18 +724,16 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
       const { after_id, after_created_at } = req.query;
       const conversationId = req.params.conversationId;
       
-      const removedAt = req.participantInfo.removed_at || null;
-      
       const messages = await db.getMessages(conversationId, req.user.userId, { 
         afterId: after_id, 
         afterCreatedAt: after_created_at,
-        removedAt,
-        limit: 50 // reasonable poll limit
+        limit: 50,
+        isAdmin: req.user.role === 'admin'
       });
       
       let typing = [];
       const settings = await getChatSettings();
-      if (settings.show_typing_indicator && !removedAt) {
+      if (settings.show_typing_indicator) {
         typing = await db.getTypingUsers(conversationId, req.user.userId);
       }
       
