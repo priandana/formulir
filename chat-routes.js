@@ -74,13 +74,20 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
       // Check role access
       if (req.user.role !== 'admin') {
         let isAllowed = false;
+        // Normalize user posisi to lowercase for case-insensitive comparison
+        // (DB may store 'Picker' while JWT token may have 'PICKER')
+        const userPosisi = (req.user.posisi || '').toLowerCase();
+
         if (Array.isArray(settings.role_access)) {
-          isAllowed = settings.role_access.includes(req.user.posisi);
+          isAllowed = settings.role_access.some(r => r.toLowerCase() === userPosisi);
         } else if (settings.role_access && typeof settings.role_access === 'object') {
           if (Array.isArray(settings.role_access.operasional)) {
-            isAllowed = settings.role_access.operasional.includes(req.user.posisi);
+            isAllowed = settings.role_access.operasional.some(r => r.toLowerCase() === userPosisi);
           } else {
-            isAllowed = settings.role_access[req.user.posisi] === true;
+            // Object keys like { "Picker": true, "Sorter": true }
+            isAllowed = Object.entries(settings.role_access).some(
+              ([key, val]) => key.toLowerCase() === userPosisi && val === true
+            );
           }
         }
         if (!isAllowed) {

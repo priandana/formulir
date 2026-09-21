@@ -8,6 +8,11 @@
  * ====================================================================
  */
 
+// Version constant — bump this whenever chat-user.js changes so DevTools
+// Console confirms the browser is executing the correct version.
+const CHAT_UI_VERSION = '2757c8f-status-sync-v2';
+console.info('[Chat] version:', CHAT_UI_VERSION);
+
 const USER_AVATAR_GRADIENTS = [
   'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
   'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
@@ -44,8 +49,10 @@ const FloatingChat = (function() {
   async function init() {
     try {
       const statusData = await loadStatus();
+      console.info('[Chat] init: status from server =', statusData ? statusData.status : 'null/undefined');
       if (!statusData || statusData.status === 'DISABLED') {
-        // Chat disabled completely - don't show UI
+        // Chat disabled completely - not mounting UI
+        console.info('[Chat] init: chat DISABLED — not mounting UI');
         return;
       }
       chatStatus = statusData.status || 'ACTIVE';
@@ -65,7 +72,7 @@ const FloatingChat = (function() {
       window.addEventListener('focus', () => { refreshChatStatus(); });
     } catch(err) {
       // If unauthorized or endpoint unavailable, fail silently
-      console.log('[LiveChat] Chat not available or user not logged in');
+      console.warn('[Chat] init failed:', err.message);
     }
   }
 
@@ -107,7 +114,7 @@ const FloatingChat = (function() {
           </button>
         </div>
       </div>
-      <div id="chat-readonly-banner" class="chat-readonly-banner hidden" style="padding:6px 12px;font-size:11px;background:#FEF3C7;color:#92400E;text-align:center;font-weight:600;">
+      <div id="chat-readonly-banner" class="chat-readonly-banner hidden" style="display:none;padding:6px 12px;font-size:11px;background:#FEF3C7;color:#92400E;text-align:center;font-weight:600;">
         Mode Baca Saja — Pengiriman pesan baru dinonaktifkan.
       </div>
       <div id="chat-panel-body" style="flex:1;display:flex;flex-direction:column;overflow:hidden;background:#FAFBFD;">
@@ -167,9 +174,14 @@ const FloatingChat = (function() {
   async function refreshChatStatus() {
     try {
       const data = await loadStatus();
+      const prevStatus = chatStatus;
       const newStatus = data.status || 'ACTIVE';
       chatStatus = newStatus;
       chatSettings = data;
+
+      // Diagnostic: visible in DevTools Console
+      console.info('[Chat] refresh status response:', { status: data.status });
+      console.info('[Chat] previous status:', prevStatus, '→ new status:', newStatus);
 
       if (newStatus === 'DISABLED') {
         // Chat got disabled – hide launcher and close panel
@@ -186,30 +198,35 @@ const FloatingChat = (function() {
       applyStatusUI(newStatus);
     } catch (e) {
       // Network failure – leave current UI state unchanged
+      console.warn('[Chat] refreshChatStatus failed:', e.message);
     }
   }
 
   /**
    * Apply READ_ONLY / ACTIVE visual state to the panel.
+   * Uses style.display as primary mechanism (more specific than className)
+   * because the banner element has inline display:none by default.
    * Safe to call even when panel is closed.
    */
   function applyStatusUI(status) {
-    const banner   = document.getElementById('chat-readonly-banner');
+    console.info('[Chat] applyStatusUI:', status);
+    const banner    = document.getElementById('chat-readonly-banner');
     const inputArea = document.getElementById('chat-input-area');
     const chatInput = document.getElementById('chat-input');
     const sendBtn   = document.getElementById('chat-send-btn');
 
     if (status === 'READ_ONLY') {
-      if (banner)    banner.classList.remove('hidden');
-      if (inputArea) inputArea.classList.add('hidden');
-      if (chatInput) chatInput.disabled = true;
-      if (sendBtn)   sendBtn.disabled = true;
+      // Show banner, hide composer
+      if (banner)    { banner.style.display = 'block'; banner.classList.remove('hidden'); }
+      if (inputArea) { inputArea.style.display = 'none'; inputArea.classList.add('hidden'); }
+      if (chatInput) { chatInput.disabled = true; chatInput.setAttribute('readonly', 'readonly'); }
+      if (sendBtn)   { sendBtn.disabled = true; }
     } else {
-      // ACTIVE
-      if (banner)    banner.classList.add('hidden');
-      if (inputArea) inputArea.classList.remove('hidden');
-      if (chatInput) chatInput.disabled = false;
-      if (sendBtn)   sendBtn.disabled = false;
+      // ACTIVE — hide banner, show composer, clear ALL blocking states
+      if (banner)    { banner.style.display = 'none'; banner.classList.add('hidden'); }
+      if (inputArea) { inputArea.style.display = ''; inputArea.classList.remove('hidden'); }
+      if (chatInput) { chatInput.disabled = false; chatInput.removeAttribute('readonly'); chatInput.style.pointerEvents = ''; }
+      if (sendBtn)   { sendBtn.disabled = false; sendBtn.style.pointerEvents = ''; }
     }
   }
 
@@ -233,6 +250,7 @@ const FloatingChat = (function() {
     const panel = document.getElementById('chat-float-panel');
     if (panel) panel.classList.remove('hidden');
 
+    console.info('[Chat] openPanel: current chatStatus =', chatStatus, '— refreshing from server...');
     // Always refresh status from server when opening – fixes stale chatStatus bug
     refreshChatStatus();
 
