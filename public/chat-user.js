@@ -1,10 +1,30 @@
 'use strict';
 
 /**
- * SS08 User Floating Chat Module
+ * ====================================================================
+ * SS08 USER FLOATING CHAT MODULE
  * Non-intrusive bottom-right floating chat for operational users
  * Adaptive polling, offline graceful handling, full XSS protection
+ * ====================================================================
  */
+
+const USER_AVATAR_GRADIENTS = [
+  'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
+  'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
+  'linear-gradient(135deg, #06B6D4 0%, #0E7490 100%)',
+  'linear-gradient(135deg, #10B981 0%, #047857 100%)',
+  'linear-gradient(135deg, #F59E0B 0%, #B45309 100%)',
+  'linear-gradient(135deg, #EC4899 0%, #BE185D 100%)',
+  'linear-gradient(135deg, #6366F1 0%, #4338CA 100%)'
+];
+
+function getUserAvatarGradient(str) {
+  if (!str) return USER_AVATAR_GRADIENTS[0];
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  return USER_AVATAR_GRADIENTS[Math.abs(hash) % USER_AVATAR_GRADIENTS.length];
+}
+
 const FloatingChat = (function() {
   let isOpen = false;
   let chatStatus = 'ACTIVE';
@@ -43,11 +63,12 @@ const FloatingChat = (function() {
   }
 
   function injectHTML() {
-    // Floating circular button
+    // Floating circular button with SS08 Royal Blue gradient
     const btn = document.createElement('button');
     btn.id = 'chat-float-btn';
     btn.setAttribute('aria-label', 'Buka Live Chat');
-    btn.innerHTML = `<svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>`;
+    btn.title = 'Live Chat SS08';
+    btn.innerHTML = `<svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>`;
 
     const badge = document.createElement('span');
     badge.className = 'chat-unread-badge';
@@ -57,21 +78,24 @@ const FloatingChat = (function() {
     btn.onclick = togglePanel;
     document.body.appendChild(btn);
 
-    // Sliding chat panel
+    // Sliding chat panel drawer
     const panel = document.createElement('div');
     panel.id = 'chat-float-panel';
     panel.className = 'chat-float-panel hidden';
     panel.innerHTML = `
-      <div class="chat-panel-header" style="display:flex;align-items:center;justify-content:space-between;">
+      <div style="padding:14px 18px;background:linear-gradient(135deg,#2563EB 0%,#1D4ED8 100%);color:#fff;display:flex;align-items:center;justify-content:space-between;border-top-left-radius:20px;border-top-right-radius:20px;">
         <div style="display:flex;align-items:center;gap:8px;min-width:0;">
-          <button id="chat-back-btn" class="hidden" style="background:transparent;border:none;color:#fff;cursor:pointer;padding:4px;display:flex;" title="Kembali">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+          <button id="chat-back-btn" class="hidden" style="background:rgba(255,255,255,0.15);border:none;color:#fff;cursor:pointer;padding:4px 6px;border-radius:6px;display:flex;align-items:center;" title="Kembali">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
           </button>
-          <span id="chat-header-title" style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Pesan</span>
+          <div>
+            <div id="chat-header-title" style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;">Live Chat SS08</div>
+            <div id="chat-header-status" style="font-size:11px;opacity:0.85;margin-top:1px;">Komunikasi Operasional</div>
+          </div>
         </div>
-        <div style="display:flex;align-items:center;gap:4px;">
-          <button id="chat-new-dm-btn" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer;" title="Mulai Obrolan Baru">+ Chat</button>
-          <button id="chat-close-btn" style="background:transparent;border:none;color:#fff;cursor:pointer;padding:4px;display:flex;" title="Tutup">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button id="chat-new-dm-btn" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:99px;padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer;transition:background 0.15s;" title="Mulai Obrolan Baru">+ Chat</button>
+          <button id="chat-close-btn" style="background:transparent;border:none;color:#fff;cursor:pointer;padding:4px;display:flex;opacity:0.85;" title="Tutup">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
@@ -79,23 +103,25 @@ const FloatingChat = (function() {
       <div id="chat-readonly-banner" class="chat-readonly-banner hidden" style="padding:6px 12px;font-size:11px;background:#FEF3C7;color:#92400E;text-align:center;font-weight:600;">
         Mode Baca Saja — Pengiriman pesan baru dinonaktifkan.
       </div>
-      <div id="chat-panel-body" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+      <div id="chat-panel-body" style="flex:1;display:flex;flex-direction:column;overflow:hidden;background:#FAFBFD;">
         <!-- View 1: Conversation List -->
         <div id="chat-conv-view" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
-          <div id="chat-search-bar" style="display:none;padding:8px 10px;border-bottom:1px solid #E2E8F0;">
-            <input type="text" id="chat-user-search-input" class="chat-input" placeholder="Cari rekan kerja..." style="width:100%;box-sizing:border-box;font-size:12px;padding:6px 10px;" />
+          <div id="chat-search-bar" style="display:none;padding:8px 12px;border-bottom:1px solid #E2E8F0;background:#fff;">
+            <input type="text" id="chat-user-search-input" class="chat-search-input" placeholder="Cari rekan kerja..." style="height:36px;font-size:12px;padding:0 12px;" />
           </div>
-          <div id="chat-conv-list" style="flex:1;overflow-y:auto;padding:6px;"></div>
+          <div id="chat-conv-list" style="flex:1;overflow-y:auto;padding:8px;"></div>
         </div>
 
         <!-- View 2: Message Thread -->
         <div id="chat-msg-view" class="hidden" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
-          <div id="chat-messages" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;"></div>
-          <div id="chat-input-area" class="chat-input-area" style="padding:8px 10px;display:flex;gap:6px;border-top:1px solid #E2E8F0;">
-            <input type="text" id="chat-input" class="chat-input" placeholder="Ketik pesan..." maxlength="4000" autocomplete="off" style="flex:1;" />
-            <button id="chat-send-btn" class="chat-send-btn" title="Kirim">
-              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-            </button>
+          <div id="chat-messages" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;"></div>
+          <div id="chat-input-area" class="chat-composer-wrap" style="padding:10px 14px;border-top:1px solid #E2E8F0;background:#fff;">
+            <div class="chat-composer-inner" style="padding:3px 4px 3px 12px;">
+              <input type="text" id="chat-input" class="chat-composer-input" placeholder="Tulis pesan..." maxlength="4000" autocomplete="off" style="font-size:13px;" />
+              <button id="chat-send-btn" class="chat-send-icon-btn" style="width:32px;height:32px;" title="Kirim">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -174,15 +200,15 @@ const FloatingChat = (function() {
 
     if (convs.length === 0) {
       const empty = document.createElement('div');
-      empty.className = 'chat-empty-state';
-      empty.style.padding = '24px 12px';
-      empty.style.textAlign = 'center';
-      const text = document.createElement('div');
-      text.className = 'chat-empty-text';
-      text.style.fontSize = '12px';
-      text.style.color = '#94A3B8';
-      text.textContent = 'Belum ada percakapan. Klik "+ Chat" untuk memulai obrolan!';
-      empty.appendChild(text);
+      empty.className = 'chat-empty-state-wrap';
+      empty.style.padding = '30px 10px';
+      empty.innerHTML = `
+        <div class="chat-empty-illustration" style="width:56px;height:56px;margin-bottom:10px;">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+        </div>
+        <div style="font-size:13px;font-weight:700;color:var(--chat-text);">Belum Ada Percakapan</div>
+        <div style="font-size:11.5px;color:var(--chat-text-muted);margin-top:4px;">Klik tombol "+ Chat" untuk mencari rekan kerja.</div>
+      `;
       list.appendChild(empty);
       return;
     }
@@ -190,80 +216,71 @@ const FloatingChat = (function() {
     convs.forEach(c => {
       const el = document.createElement('div');
       el.className = 'chat-conv-item';
-      el.style.display = 'flex';
-      el.style.alignItems = 'center';
-      el.style.padding = '8px 10px';
-      el.style.cursor = 'pointer';
-      el.style.borderRadius = '8px';
-      el.style.transition = 'background 0.15s';
-      el.onmouseover = () => el.style.backgroundColor = '#F8FAFC';
-      el.onmouseout = () => el.style.backgroundColor = 'transparent';
       el.onclick = () => openConversation(c.id, c.display_name || c.name);
 
+      const avatarWrap = document.createElement('div');
+      avatarWrap.className = 'chat-avatar-wrap';
+
       const avatar = document.createElement('div');
-      avatar.style.width = '32px';
-      avatar.style.height = '32px';
-      avatar.style.borderRadius = '50%';
-      avatar.style.backgroundColor = c.is_group ? '#7C3AED' : '#4F46E5';
-      avatar.style.color = '#fff';
-      avatar.style.display = 'flex';
-      avatar.style.alignItems = 'center';
-      avatar.style.justifyContent = 'center';
-      avatar.style.fontWeight = '700';
-      avatar.style.fontSize = '13px';
-      avatar.style.flexShrink = '0';
-      avatar.textContent = (c.display_name || c.name || '?').charAt(0).toUpperCase();
+      avatar.className = 'chat-avatar';
+      avatar.style.width = '38px';
+      avatar.style.height = '38px';
+      avatar.style.borderRadius = '12px';
+      avatar.style.fontSize = '14px';
+      const dName = c.display_name || c.name || 'Percakapan';
+      avatar.textContent = dName.charAt(0).toUpperCase();
+      avatar.style.background = c.is_group 
+        ? 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)' 
+        : getUserAvatarGradient(dName);
+
+      avatarWrap.appendChild(avatar);
+
+      if (!c.is_group && c.other_user_online) {
+        const dot = document.createElement('span');
+        dot.className = 'chat-online-dot';
+        dot.style.width = '10px';
+        dot.style.height = '10px';
+        avatarWrap.appendChild(dot);
+      }
 
       const body = document.createElement('div');
-      body.style.flex = '1';
-      body.style.minWidth = '0';
-      body.style.marginLeft = '8px';
+      body.className = 'chat-conv-content';
 
       const row = document.createElement('div');
-      row.style.display = 'flex';
-      row.style.justifyContent = 'space-between';
-      row.style.alignItems = 'center';
+      row.className = 'chat-conv-row-top';
 
-      const title = document.createElement('div');
+      const title = document.createElement('span');
       title.className = 'chat-conv-title';
-      title.style.fontWeight = '600';
-      title.style.fontSize = '13px';
-      title.style.whiteSpace = 'nowrap';
-      title.style.overflow = 'hidden';
-      title.style.textOverflow = 'ellipsis';
-      title.textContent = c.display_name || c.name || 'Percakapan';
+      title.textContent = dName;
 
       const time = document.createElement('span');
-      time.style.fontSize = '10px';
-      time.style.color = '#94A3B8';
+      time.className = 'chat-conv-time';
       if (c.updated_at) time.textContent = formatTime(c.updated_at);
 
       row.appendChild(title);
       row.appendChild(time);
 
-      const preview = document.createElement('div');
-      preview.style.fontSize = '11px';
-      preview.style.color = '#64748B';
-      preview.style.whiteSpace = 'nowrap';
-      preview.style.overflow = 'hidden';
-      preview.style.textOverflow = 'ellipsis';
-      preview.style.marginTop = '2px';
+      const rowBtm = document.createElement('div');
+      rowBtm.className = 'chat-conv-row-bottom';
+
+      const preview = document.createElement('span');
+      preview.className = 'chat-conv-preview';
       preview.textContent = c.last_message?.content || (c.is_former_member ? '(Keluar dari grup)' : 'Mulai percakapan');
 
-      body.appendChild(row);
-      body.appendChild(preview);
-
-      el.appendChild(avatar);
-      el.appendChild(body);
+      rowBtm.appendChild(preview);
 
       if ((c.unread_count || 0) > 0) {
         const unread = document.createElement('span');
         unread.className = 'chat-unread-badge';
-        unread.style.marginLeft = '6px';
-        unread.textContent = c.unread_count > 99 ? '99+' : c.unread_count;
-        el.appendChild(unread);
+        unread.textContent = c.unread_count > 99 ? '99+' : String(c.unread_count);
+        rowBtm.appendChild(unread);
       }
 
+      body.appendChild(row);
+      body.appendChild(rowBtm);
+
+      el.appendChild(avatarWrap);
+      el.appendChild(body);
       list.appendChild(el);
     });
   }
@@ -288,7 +305,7 @@ const FloatingChat = (function() {
     document.getElementById('chat-conv-view').classList.remove('hidden');
     document.getElementById('chat-msg-view').classList.add('hidden');
     document.getElementById('chat-back-btn').classList.add('hidden');
-    document.getElementById('chat-header-title').textContent = 'Pesan';
+    document.getElementById('chat-header-title').textContent = 'Live Chat SS08';
 
     stopMessagePolling();
     loadConversations();
@@ -339,30 +356,30 @@ const FloatingChat = (function() {
   }
 
   function createMsgElement(msg) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'chat-message-wrapper ' + (msg.isOwn ? 'sent' : 'recv');
+    const row = document.createElement('div');
+    row.className = 'chat-message-row ' + (msg.isOwn ? 'sent' : 'recv');
+    row.style.maxWidth = '82%';
 
     if (!msg.isOwn && msg.users) {
       const sender = document.createElement('span');
-      sender.style.fontSize = '10px';
-      sender.style.fontWeight = '600';
-      sender.style.color = '#64748B';
-      sender.style.marginBottom = '2px';
+      sender.className = 'chat-sender-name';
       sender.textContent = msg.users.nama_lengkap || msg.users.username || 'User';
-      wrapper.appendChild(sender);
+      row.appendChild(sender);
     }
 
-    const content = document.createElement('div');
-    content.className = 'chat-bubble ' + (msg.isOwn ? 'sent' : 'recv');
-    content.textContent = msg.content;
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble-card' + (msg.deleted_at ? ' deleted' : '');
+    bubble.style.padding = '8px 12px';
+    bubble.style.fontSize = '13px';
+    bubble.textContent = msg.deleted_at ? 'Pesan ini telah dihapus' : msg.content;
 
-    const time = document.createElement('div');
-    time.className = 'chat-msg-meta ' + (msg.isOwn ? 'sent' : 'recv');
-    time.textContent = formatTime(msg.created_at);
+    const meta = document.createElement('div');
+    meta.className = 'chat-bubble-meta';
+    meta.textContent = formatTime(msg.created_at);
 
-    wrapper.appendChild(content);
-    wrapper.appendChild(time);
-    return wrapper;
+    row.appendChild(bubble);
+    row.appendChild(meta);
+    return row;
   }
 
   async function sendMessage() {
@@ -456,7 +473,7 @@ const FloatingChat = (function() {
 
   async function executeSearchUsers(query) {
     const list = document.getElementById('chat-conv-list');
-    list.innerHTML = '<div style="padding:12px;font-size:12px;color:#64748B;text-align:center;">Mencari user...</div>';
+    list.innerHTML = '<div style="padding:16px;text-align:center;color:#94A3B8;font-size:12px;">Mencari rekan kerja...</div>';
 
     try {
       const res = await fetch(`/api/chat/users?search=${encodeURIComponent(query)}`, { credentials: 'include' });
@@ -465,64 +482,91 @@ const FloatingChat = (function() {
       list.innerHTML = '';
 
       if (users.length === 0) {
-        list.innerHTML = '<div style="padding:16px;font-size:12px;color:#64748B;text-align:center;">User tidak ditemukan.</div>';
+        list.innerHTML = '<div style="padding:16px;text-align:center;color:#94A3B8;font-size:12px;">User tidak ditemukan.</div>';
         return;
       }
 
       users.forEach(u => {
-        const item = document.createElement('div');
-        item.style.padding = '8px 10px';
-        item.style.cursor = 'pointer';
-        item.style.borderRadius = '6px';
-        item.style.display = 'flex';
-        item.style.alignItems = 'center';
-        item.style.justifyContent = 'space-between';
-        item.onmouseover = () => item.style.backgroundColor = '#F1F5F9';
-        item.onmouseout = () => item.style.backgroundColor = 'transparent';
+        const el = document.createElement('div');
+        el.className = 'chat-conv-item';
+        el.style.display = 'flex';
+        el.style.alignItems = 'center';
+        el.style.gap = '10px';
+        el.style.padding = '10px 12px';
+        el.style.cursor = 'pointer';
+        el.onclick = () => startDirectMessage(u.id);
 
-        const name = document.createElement('div');
-        name.style.fontSize = '12px';
-        name.style.fontWeight = '600';
-        name.textContent = u.nama_lengkap || u.username;
+        const avatar = document.createElement('div');
+        avatar.className = 'chat-avatar';
+        avatar.style.width = '34px';
+        avatar.style.height = '34px';
+        avatar.style.borderRadius = '10px';
+        avatar.style.fontSize = '13px';
+        const name = u.nama_lengkap || u.username;
+        avatar.textContent = name.charAt(0).toUpperCase();
+        avatar.style.background = getUserAvatarGradient(name);
 
-        const role = document.createElement('div');
-        role.style.fontSize = '10px';
-        role.style.color = '#64748B';
-        role.textContent = u.posisi || u.role;
+        const info = document.createElement('div');
+        info.style.flex = '1';
+        info.style.minWidth = '0';
 
-        item.appendChild(name);
-        item.appendChild(role);
+        const nameEl = document.createElement('div');
+        nameEl.style.fontSize = '13px';
+        nameEl.style.fontWeight = '700';
+        nameEl.style.color = '#0F172A';
+        nameEl.textContent = name;
 
-        item.onclick = async () => {
-          toggleUserSearch();
-          try {
-            const createRes = await fetch('/api/chat/conversations/direct', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-              body: JSON.stringify({ target_user_id: u.id })
-            });
-            if (!createRes.ok) throw new Error('Gagal memulai chat');
-            const data = await createRes.json();
-            const convId = data.conversation?.id || data.id;
-            await loadConversations();
-            openConversation(convId, u.nama_lengkap || u.username);
-          } catch(err) {
-            alert(err.message);
-          }
-        };
+        const roleEl = document.createElement('div');
+        roleEl.style.fontSize = '11px';
+        roleEl.style.color = '#64748B';
+        roleEl.textContent = `${u.posisi || u.role} • @${u.username}`;
 
-        list.appendChild(item);
+        info.appendChild(nameEl);
+        info.appendChild(roleEl);
+
+        el.appendChild(avatar);
+        el.appendChild(info);
+        list.appendChild(el);
       });
     } catch(err) {
-      list.innerHTML = '<div style="padding:12px;font-size:12px;color:#EF4444;text-align:center;">Gagal mencari user.</div>';
+      list.innerHTML = '<div style="padding:16px;text-align:center;color:#EF4444;font-size:12px;">Gagal mencari user.</div>';
     }
   }
 
-  // --- Polling & Heartbeat ---
+  async function startDirectMessage(targetUserId) {
+    try {
+      const res = await fetch('/api/chat/conversations/direct', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ target_user_id: targetUserId })
+      });
+      if (!res.ok) throw new Error('Gagal memulai chat');
+      const data = await res.json();
+      toggleUserSearch(); // Close search mode
+      await loadConversations();
+      openConversation(data.conversation?.id || data.id, data.conversation?.name);
+    } catch(err) {
+      alert(err.message);
+    }
+  }
+
+  // --- Background Polling ---
+  function startConvPolling() {
+    stopConvPolling();
+    const interval = isHiddenTab ? 60000 : 8000;
+    convPollingInterval = setInterval(() => {
+      if (!isSearchMode) loadConversations();
+    }, interval);
+  }
+
+  function stopConvPolling() {
+    if (convPollingInterval) clearInterval(convPollingInterval);
+  }
+
   function startMessagePolling(convId) {
     stopMessagePolling();
-    const interval = isHiddenTab ? 60000 : 3000;
+    const interval = isHiddenTab ? 30000 : 3000;
     messagePollingInterval = setInterval(() => {
       if (currentConvId === convId) {
         loadMessages(convId, lastMsgId, lastMsgCreatedAt);
@@ -534,23 +578,12 @@ const FloatingChat = (function() {
     if (messagePollingInterval) clearInterval(messagePollingInterval);
   }
 
-  function startConvPolling() {
-    stopConvPolling();
-    const interval = isHiddenTab ? 60000 : 10000;
-    convPollingInterval = setInterval(() => {
-      if (!isSearchMode) loadConversations();
-    }, interval);
-  }
-
-  function stopConvPolling() {
-    if (convPollingInterval) clearInterval(convPollingInterval);
-  }
-
   function startUnreadPolling() {
-    stopUnreadPolling();
-    const interval = isHiddenTab ? 120000 : 30000;
-    unreadPollingInterval = setInterval(updateUnreadBadge, interval);
+    if (unreadPollingInterval) clearInterval(unreadPollingInterval);
     updateUnreadBadge();
+    unreadPollingInterval = setInterval(() => {
+      if (!isHiddenTab) updateUnreadBadge();
+    }, 30000);
   }
 
   function stopUnreadPolling() {
@@ -558,26 +591,30 @@ const FloatingChat = (function() {
   }
 
   function startPresenceHeartbeat() {
-    stopPresenceHeartbeat();
+    if (presenceInterval) clearInterval(presenceInterval);
     fetch('/api/chat/presence', { method: 'POST', credentials: 'include' }).catch(()=>{});
     presenceInterval = setInterval(() => {
-      if (!document.hidden) {
+      if (!isHiddenTab) {
         fetch('/api/chat/presence', { method: 'POST', credentials: 'include' }).catch(()=>{});
       }
     }, 45000);
   }
 
-  function stopPresenceHeartbeat() {
-    if (presenceInterval) clearInterval(presenceInterval);
-  }
-
   function handleVisibilityChange() {
     isHiddenTab = document.hidden;
-    if (isOpen) {
+    if (isHiddenTab) {
       if (currentConvId) startMessagePolling(currentConvId);
-      else startConvPolling();
+      if (isOpen && !currentConvId) startConvPolling();
     } else {
-      startUnreadPolling();
+      if (currentConvId) {
+        loadMessages(currentConvId, lastMsgId, lastMsgCreatedAt);
+        startMessagePolling(currentConvId);
+      }
+      if (isOpen) {
+        loadConversations();
+        startConvPolling();
+      }
+      updateUnreadBadge();
     }
   }
 
@@ -595,16 +632,14 @@ const FloatingChat = (function() {
     }
   }
 
-  function destroy() {
-    stopMessagePolling();
-    stopConvPolling();
-    stopUnreadPolling();
-    stopPresenceHeartbeat();
-    document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }
-
-  return { init, destroy, toggle: togglePanel };
+  return { init };
 })();
 
-document.addEventListener('DOMContentLoaded', () => FloatingChat.init());
-window.addEventListener('beforeunload', () => FloatingChat.destroy());
+// Auto-initialize if running on operational frontend
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => FloatingChat.init());
+  } else {
+    FloatingChat.init();
+  }
+}
