@@ -4479,7 +4479,7 @@ module.exports = {
       });
     });
 
-    return visibleMessages.map(m => {
+    const formatted = visibleMessages.map(m => {
       const isSenderAdmin = m.users?.role === 'admin';
       let displayName = m.sender_name || (m.users ? (m.users.nama_lengkap || m.users.username) : 'User');
       if (isSenderAdmin && !isAdmin) {
@@ -4493,6 +4493,12 @@ module.exports = {
         isOwn: m.sender_user_id === requestingUserId
       };
     });
+
+    if (!afterId) {
+      formatted.reverse();
+    }
+
+    return formatted;
   },
 
   async editMessage(messageId, senderUserId, newContent) {
