@@ -156,6 +156,7 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
   app.get('/api/chat/status', requireAuth, async (req, res) => {
     try {
       const settings = await getChatSettings();
+      res.set('Cache-Control', 'no-store');
       res.json({
         status: settings.status,
         allow_direct_message: settings.allow_direct_message,

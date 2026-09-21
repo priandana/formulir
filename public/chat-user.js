@@ -52,10 +52,17 @@ const FloatingChat = (function() {
       chatSettings = statusData;
 
       injectHTML();
+
+      // Apply initial status UI (e.g. if loaded while READ_ONLY)
+      applyStatusUI(chatStatus);
+
       startUnreadPolling();
       startPresenceHeartbeat();
+      startStatusPolling(); // Refresh status every 25s in background
 
       document.addEventListener('visibilitychange', handleVisibilityChange);
+      // Also refresh on window focus (tab switch back, impersonation context switch, etc.)
+      window.addEventListener('focus', () => { refreshChatStatus(); });
     } catch(err) {
       // If unauthorized or endpoint unavailable, fail silently
       console.log('[LiveChat] Chat not available or user not logged in');
@@ -143,9 +150,77 @@ const FloatingChat = (function() {
   }
 
   async function loadStatus() {
-    const res = await fetch('/api/chat/status', { credentials: 'include' });
+    const res = await fetch('/api/chat/status', {
+      credentials: 'include',
+      headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+    });
     if (!res.ok) throw new Error('Failed to load status');
     return res.json();
+  }
+
+  /**
+   * Refresh chat status from server and apply UI state immediately.
+   * Called on openPanel(), tab focus/visibility, and periodic interval.
+   * Fixes stale chatStatus variable that caused READ_ONLY banner to persist
+   * even after admin changed status to ACTIVE.
+   */
+  async function refreshChatStatus() {
+    try {
+      const data = await loadStatus();
+      const newStatus = data.status || 'ACTIVE';
+      chatStatus = newStatus;
+      chatSettings = data;
+
+      if (newStatus === 'DISABLED') {
+        // Chat got disabled – hide launcher and close panel
+        const floatBtn = document.getElementById('chat-float-btn');
+        if (floatBtn) floatBtn.style.display = 'none';
+        closePanel();
+        return;
+      }
+
+      // Ensure launcher is visible (may have been hidden before)
+      const floatBtn = document.getElementById('chat-float-btn');
+      if (floatBtn) floatBtn.style.display = '';
+
+      applyStatusUI(newStatus);
+    } catch (e) {
+      // Network failure – leave current UI state unchanged
+    }
+  }
+
+  /**
+   * Apply READ_ONLY / ACTIVE visual state to the panel.
+   * Safe to call even when panel is closed.
+   */
+  function applyStatusUI(status) {
+    const banner   = document.getElementById('chat-readonly-banner');
+    const inputArea = document.getElementById('chat-input-area');
+    const chatInput = document.getElementById('chat-input');
+    const sendBtn   = document.getElementById('chat-send-btn');
+
+    if (status === 'READ_ONLY') {
+      if (banner)    banner.classList.remove('hidden');
+      if (inputArea) inputArea.classList.add('hidden');
+      if (chatInput) chatInput.disabled = true;
+      if (sendBtn)   sendBtn.disabled = true;
+    } else {
+      // ACTIVE
+      if (banner)    banner.classList.add('hidden');
+      if (inputArea) inputArea.classList.remove('hidden');
+      if (chatInput) chatInput.disabled = false;
+      if (sendBtn)   sendBtn.disabled = false;
+    }
+  }
+
+  let statusPollingInterval = null;
+
+  function startStatusPolling() {
+    if (statusPollingInterval) clearInterval(statusPollingInterval);
+    // Lightweight background sync every 25 seconds
+    statusPollingInterval = setInterval(() => {
+      refreshChatStatus();
+    }, 25000);
   }
 
   function togglePanel() {
@@ -158,16 +233,12 @@ const FloatingChat = (function() {
     const panel = document.getElementById('chat-float-panel');
     if (panel) panel.classList.remove('hidden');
 
+    // Always refresh status from server when opening – fixes stale chatStatus bug
+    refreshChatStatus();
+
     loadConversations();
     startConvPolling();
     stopUnreadPolling();
-
-    if (chatStatus === 'READ_ONLY') {
-      const banner = document.getElementById('chat-readonly-banner');
-      if (banner) banner.classList.remove('hidden');
-      const inputArea = document.getElementById('chat-input-area');
-      if (inputArea) inputArea.classList.add('hidden');
-    }
   }
 
   function closePanel() {
@@ -383,7 +454,9 @@ const FloatingChat = (function() {
   }
 
   async function sendMessage() {
-    if (!currentConvId || chatStatus === 'READ_ONLY') return;
+    if (!currentConvId) return;
+    // Do NOT block on stale chatStatus here – server's requireChatWriteAllowed
+    // is the authoritative gate (returns 403 when not ACTIVE).
     const input = document.getElementById('chat-input');
     const content = input.value.trim();
     if (!content) return;
@@ -606,6 +679,9 @@ const FloatingChat = (function() {
       if (currentConvId) startMessagePolling(currentConvId);
       if (isOpen && !currentConvId) startConvPolling();
     } else {
+      // Tab became visible – always re-sync status from server
+      refreshChatStatus();
+
       if (currentConvId) {
         loadMessages(currentConvId, lastMsgId, lastMsgCreatedAt);
         startMessagePolling(currentConvId);
