@@ -50,8 +50,10 @@ const ChatAdminModule = (function() {
   async function init() {
     isPageActive = true;
     renderChatPage();
-    await checkChatStatus();
-    await loadInbox();
+    await Promise.allSettled([
+      checkChatStatus(),
+      loadInbox()
+    ]);
     startInboxPolling();
     startPresenceHeartbeat();
     document.addEventListener('visibilitychange', handleVisibilityChange);
