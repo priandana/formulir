@@ -282,8 +282,9 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
       console.error('Error in /api/chat/support:', err);
       const userMessage = err.message && err.message.includes('Layanan Live Chat')
         ? err.message
-        : 'Layanan Live Chat sementara tidak tersedia.';
-      res.status(503).json({ error: userMessage });
+        : 'Layanan Live Chat sementara tidak tersedia. Silakan hubungi Administrator.';
+      const status = err.status || 503;
+      res.status(status).json({ error: userMessage });
     }
   });
 

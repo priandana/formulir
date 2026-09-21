@@ -1139,8 +1139,9 @@ module.exports = {
    * Delete a user by ID (only operational users can be deleted from here)
    */
   async deleteUser(id) {
+    const targetUser = await this.getUserById(id);
     const systemAdminId = await this.getSystemAdminId();
-    if (id === systemAdminId) {
+    if (id === systemAdminId || (targetUser?.username && targetUser.username.toLowerCase() === 'admin')) {
       const err = new Error('Akun Administrator utama digunakan oleh sistem dan tidak dapat dihapus.');
       err.status = 409;
       throw err;
@@ -1303,8 +1304,9 @@ module.exports = {
    * Hapus akun admin berdasarkan ID (System Admin dilindungi dari penghapusan)
    */
   async deleteAdminUser(id) {
+    const targetUser = await this.getUserById(id);
     const systemAdminId = await this.getSystemAdminId();
-    if (id === systemAdminId) {
+    if (id === systemAdminId || (targetUser?.username && targetUser.username.toLowerCase() === 'admin')) {
       const err = new Error('Akun Administrator utama digunakan oleh sistem dan tidak dapat dihapus.');
       err.status = 409;
       throw err;
@@ -3794,8 +3796,9 @@ module.exports = {
     }
 
     try {
-      // 1. Primary resolution: username ilike 'admin' and role = 'admin'
-      const { data: adminUser, error: err1 } = await supabase
+      // Primary and ONLY resolution: LOWER(username) = 'admin' and role = 'admin'
+      // STRICT: No fallback to arbitrary admin to prevent changing anchor ID & fracturing conversations
+      const { data: adminUser, error } = await supabase
         .from('users')
         .select('id, username, nama_lengkap, role, is_active')
         .ilike('username', 'admin')
@@ -3803,36 +3806,30 @@ module.exports = {
         .limit(1)
         .maybeSingle();
 
-      if (!err1 && adminUser) {
-        if (adminUser.is_active !== false) {
-          this._cachedSystemAdmin = adminUser;
-          this._cachedSystemAdminTime = Date.now();
-          return adminUser;
-        } else {
-          console.warn('[Chat] Primary system admin account is deactivated:', adminUser.id);
-        }
+      if (error) {
+        console.error('[Chat] Error querying system admin user:', error);
+        return null;
       }
 
-      // 2. Fallback resolution: any active administrator
-      const { data: fallback, error: err2 } = await supabase
-        .from('users')
-        .select('id, username, nama_lengkap, role, is_active')
-        .eq('role', 'admin')
-        .eq('is_active', true)
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .maybeSingle();
+      if (adminUser) {
+        if (adminUser.is_active === false) {
+          console.warn('[Chat] Primary system admin account is deactivated:', adminUser.id);
+          this._cachedSystemAdmin = null;
+          this._cachedSystemAdminTime = 0;
+          return null;
+        }
 
-      if (!err2 && fallback) {
-        this._cachedSystemAdmin = fallback;
+        this._cachedSystemAdmin = adminUser;
         this._cachedSystemAdminTime = Date.now();
-        return fallback;
+        return adminUser;
       }
     } catch (err) {
       console.error('[CRITICAL] Exception while resolving System Admin anchor:', err);
     }
 
-    console.error('[CRITICAL] System Admin anchor not found! Ensure an active administrator exists in users table.');
+    this._cachedSystemAdmin = null;
+    this._cachedSystemAdminTime = 0;
+    console.error('[CRITICAL] System Admin anchor not found! Ensure an active administrator with LOWER(username) = "admin" exists in users table.');
     return null;
   },
 
@@ -3845,7 +3842,9 @@ module.exports = {
     if (!isSupabaseEnabled) return null;
     const systemAdminId = await this.getSystemAdminId();
     if (!systemAdminId) {
-      throw new Error('Layanan Live Chat sementara tidak tersedia.');
+      const err = new Error('Layanan Live Chat sementara tidak tersedia. Silakan hubungi Administrator.');
+      err.status = 503;
+      throw err;
     }
     if (operationalUserId === systemAdminId) {
       throw new Error('Pengguna ini adalah administrator.');
