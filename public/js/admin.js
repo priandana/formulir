@@ -1877,11 +1877,38 @@ function showOnscreenError(source, err) {
       const safeUser = u.username.replace(/'/g, "\\'");
       const safeNik = u.nik.replace(/'/g, "\\'");
       const safeTipe = (u.tipe_karyawan || '').replace(/'/g, "\\'");
+      const isSystemAdmin = (u.username && u.username.toLowerCase() === 'admin');
+      const sysBadge = isSystemAdmin
+        ? `<span class="badge" title="Digunakan sebagai anchor Live Chat SS08" style="background:#EFF6FF;color:#2563EB;border:1px solid #BFDBFE;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:4px;cursor:help;">🛡️ Akun Sistem</span>`
+        : '';
+
+      const actionBtns = isSystemAdmin
+        ? `<span title="Akun Administrator utama digunakan oleh sistem dan tidak dapat dinonaktifkan atau dihapus. (Digunakan sebagai anchor Live Chat SS08)" style="font-size:11px;color:#64748B;font-style:italic;cursor:help;display:inline-flex;align-items:center;gap:4px;">
+             <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#10B981;"></span>
+             Anchor Sistem
+           </span>`
+        : `
+          ${isActive ? `
+            <button class="btn-icon btn-impersonate" style="color:#0284c7;background:rgba(14,165,233,0.08);border:1px solid rgba(14,165,233,0.2);" onclick="impersonateUser('${u.id}', '${safeNama}')" title="Login / Intip Tampilan Sebagai User Ini">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            </button>
+          ` : ''}
+          <button class="btn-icon btn-toggle-status ${isActive ? 'btn-deactivate' : 'btn-activate'}" onclick="toggleUserStatus('${u.id}', '${safeNama}', ${isActive})" title="${toggleTitle}">
+            ${toggleIcon}
+          </button>
+          <button class="btn-icon btn-edit" onclick="openEditUserModal('${u.id}', '${safeNama}', '${safeUser}', '${safeNik}', '${u.posisi}', '${safeTipe}', '${(u.nomor_hp || '').replace(/'/g, "\\'")}')" title="Edit user">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="btn-icon btn-del" onclick="deleteUser('${u.id}', '${safeNama}')" title="Hapus user">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+          </button>
+        `;
+
       return `
         <tr style="animation-delay:${i*0.04}s${!isActive ? ';opacity:0.6' : ''}">
           <td>${i+1}</td>
           <td class="text-main">${u.nama_lengkap}${!isActive ? ' <span style="font-size:10px;color:var(--text-dim);font-weight:500;">(Keluar)</span>' : ''}</td>
-          <td><code style="background:rgba(108,60,225,0.06);padding:2px 8px;border-radius:5px;font-size:12px;">${u.username}</code></td>
+          <td><code style="background:rgba(108,60,225,0.06);padding:2px 8px;border-radius:5px;font-size:12px;">${u.username}</code>${sysBadge}</td>
           <td><span style="font-family:monospace;background:rgba(0,0,0,0.04);padding:2px 8px;border-radius:5px;font-size:13px;">${u.nik}</span></td>
           <td><span class="badge ${posBadge}">${u.posisi}</span></td>
           <td><span class="badge ${tipeBadge}">${u.tipe_karyawan || 'Belum Ditentukan'}</span></td>
@@ -1889,20 +1916,7 @@ function showOnscreenError(source, err) {
           <td>${formatDate(u.created_at)}</td>
           <td>
             <div class="action-btns">
-              ${isActive ? `
-                <button class="btn-icon btn-impersonate" style="color:#0284c7;background:rgba(14,165,233,0.08);border:1px solid rgba(14,165,233,0.2);" onclick="impersonateUser('${u.id}', '${safeNama}')" title="Login / Intip Tampilan Sebagai User Ini">
-                  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                </button>
-              ` : ''}
-              <button class="btn-icon btn-toggle-status ${isActive ? 'btn-deactivate' : 'btn-activate'}" onclick="toggleUserStatus('${u.id}', '${safeNama}', ${isActive})" title="${toggleTitle}">
-                ${toggleIcon}
-              </button>
-              <button class="btn-icon btn-edit" onclick="openEditUserModal('${u.id}', '${safeNama}', '${safeUser}', '${safeNik}', '${u.posisi}', '${safeTipe}', '${(u.nomor_hp || '').replace(/'/g, "\\'")}')" title="Edit user">
-                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              </button>
-              <button class="btn-icon btn-del" onclick="deleteUser('${u.id}', '${safeNama}')" title="Hapus user">
-                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
-              </button>
+              ${actionBtns}
             </div>
           </td>
         </tr>`;
@@ -2119,12 +2133,19 @@ function showOnscreenError(source, err) {
     };
 
     tbody.innerHTML = allAdminAccounts.map((a, i) => {
+      const isSystemAdmin = a.username && a.username.toLowerCase() === 'admin';
       const safeName = a.nama_lengkap.replace(/'/g, "\\'");
       const safeUser = a.username.replace(/'/g, "\\'");
+      const isActive = a.is_active !== false;
+
+      // System Admin Badge
+      const systemBadge = isSystemAdmin
+        ? `<span class="badge" title="Digunakan sebagai anchor Live Chat SS08" style="background:#EFF6FF;color:#2563EB;border:1px solid #BFDBFE;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;display:inline-flex;align-items:center;gap:4px;cursor:help;margin-left:6px;">🛡️ Akun Sistem</span>`
+        : '';
       
       // Render permissions
       let permsHTML = '';
-      if (a.username && a.username.toLowerCase() === 'admin') {
+      if (isSystemAdmin) {
         permsHTML = `<span style="background:rgba(108,60,225,0.08);color:var(--primary);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid rgba(108,60,225,0.15);">Super Admin (Semua)</span>`;
       } else {
         const pages = a.allowed_pages || [];
@@ -2138,29 +2159,42 @@ function showOnscreenError(source, err) {
         }
       }
 
+      // Toggle status button
+      let toggleBtn = '';
+      if (isSystemAdmin) {
+        toggleBtn = `<button class="btn-icon btn-toggle-status btn-deactivate" disabled style="opacity:0.35;cursor:not-allowed;" title="Akun Administrator utama digunakan oleh sistem dan tidak dapat dinonaktifkan. (Digunakan sebagai anchor Live Chat SS08)">
+             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+           </button>`;
+      } else {
+        toggleBtn = `<button class="btn-icon btn-toggle-status ${isActive ? 'btn-deactivate' : 'btn-activate'}" onclick="toggleAdminAccountStatus('${a.id}', '${safeName}', ${isActive})" title="${isActive ? 'Nonaktifkan akun admin' : 'Aktifkan akun admin'}">
+             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="${isActive ? 'M7 11V7a5 5 0 0110 0v4' : 'M7 11V7a5 5 0 019.9-1'}"/></svg>
+           </button>`;
+      }
+
       // Check if delete button should be visible
-      const deleteBtn = (!a.username || a.username.toLowerCase() !== 'admin') 
+      const deleteBtn = (!isSystemAdmin) 
         ? `<button class="btn-icon btn-del" onclick="deleteAdminAccount('${a.id}', '${safeName}', '${safeUser}')" title="Hapus akun admin">
              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
            </button>`
         : '';
         
       // Check if permissions edit button should be visible
-      const editPermsBtn = (!a.username || a.username.toLowerCase() !== 'admin')
+      const editPermsBtn = (!isSystemAdmin)
         ? `<button class="btn-icon" style="color:var(--primary);background:rgba(108,60,225,0.05);border:1px solid rgba(108,60,225,0.1);padding:4px;display:inline-flex;" onclick="openEditPermissionsModal('${a.id}', '${safeName}', '${(a.allowed_pages || []).join(',')}')" title="Edit Hak Akses">
              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
            </button>`
         : '';
 
       return `
-        <tr style="animation-delay:${i*0.04}s">
+        <tr style="animation-delay:${i*0.04}s${!isActive ? ';opacity:0.6' : ''}">
           <td>${i+1}</td>
-          <td class="text-main">${a.nama_lengkap}</td>
-          <td><code style="background:rgba(108,60,225,0.06);padding:2px 8px;border-radius:5px;font-size:12px;">${a.username}</code></td>
+          <td class="text-main">${a.nama_lengkap}${!isActive ? ' <span style="font-size:10px;color:var(--text-dim);font-weight:500;">(Nonaktif)</span>' : ''}</td>
+          <td><code style="background:rgba(108,60,225,0.06);padding:2px 8px;border-radius:5px;font-size:12px;">${a.username}</code>${systemBadge}</td>
           <td>${permsHTML}</td>
           <td>${formatDate(a.created_at)}</td>
           <td>
             <div class="action-btns">
+              ${toggleBtn}
               ${editPermsBtn}
               ${deleteBtn}
             </div>
@@ -2168,6 +2202,33 @@ function showOnscreenError(source, err) {
         </tr>`;
     }).join('');
   }
+
+  async function toggleAdminAccountStatus(id, nama, currentlyActive) {
+    const action = currentlyActive ? 'nonaktifkan' : 'aktifkan kembali';
+    const confirmed = await showConfirmModal({
+      title: currentlyActive ? 'Nonaktifkan Akun Admin' : 'Aktifkan Akun Admin',
+      message: currentlyActive
+        ? `Apakah Anda yakin ingin menonaktifkan akun admin "${nama}"? Akun tidak akan bisa login.`
+        : `Aktifkan kembali akun admin "${nama}"?`,
+      icon: currentlyActive ? '🔒' : '🔓',
+      okText: currentlyActive ? 'Ya, Nonaktifkan' : 'Ya, Aktifkan',
+      okClass: currentlyActive ? 'btn-danger' : 'btn-primary'
+    });
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`/api/admin-accounts/${id}/toggle-status`, { method: 'PATCH' }).then(r => r.json());
+      if (res.success) {
+        showToast(`Akun admin "${nama}" berhasil diubah.`, 'success');
+        await loadAdminAccounts();
+      } else {
+        showToast(res.error || 'Gagal mengubah status akun admin.', 'error');
+      }
+    } catch (err) {
+      showToast('Gagal menghubungi server.', 'error');
+    }
+  }
+  window.toggleAdminAccountStatus = toggleAdminAccountStatus;
 
   async function addAdminAccount() {
     const nama_lengkap = document.getElementById('newAdminNama').value.trim();

@@ -1111,6 +1111,14 @@ module.exports = {
    * Toggle is_active status for an operational user (aktif <-> non-aktif)
    */
   async toggleUserStatus(id) {
+    const target = await this.getUserById(id);
+    const systemAdminId = await this.getSystemAdminId();
+    if (id === systemAdminId || (target?.username && target.username.toLowerCase() === 'admin')) {
+      const err = new Error('Akun Administrator utama digunakan oleh sistem dan tidak dapat dinonaktifkan.');
+      err.status = 409;
+      throw err;
+    }
+
     if (isSupabaseEnabled) {
       // First fetch current status
       const { data: current, error: fetchErr } = await supabase
@@ -1162,6 +1170,18 @@ module.exports = {
    */
   async updateOperationalUser(id, data) {
     const { username, nama_lengkap, nik, posisi, tipe_karyawan, nomor_hp } = data;
+    const target = await this.getUserById(id);
+    const systemAdminId = await this.getSystemAdminId();
+    if (id === systemAdminId || (target?.username && target.username.toLowerCase() === 'admin')) {
+      const err = new Error('Akun Administrator utama digunakan oleh sistem dan tidak dapat diedit dari sini.');
+      err.status = 409;
+      throw err;
+    }
+    if (username && username.trim().toLowerCase() === 'admin') {
+      const err = new Error('Username "admin" dicadangkan untuk Administrator utama sistem.');
+      err.status = 409;
+      throw err;
+    }
     if (isSupabaseEnabled) {
       const updates = {
         username: username.trim(),
@@ -1321,6 +1341,87 @@ module.exports = {
       if (idx === -1) throw new Error('Akun admin tidak ditemukan.');
       db.users.splice(idx, 1);
       save(db);
+    }
+  },
+
+  /**
+   * Toggle is_active status for an admin user (aktif <-> non-aktif)
+   * System Admin anchor is protected from deactivation!
+   */
+  async toggleAdminStatus(id) {
+    const target = await this.getUserById(id);
+    if (!target || target.role !== 'admin') throw new Error('Akun admin tidak ditemukan.');
+    const systemAdminId = await this.getSystemAdminId();
+    if (id === systemAdminId || (target.username && target.username.toLowerCase() === 'admin')) {
+      const err = new Error('Akun Administrator utama digunakan oleh sistem dan tidak dapat dinonaktifkan.');
+      err.status = 409;
+      throw err;
+    }
+
+    const newStatus = target.is_active === false ? true : false;
+    if (isSupabaseEnabled) {
+      const { data: updated, error } = await supabase
+        .from('users').update({ is_active: newStatus }).eq('id', id).eq('role', 'admin')
+        .select('id,username,nama_lengkap,role,is_active').single();
+      if (error) { console.error('Supabase toggleAdminStatus error:', error); throw error; }
+      return updated;
+    } else {
+      const db = load();
+      const idx = db.users.findIndex(u => u.id === id && u.role === 'admin');
+      if (idx === -1) throw new Error('Akun admin tidak ditemukan.');
+      db.users[idx].is_active = newStatus;
+      save(db);
+      return db.users[idx];
+    }
+  },
+
+  /**
+   * Update admin user data (nama_lengkap, username, is_active)
+   * Protects System Admin username from rename and from is_active = false!
+   */
+  async updateAdminUser(id, { username, nama_lengkap, is_active } = {}) {
+    const target = await this.getUserById(id);
+    if (!target || target.role !== 'admin') throw new Error('Akun admin tidak ditemukan.');
+    const systemAdminId = await this.getSystemAdminId();
+    const isSystemAdmin = id === systemAdminId || (target.username && target.username.toLowerCase() === 'admin');
+
+    if (isSystemAdmin) {
+      if (is_active === false) {
+        const err = new Error('Akun Administrator utama digunakan oleh sistem dan tidak dapat dinonaktifkan.');
+        err.status = 409;
+        throw err;
+      }
+      if (username && username.trim().toLowerCase() !== 'admin') {
+        const err = new Error('Username akun Administrator utama dilindungi dan tidak dapat diubah.');
+        err.status = 409;
+        throw err;
+      }
+    } else {
+      if (username && username.trim().toLowerCase() === 'admin') {
+        const err = new Error('Username "admin" dicadangkan untuk Administrator utama sistem.');
+        err.status = 409;
+        throw err;
+      }
+    }
+
+    const updates = {};
+    if (username) updates.username = username.trim();
+    if (nama_lengkap) updates.nama_lengkap = nama_lengkap.trim();
+    if (is_active !== undefined) updates.is_active = is_active;
+
+    if (isSupabaseEnabled) {
+      const { data: updated, error } = await supabase
+        .from('users').update(updates).eq('id', id).eq('role', 'admin')
+        .select('id,username,nama_lengkap,role,is_active,allowed_pages').single();
+      if (error) { console.error('Supabase updateAdminUser error:', error); throw error; }
+      return updated;
+    } else {
+      const db = load();
+      const idx = db.users.findIndex(u => u.id === id && u.role === 'admin');
+      if (idx === -1) throw new Error('Akun admin tidak ditemukan.');
+      db.users[idx] = { ...db.users[idx], ...updates };
+      save(db);
+      return db.users[idx];
     }
   },
 

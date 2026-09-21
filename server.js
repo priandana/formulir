@@ -4248,26 +4248,43 @@ app.delete('/api/users/:id', requirePermission('users'), async (req, res) => {
   }
 });
 
-// PATCH /api/users/:id/toggle-status â€” Aktifkan/Nonaktifkan user operasional
+// PATCH /api/users/:id/toggle-status — Aktifkan/Nonaktifkan user operasional
 app.patch('/api/users/:id/toggle-status', requirePermission('users'), async (req, res) => {
   try {
+    const targetUser = await db.getUserById(req.params.id);
+    const systemAdminId = await db.getSystemAdminId();
+    if (req.params.id === systemAdminId || (targetUser?.username && targetUser.username.toLowerCase() === 'admin')) {
+      return res.status(409).json({ error: 'Akun Administrator utama digunakan oleh sistem dan tidak dapat dinonaktifkan.' });
+    }
+
     const updated = await db.toggleUserStatus(req.params.id);
     const statusLabel = updated.is_active === false ? 'dinonaktifkan' : 'diaktifkan';
     await db.insertAuditLog(req.user.username, 'TOGGLE_USER_STATUS', `User operasional ${updated.username} (${updated.nama_lengkap}) telah ${statusLabel}`);
     res.json({ success: true, data: updated });
   } catch (err) {
     console.error('Toggle user status error:', err);
-    res.status(500).json({ error: 'Gagal mengubah status user.' });
+    const status = err.status || 500;
+    res.status(status).json({ error: err.message || 'Gagal mengubah status user.' });
   }
 });
 
-// PUT /api/users/:id â€” Edit user operasional
+// PUT /api/users/:id — Edit user operasional
 app.put('/api/users/:id', requirePermission('users'), async (req, res) => {
   try {
     const { username, nama_lengkap, nik, posisi, tipe_karyawan, nomor_hp } = req.body;
     if (!username || !nama_lengkap || !nik || !posisi) {
       return res.status(400).json({ error: 'Semua field (username, nama lengkap, NIK, posisi) wajib diisi.' });
     }
+    if (username.trim().toLowerCase() === 'admin') {
+      return res.status(409).json({ error: 'Username "admin" dicadangkan untuk Administrator utama sistem.' });
+    }
+
+    const targetUser = await db.getUserById(req.params.id);
+    const systemAdminId = await db.getSystemAdminId();
+    if (req.params.id === systemAdminId || (targetUser?.username && targetUser.username.toLowerCase() === 'admin')) {
+      return res.status(409).json({ error: 'Akun Administrator utama digunakan oleh sistem dan tidak dapat diedit dari sini.' });
+    }
+
     if (!['Picker', 'Sorter', 'Loader', 'Return', 'QC Outbound'].includes(posisi)) {
       return res.status(400).json({ error: 'Posisi harus Picker, Sorter, Loader, Return, atau QC Outbound.' });
     }
@@ -4286,8 +4303,9 @@ app.put('/api/users/:id', requirePermission('users'), async (req, res) => {
     res.json({ success: true, data: user });
   } catch (err) {
     console.error('Update user error:', err);
-    const msg = err.message.includes('sudah digunakan') ? err.message : 'Gagal mengupdate user.';
-    res.status(400).json({ error: msg });
+    const status = err.status || 400;
+    const msg = err.message.includes('sudah digunakan') || err.message.includes('utama') || err.message.includes('dicadangkan') ? err.message : 'Gagal mengupdate user.';
+    res.status(status).json({ error: msg });
   }
 });
 
@@ -4463,6 +4481,9 @@ app.post('/api/admin-accounts', requireSuperAdmin, async (req, res) => {
     if (!username || !nama_lengkap || !password) {
       return res.status(400).json({ error: 'Username, nama lengkap, dan password wajib diisi.' });
     }
+    if (username.trim().toLowerCase() === 'admin') {
+      return res.status(409).json({ error: 'Username "admin" dicadangkan untuk Administrator utama sistem.' });
+    }
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password minimal 6 karakter.' });
     }
@@ -4527,6 +4548,61 @@ app.delete('/api/admin-accounts/:id', requireSuperAdmin, async (req, res) => {
     const msg = err.message.includes('utama') || err.message.includes('sendiri') || err.message.includes('ditemukan') ? err.message : 'Gagal menghapus akun admin.';
     const status = err.status || 400;
     res.status(status).json({ error: msg });
+  }
+});
+
+// PATCH /api/admin-accounts/:id/toggle-status — Aktifkan/Nonaktifkan akun admin (Super Admin only)
+app.patch('/api/admin-accounts/:id/toggle-status', requireSuperAdmin, async (req, res) => {
+  try {
+    const targetAdmin = await db.getUserById(req.params.id);
+    if (!targetAdmin) return res.status(404).json({ error: 'Akun admin tidak ditemukan.' });
+
+    const systemAdminId = await db.getSystemAdminId();
+    if (req.params.id === systemAdminId || (targetAdmin.username && targetAdmin.username.toLowerCase() === 'admin')) {
+      return res.status(409).json({ error: 'Akun Administrator utama digunakan oleh sistem dan tidak dapat dinonaktifkan.' });
+    }
+
+    const updated = await db.toggleAdminStatus(req.params.id);
+    const statusLabel = updated.is_active === false ? 'dinonaktifkan' : 'diaktifkan';
+    await db.insertAuditLog(req.user.username, 'TOGGLE_ADMIN_STATUS', `Akun admin ${updated.username} (${updated.nama_lengkap}) telah ${statusLabel}`);
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    console.error('Toggle admin status error:', err);
+    const status = err.status || 500;
+    res.status(status).json({ error: err.message || 'Gagal mengubah status akun admin.' });
+  }
+});
+
+// PUT /api/admin-accounts/:id — Update data akun admin (Super Admin only)
+app.put('/api/admin-accounts/:id', requireSuperAdmin, async (req, res) => {
+  try {
+    const { username, nama_lengkap, is_active } = req.body;
+    const targetAdmin = await db.getUserById(req.params.id);
+    if (!targetAdmin) return res.status(404).json({ error: 'Akun admin tidak ditemukan.' });
+
+    const systemAdminId = await db.getSystemAdminId();
+    const isSystemAdmin = req.params.id === systemAdminId || (targetAdmin.username && targetAdmin.username.toLowerCase() === 'admin');
+
+    if (isSystemAdmin) {
+      if (is_active === false) {
+        return res.status(409).json({ error: 'Akun Administrator utama digunakan oleh sistem dan tidak dapat dinonaktifkan.' });
+      }
+      if (username && username.trim().toLowerCase() !== 'admin') {
+        return res.status(409).json({ error: 'Username akun Administrator utama dilindungi dan tidak dapat diubah.' });
+      }
+    } else {
+      if (username && username.trim().toLowerCase() === 'admin') {
+        return res.status(409).json({ error: 'Username "admin" dicadangkan untuk Administrator utama sistem.' });
+      }
+    }
+
+    const updated = await db.updateAdminUser(req.params.id, { username, nama_lengkap, is_active });
+    await db.insertAuditLog(req.user.username, 'UPDATE_ADMIN', `Mengupdate data akun admin: ${targetAdmin.username}`);
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    console.error('Update admin account error:', err);
+    const status = err.status || 500;
+    res.status(status).json({ error: err.message || 'Gagal mengupdate akun admin.' });
   }
 });
 
