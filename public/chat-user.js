@@ -658,6 +658,7 @@ const FloatingChat = (function() {
 
   return {
     init,
+    refreshChatStatus,
     retrySupportChat: () => {
       currentConvId = null;
       loadSupportConversation();
