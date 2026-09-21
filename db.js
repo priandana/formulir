@@ -1139,6 +1139,13 @@ module.exports = {
    * Delete a user by ID (only operational users can be deleted from here)
    */
   async deleteUser(id) {
+    const systemAdminId = await this.getSystemAdminId();
+    if (id === systemAdminId) {
+      const err = new Error('Akun Administrator utama digunakan oleh sistem dan tidak dapat dihapus.');
+      err.status = 409;
+      throw err;
+    }
+
     if (isSupabaseEnabled) {
       const { error } = await supabase.from('users').delete().eq('id', id).eq('role', 'operasional');
       if (error) { console.error('Supabase deleteUser error:', error); throw error; }
@@ -1293,9 +1300,16 @@ module.exports = {
   },
 
   /**
-   * Hapus akun admin berdasarkan ID
+   * Hapus akun admin berdasarkan ID (System Admin dilindungi dari penghapusan)
    */
   async deleteAdminUser(id) {
+    const systemAdminId = await this.getSystemAdminId();
+    if (id === systemAdminId) {
+      const err = new Error('Akun Administrator utama digunakan oleh sistem dan tidak dapat dihapus.');
+      err.status = 409;
+      throw err;
+    }
+
     if (isSupabaseEnabled) {
       const { error } = await supabase.from('users').delete().eq('id', id).eq('role', 'admin');
       if (error) { console.error('Supabase deleteAdminUser error:', error); throw error; }
@@ -3768,27 +3782,58 @@ module.exports = {
     return { id: conversationId };
   },
 
+  _cachedSystemAdmin: null,
+  _cachedSystemAdminTime: 0,
+
   async getSystemAdminUser() {
     if (!isSupabaseEnabled) return null;
-    // Prefer user with username = 'admin' (case-insensitive)
-    const { data: adminUser } = await supabase
-      .from('users')
-      .select('id, username, nama_lengkap, role')
-      .ilike('username', 'admin')
-      .limit(1)
-      .maybeSingle();
-    if (adminUser) return adminUser;
 
-    // Fallback to any active user with role = 'admin'
-    const { data: fallback } = await supabase
-      .from('users')
-      .select('id, username, nama_lengkap, role')
-      .eq('role', 'admin')
-      .eq('is_active', true)
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    return fallback || null;
+    // Check in-memory cache (valid for 60 seconds)
+    if (this._cachedSystemAdmin && (Date.now() - this._cachedSystemAdminTime < 60000)) {
+      return this._cachedSystemAdmin;
+    }
+
+    try {
+      // 1. Primary resolution: username ilike 'admin' and role = 'admin'
+      const { data: adminUser, error: err1 } = await supabase
+        .from('users')
+        .select('id, username, nama_lengkap, role, is_active')
+        .ilike('username', 'admin')
+        .eq('role', 'admin')
+        .limit(1)
+        .maybeSingle();
+
+      if (!err1 && adminUser) {
+        if (adminUser.is_active !== false) {
+          this._cachedSystemAdmin = adminUser;
+          this._cachedSystemAdminTime = Date.now();
+          return adminUser;
+        } else {
+          console.warn('[Chat] Primary system admin account is deactivated:', adminUser.id);
+        }
+      }
+
+      // 2. Fallback resolution: any active administrator
+      const { data: fallback, error: err2 } = await supabase
+        .from('users')
+        .select('id, username, nama_lengkap, role, is_active')
+        .eq('role', 'admin')
+        .eq('is_active', true)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (!err2 && fallback) {
+        this._cachedSystemAdmin = fallback;
+        this._cachedSystemAdminTime = Date.now();
+        return fallback;
+      }
+    } catch (err) {
+      console.error('[CRITICAL] Exception while resolving System Admin anchor:', err);
+    }
+
+    console.error('[CRITICAL] System Admin anchor not found! Ensure an active administrator exists in users table.');
+    return null;
   },
 
   async getSystemAdminId() {
@@ -3799,8 +3844,12 @@ module.exports = {
   async getOrCreateSupportConversation(operationalUserId) {
     if (!isSupabaseEnabled) return null;
     const systemAdminId = await this.getSystemAdminId();
-    if (!systemAdminId) throw new Error('System Admin tidak ditemukan.');
-    if (operationalUserId === systemAdminId) throw new Error('User adalah admin.');
+    if (!systemAdminId) {
+      throw new Error('Layanan Live Chat sementara tidak tersedia.');
+    }
+    if (operationalUserId === systemAdminId) {
+      throw new Error('Pengguna ini adalah administrator.');
+    }
 
     const conv = await this.findOrCreateDirectConversation(operationalUserId, systemAdminId, operationalUserId);
     return conv;
@@ -4565,6 +4614,17 @@ module.exports = {
       .from('chat_attachments')
       .select('*')
       .eq('message_id', messageId)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
+  async getAttachment(id) {
+    if (!isSupabaseEnabled) return null;
+    const { data, error } = await supabase
+      .from('chat_attachments')
+      .select('*')
+      .eq('id', id)
       .maybeSingle();
     if (error) throw error;
     return data;

@@ -109,13 +109,14 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
       const conversationId = typeof getConvId === 'function' ? getConvId(req) : req.params[getConvId];
       if (!conversationId) return res.status(400).json({ error: 'Conversation ID required' });
       
-      // If user is admin: check if this is a support conversation
+      // If user is admin: MUST be a support conversation (Operational User <-> System Admin Anchor)
       if (req.user.role === 'admin') {
         const isSupport = await db.isSupportConversation(conversationId);
         if (isSupport) {
           req.isSupportAdmin = true;
           return next();
         }
+        return res.status(403).json({ error: 'Akses ditolak. Administrator hanya memiliki akses ke Support Conversation.' });
       }
 
       const isActive = await db.isActiveParticipant(conversationId, req.user.userId);
@@ -142,7 +143,7 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
       const conversationId = typeof getConvId === 'function' ? getConvId(req) : req.params[getConvId];
       if (!conversationId) return res.status(400).json({ error: 'Conversation ID required' });
       
-      // If user is admin: check if this is a support conversation
+      // If user is admin: MUST be a support conversation
       if (req.user.role === 'admin') {
         const isSupport = await db.isSupportConversation(conversationId);
         if (isSupport) {
@@ -151,6 +152,7 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
           req.participantInfo = req.participantPeriods[0];
           return next();
         }
+        return res.status(403).json({ error: 'Akses ditolak. Administrator hanya memiliki akses ke Support Conversation.' });
       }
 
       const periods = await db.getUserMembershipPeriods(conversationId, req.user.userId);
@@ -278,7 +280,10 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
       });
     } catch (err) {
       console.error('Error in /api/chat/support:', err);
-      res.status(500).json({ error: err.message || 'Gagal membuka percakapan dengan Admin' });
+      const userMessage = err.message && err.message.includes('Layanan Live Chat')
+        ? err.message
+        : 'Layanan Live Chat sementara tidak tersedia.';
+      res.status(503).json({ error: userMessage });
     }
   });
 
@@ -329,25 +334,15 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
     }
   });
 
-  // POST /api/chat/conversations/direct - Strictly blocked for operational peer-to-peer!
+  // POST /api/chat/conversations/direct - Generic DM endpoint disabled for all roles!
   app.post('/api/chat/conversations/direct', requireAuth, requireChatAccess, requireChatWriteAllowed, async (req, res) => {
-    try {
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Percakapan langsung antar-karyawan dinonaktifkan. Silakan hubungi Admin SS08 melalui Pusat Bantuan.' });
-      }
-      
-      const { target_user_id } = req.body;
-      if (!target_user_id) return res.status(400).json({ error: 'Target user ID diperlukan.' });
-      
-      const conv = await db.getOrCreateSupportConversation(target_user_id);
-      res.json({ success: true, conversation: conv });
-    } catch (err) {
-      res.status(500).json({ error: err.message || 'Gagal membuat percakapan' });
-    }
+    return res.status(403).json({ 
+      error: 'Endpoint direct message dinonaktifkan. Silakan gunakan /api/chat/admin/start-conversation untuk Admin atau /api/chat/support untuk Pengguna.' 
+    });
   });
 
-  // POST /api/chat/conversations/group - Group chat disabled!
-  app.post('/api/chat/conversations/group', requireAdmin, async (req, res) => {
+  // POST /api/chat/conversations/group - Group chat disabled for all roles!
+  app.post('/api/chat/conversations/group', requireAuth, async (req, res) => {
     return res.status(403).json({ error: 'Fitur grup chat dinonaktifkan.' });
   });
 
@@ -454,8 +449,7 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
         canDelete = true;
       } else if (req.user.role === 'admin') {
         const isSupport = await db.isSupportConversation(msg.conversation_id);
-        const isActive = await db.isActiveParticipant(msg.conversation_id, req.user.userId);
-        if (isSupport || isActive) canDelete = true;
+        if (isSupport) canDelete = true;
       }
       
       if (!canDelete) return res.status(403).json({ error: 'Akses ditolak.' });
@@ -589,8 +583,12 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
       
       const isSupport = await db.isSupportConversation(msg.conversation_id);
       let canRead = false;
-      if (req.user.role === 'admin' && isSupport) {
-        canRead = true;
+      if (req.user.role === 'admin') {
+        if (isSupport) {
+          canRead = true;
+        } else {
+          return res.status(403).json({ error: 'Akses ditolak. Administrator hanya memiliki akses ke lampiran Support Conversation.' });
+        }
       } else {
         const periods = await db.getUserMembershipPeriods(msg.conversation_id, req.user.userId);
         if (periods && periods.length > 0) {

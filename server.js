@@ -4500,7 +4500,7 @@ app.put('/api/admin-accounts/:id/permissions', requireSuperAdmin, async (req, re
   }
 });
 
-// DELETE /api/admin-accounts/:id â€” Hapus akun admin (Super Admin only)
+// DELETE /api/admin-accounts/:id — Hapus akun admin (Super Admin only)
 app.delete('/api/admin-accounts/:id', requireSuperAdmin, async (req, res) => {
   try {
     const decoded = jwt.verify(req.cookies.token, JWT_SECRET);
@@ -4508,6 +4508,15 @@ app.delete('/api/admin-accounts/:id', requireSuperAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Tidak dapat menghapus akun sendiri yang sedang aktif.' });
     }
     const targetAdmin = await db.getUserById(req.params.id);
+    if (!targetAdmin) {
+      return res.status(404).json({ error: 'Akun admin tidak ditemukan.' });
+    }
+
+    const systemAdminId = await db.getSystemAdminId();
+    if (req.params.id === systemAdminId || (targetAdmin.username && targetAdmin.username.toLowerCase() === 'admin')) {
+      return res.status(409).json({ error: 'Akun Administrator utama digunakan oleh sistem dan tidak dapat dihapus.' });
+    }
+
     await db.deleteAdminUser(req.params.id);
     if (targetAdmin) {
       await db.insertAuditLog(req.user.username, 'DELETE_ADMIN', `Menghapus akun admin: ${targetAdmin.username}`);
@@ -4515,8 +4524,9 @@ app.delete('/api/admin-accounts/:id', requireSuperAdmin, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Delete admin account error:', err);
-    const msg = err.message.includes('sendiri') || err.message.includes('ditemukan') ? err.message : 'Gagal menghapus akun admin.';
-    res.status(400).json({ error: msg });
+    const msg = err.message.includes('utama') || err.message.includes('sendiri') || err.message.includes('ditemukan') ? err.message : 'Gagal menghapus akun admin.';
+    const status = err.status || 400;
+    res.status(status).json({ error: msg });
   }
 });
 
