@@ -609,6 +609,17 @@ const FloatingChat = (function() {
     if (unreadPollingInterval) clearInterval(unreadPollingInterval);
   }
 
+  function startStatusPolling() {
+    if (statusPollingInterval) clearInterval(statusPollingInterval);
+    statusPollingInterval = setInterval(() => {
+      if (!isHiddenTab) refreshChatStatus();
+    }, 15000);
+  }
+
+  function stopStatusPolling() {
+    if (statusPollingInterval) clearInterval(statusPollingInterval);
+  }
+
   function startPresenceHeartbeat() {
     if (presenceInterval) clearInterval(presenceInterval);
     fetch('/api/chat/presence', { method: 'POST', credentials: 'include' }).catch(()=>{});
@@ -657,7 +668,7 @@ const FloatingChat = (function() {
       .replace(/'/g, '&#39;');
   }
 
-  return {
+  const api = {
     init,
     refreshChatStatus,
     retrySupportChat: () => {
@@ -665,6 +676,12 @@ const FloatingChat = (function() {
       loadSupportConversation();
     }
   };
+
+  if (typeof window !== 'undefined') {
+    window.FloatingChat = api;
+  }
+
+  return api;
 })();
 
 // Auto-initialize if running on operational frontend
