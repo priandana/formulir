@@ -10,6 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/admin.css?v=1.8">
   <link rel="stylesheet" href="/css/absensi.css?v=1.1">
+  <link rel="stylesheet" href="/css/chat.css?v=1.2">
   <script>
     if (localStorage.getItem('theme') === 'dark') {
       document.body.classList.add('dark-mode');
@@ -2667,6 +2668,12 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
     </div>
     <!-- ===== END REKAP PENGGAJIAN PAGE (HR) ===== -->
 
+    <!-- ===== LIVE CHAT PAGE ===== -->
+    <div id="page-live-chat" class="page-section" style="display:none;padding:0;"></div>
+
+    <!-- ===== CHAT SETTINGS PAGE ===== -->
+    <div id="page-chat-settings" class="page-section" style="display:none;"></div>
+
   </div>
 </main>
 
@@ -2951,7 +2958,8 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
   <div class="lightbox-caption" id="lightboxCaption">Bukti Foto</div>
 </div>
 
-<script src="/js/admin.js?v=2.2" defer></script>
+<script src="/chat-admin.js?v=1.2"></script>
+<script src="/js/admin.js?v=2.3" defer></script>
 
 <!-- ===== ABSENSI SETTINGS MODAL ===== -->
 <div class="modal-overlay" id="absensiSettingsModal">
@@ -3748,72 +3756,6 @@ async function loadPhlUserList() {
   }
 }
 // ===================== END PHL SETTINGS MODULE =====================
-</script>
-
-<!-- ===== LIVE CHAT MODULE ===== -->
-<link rel="stylesheet" href="/css/chat.css?v=1.0">
-
-<!-- Live Chat Page Container (Admin Messenger Layout) -->
-<div id="page-live-chat" class="page-section" style="display:none;padding:0;"></div>
-
-<!-- Chat Settings Page Container -->
-<div id="page-chat-settings" class="page-section" style="display:none;"></div>
-
-<script src="/chat-admin.js?v=1.0"></script>
-<script>
-// ===================== CHAT ADMIN INTEGRATION =====================
-// Hooked into showPage() via page lifecycle events
-
-// Override showPage to add chat lifecycle hooks
-(function patchShowPageForChat() {
-  const _origShowPage = window.showPage;
-  if (typeof _origShowPage !== 'function') return;
-  
-  let chatActive = false;
-  
-  window.showPage = function(page) {
-    // Cleanup previous chat state if leaving chat
-    if (chatActive && page !== 'live-chat') {
-      if (window.ChatAdminModule) {
-        window.ChatAdminModule.destroy();
-      }
-      chatActive = false;
-    }
-    
-    // Call original showPage
-    _origShowPage(page);
-    
-    // Init chat if entering live-chat
-    if (page === 'live-chat') {
-      chatActive = true;
-      if (window.ChatAdminModule) {
-        window.ChatAdminModule.init();
-      }
-    }
-    
-    // Init settings if entering chat-settings
-    if (page === 'chat-settings') {
-      if (window.ChatSettingsModule) {
-        window.ChatSettingsModule.init();
-      }
-    }
-  };
-})();
-
-// Cleanup on logout
-const _origLogout = window.logout;
-if (typeof _origLogout === 'function') {
-  window.logout = function() {
-    if (window.ChatAdminModule) window.ChatAdminModule.destroy();
-    _origLogout();
-  };
-}
-
-// Cleanup on page unload
-window.addEventListener('beforeunload', function() {
-  if (window.ChatAdminModule) window.ChatAdminModule.destroy();
-});
-// ===================== END CHAT ADMIN INTEGRATION =====================
 </script>
 
 </body>

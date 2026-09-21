@@ -65,13 +65,13 @@ function showOnscreenError(source, err) {
       'dashboard', 'submissions', 'loader', 'data-carian', 'rekap-toko',
       'status-carian', 'users', 'absensi', 'ketentuan-harga', 'rekap-pendapatan', 'penggajian', 'announcements',
       'export', 'gsheets', 'login-settings', 'admin-accounts',
-      'audit-logs'
+      'audit-logs', 'live-chat', 'chat-settings'
     ];
 
     pages.forEach(p => {
       const nav = document.getElementById('nav-' + p);
       if (nav) {
-        const hasAccess = isSuperAdmin || allowed.includes(p);
+        const hasAccess = isSuperAdmin || p === 'live-chat' || p === 'chat-settings' || allowed.includes(p);
         nav.style.display = hasAccess ? 'flex' : 'none';
       }
     });
@@ -1560,7 +1560,7 @@ function showOnscreenError(source, err) {
 
     const isSuperAdmin = currentUser.username && currentUser.username.toLowerCase() === 'admin';
     const allowed = currentUser.allowed_pages || [];
-    const isAllowed = isSuperAdmin || page === 'feature-guide' || allowed.includes(page);
+    const isAllowed = isSuperAdmin || page === 'feature-guide' || page === 'live-chat' || page === 'chat-settings' || allowed.includes(page);
 
     if (!isAllowed) {
       showToast('Akses Ditolak: Anda tidak memiliki hak akses untuk halaman ini.', 'error');
@@ -1575,7 +1575,7 @@ function showOnscreenError(source, err) {
     currentView = page;
     const sidebar = document.getElementById('sidebar');
     if (sidebar) sidebar.classList.remove('open');
-    ['dashboard','submissions','data-carian','rekap-toko','status-carian','welcome','users','loader','return-validation','absensi','export','gsheets','login-settings','periode-aktif','phl-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga','rekap-pendapatan','penggajian'].forEach(p => {
+    ['dashboard','submissions','data-carian','rekap-toko','status-carian','welcome','users','loader','return-validation','absensi','export','gsheets','login-settings','periode-aktif','phl-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga','rekap-pendapatan','penggajian','live-chat','chat-settings'].forEach(p => {
       const el = document.getElementById('page-' + p);
       if (el) el.style.display = p === page ? 'block' : 'none';
     });
@@ -1602,11 +1602,13 @@ function showOnscreenError(source, err) {
       'announcements': 'Manajemen Pengumuman',
       'ketentuan-harga': 'Ketentuan Harga',
       'rekap-pendapatan': 'Rekap Pendapatan Pekerja',
-      'penggajian': 'Rekap Penggajian (HR Payroll)'
+      'penggajian': 'Rekap Penggajian (HR Payroll)',
+      'live-chat': 'Live Chat',
+      'chat-settings': 'Pengaturan Live Chat'
     };
     document.getElementById('pageTitle').textContent = titles[page] || page;
 
-    ['dashboard','submissions','data-carian','rekap-toko','status-carian','welcome','users','loader','return-validation','absensi','export','gsheets','login-settings','periode-aktif','phl-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga','rekap-pendapatan','penggajian'].forEach(p => {
+    ['dashboard','submissions','data-carian','rekap-toko','status-carian','welcome','users','loader','return-validation','absensi','export','gsheets','login-settings','periode-aktif','phl-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga','rekap-pendapatan','penggajian','live-chat','chat-settings'].forEach(p => {
       const nav = document.getElementById('nav-' + p);
       if (nav) {
         const isActive = p === page;
@@ -1647,6 +1649,20 @@ function showOnscreenError(source, err) {
     if (page === 'penggajian') initPenggajianPage();
     if (page === 'phl-settings') { if (typeof window.loadPhlAdminSettings === 'function') window.loadPhlAdminSettings(); }
     if (page === 'periode-aktif') loadPeriodeAktifSettings();
+    if (page === 'live-chat') {
+      if (window.ChatAdminModule && typeof window.ChatAdminModule.init === 'function') {
+        window.ChatAdminModule.init();
+      }
+    } else {
+      if (window.ChatAdminModule && typeof window.ChatAdminModule.destroy === 'function') {
+        window.ChatAdminModule.destroy();
+      }
+    }
+    if (page === 'chat-settings') {
+      if (window.ChatSettingsModule && typeof window.ChatSettingsModule.init === 'function') {
+        window.ChatSettingsModule.init();
+      }
+    }
   }
 
   // Toggle navigation collapsible group

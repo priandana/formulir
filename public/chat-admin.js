@@ -21,6 +21,7 @@ const ChatAdminModule = (function() {
   function init() {
     isPageActive = true;
     renderChatPage();
+    checkChatStatusBanner();
     loadConversations();
     startUnreadBadgePolling();
     startPresenceHeartbeat();
@@ -33,9 +34,47 @@ const ChatAdminModule = (function() {
     document.removeEventListener('visibilitychange', handleVisibilityChange);
   }
 
+  async function checkChatStatusBanner() {
+    try {
+      const res = await fetch('/api/chat/settings', { credentials: 'include' });
+      if (!res.ok) return;
+      const s = await res.json();
+      const banner = document.getElementById('admin-chat-status-banner');
+      if (!banner) return;
+      if (s.status === 'DISABLED') {
+        banner.style.display = 'flex';
+        banner.style.backgroundColor = '#FEF2F2';
+        banner.style.borderBottom = '1px solid #FECACA';
+        banner.style.color = '#991B1B';
+        banner.innerHTML = `
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span>⚠️</span>
+            <span><strong>Live Chat sedang NONAKTIF (DISABLED).</strong> Fitur chat disembunyikan dari user operasional.</span>
+          </div>
+          <button onclick="if(typeof showPage==='function') showPage('chat-settings');" style="background:#fff;border:1px solid #F87171;color:#991B1B;font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;cursor:pointer;">Buka Pengaturan</button>
+        `;
+      } else if (s.status === 'READ_ONLY') {
+        banner.style.display = 'flex';
+        banner.style.backgroundColor = '#FFFBEB';
+        banner.style.borderBottom = '1px solid #FDE68A';
+        banner.style.color = '#92400E';
+        banner.innerHTML = `
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span>ℹ️</span>
+            <span><strong>Live Chat dalam mode READ ONLY.</strong> Pengiriman pesan baru dinonaktifkan.</span>
+          </div>
+          <button onclick="if(typeof showPage==='function') showPage('chat-settings');" style="background:#fff;border:1px solid #FCD34D;color:#92400E;font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;cursor:pointer;">Buka Pengaturan</button>
+        `;
+      } else {
+        banner.style.display = 'none';
+      }
+    } catch(e) {}
+  }
+
   function renderChatPage() {
     const container = document.getElementById('page-live-chat') || document.getElementById('chat-admin-container');
     if (!container) return;
+    container.style.display = 'block';
 
     // Static layout structure only (no user data)
     container.innerHTML = `
@@ -63,6 +102,7 @@ const ChatAdminModule = (function() {
 
         <!-- CENTER PANEL: Messages View -->
         <div class="chat-center-panel">
+          <div id="admin-chat-status-banner" style="display:none;padding:10px 16px;justify-content:space-between;align-items:center;font-size:12px;"></div>
           <div class="chat-panel-header" style="display:flex;align-items:center;justify-content:space-between;min-height:56px;">
             <div style="display:flex;align-items:center;gap:10px;">
               <div id="admin-chat-header-avatar" class="chat-avatar" style="width:34px;height:34px;border-radius:50%;background:#4F46E5;color:#fff;display:none;align-items:center;justify-content:center;font-weight:700;font-size:14px;"></div>
@@ -75,8 +115,10 @@ const ChatAdminModule = (function() {
           </div>
           
           <div id="admin-chat-messages" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;">
-            <div class="chat-empty-state">
-              <div class="chat-empty-text" style="color:var(--chat-text-muted,#94A3B8);">Pilih percakapan dari panel kiri untuk mulai membaca pesan.</div>
+            <div class="chat-empty-state" style="margin:auto;text-align:center;padding:40px 20px;">
+              <div style="font-size:42px;margin-bottom:10px;">💬</div>
+              <div style="font-weight:700;font-size:15px;color:var(--chat-text,#1E293B);margin-bottom:4px;">Pilih atau Mulai Percakapan</div>
+              <div class="chat-empty-text" style="color:var(--chat-text-muted,#94A3B8);font-size:13px;max-width:300px;margin:0 auto;">Pilih percakapan dari panel kiri atau klik <b>+ DM</b> / <b>+ Grup</b> untuk membuat percakapan baru.</div>
             </div>
           </div>
           
@@ -207,12 +249,25 @@ const ChatAdminModule = (function() {
     if (filtered.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'chat-empty-state';
-      empty.style.padding = '20px';
+      empty.style.padding = '30px 16px';
+      empty.style.textAlign = 'center';
+      const icon = document.createElement('div');
+      icon.style.fontSize = '28px';
+      icon.style.marginBottom = '6px';
+      icon.textContent = '💬';
       const text = document.createElement('div');
       text.className = 'chat-empty-text';
       text.style.fontSize = '13px';
-      text.textContent = 'Tidak ada percakapan.';
+      text.style.fontWeight = '600';
+      text.textContent = 'Belum ada percakapan';
+      const sub = document.createElement('div');
+      sub.style.fontSize = '11px';
+      sub.style.color = 'var(--chat-text-muted,#94A3B8)';
+      sub.style.marginTop = '4px';
+      sub.textContent = 'Klik + DM atau + Grup untuk memulai chat.';
+      empty.appendChild(icon);
       empty.appendChild(text);
+      empty.appendChild(sub);
       list.appendChild(empty);
       return;
     }
@@ -825,118 +880,125 @@ const ChatSettingsModule = (function() {
   function renderSettingsForm() {
     const container = document.getElementById('page-chat-settings');
     if (!container) return;
+    container.style.display = 'block';
 
     container.innerHTML = `
-      <div style="max-width:800px;margin:0 auto;padding:24px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <div style="max-width:860px;margin:0 auto;padding:16px 0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
           <div>
-            <h2 style="margin:0;font-size:20px;font-weight:700;">Pengaturan Live Chat</h2>
-            <p style="margin:4px 0 0;font-size:13px;color:var(--text-muted,#64748B);">Konfigurasi status global, fitur, dan akses role untuk Live Chat.</p>
+            <h2 style="margin:0;font-size:20px;font-weight:800;color:var(--text,#1E293B);">Pengaturan Live Chat</h2>
+            <p style="margin:4px 0 0;font-size:13px;color:var(--text-muted,#64748B);">Konfigurasi status global, fitur perpesanan, dan hak akses posisi/role karyawan.</p>
           </div>
-          <button id="save-chat-settings-btn" class="btn btn-primary" style="display:flex;align-items:center;gap:6px;">
+          <button id="save-chat-settings-btn" class="btn btn-primary" style="display:flex;align-items:center;gap:6px;padding:8px 20px;font-weight:600;">
             <span>Simpan Pengaturan</span>
           </button>
         </div>
 
-        <div id="chat-settings-feedback" style="display:none;padding:12px;border-radius:8px;margin-bottom:16px;font-size:13px;font-weight:600;"></div>
+        <div id="chat-settings-feedback" style="display:none;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;font-weight:600;"></div>
+        
+        <div id="chat-settings-status-alert" style="display:none;padding:14px 18px;border-radius:10px;margin-bottom:20px;font-size:13px;line-height:1.5;"></div>
 
         <!-- 1. Global Status -->
-        <div class="card" style="background:#fff;border-radius:12px;padding:20px;margin-bottom:20px;border:1px solid #E2E8F0;">
-          <h3 style="margin:0 0 8px;font-size:15px;font-weight:700;">Status Live Chat</h3>
-          <p style="margin:0 0 16px;font-size:12px;color:#64748B;">Tentukan ketersediaan chat di seluruh sistem secara global.</p>
+        <div class="card" style="background:#fff;border-radius:12px;padding:22px;margin-bottom:20px;border:1px solid #E2E8F0;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+          <h3 style="margin:0 0 4px;font-size:15px;font-weight:700;color:var(--text,#1E293B);">Status Live Chat</h3>
+          <p style="margin:0 0 16px;font-size:12px;color:var(--text-muted,#64748B);">Tentukan ketersediaan chat di seluruh sistem secara global.</p>
           
           <div style="display:flex;flex-direction:column;gap:12px;">
-            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
+            <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:8px;border:1px solid #E2E8F0;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor='#CBD5E1'" onmouseout="this.style.borderColor='#E2E8F0'">
               <input type="radio" name="chat_status" value="ACTIVE" style="margin-top:3px;" />
               <div>
-                <span style="font-weight:600;color:#10B981;">ACTIVE (Aktif Penuh)</span>
-                <div style="font-size:12px;color:#64748B;">User dan Admin dapat membaca dan mengirim pesan, membuat DM/grup, dan mengunggah lampiran.</div>
+                <span style="font-weight:700;color:#10B981;font-size:14px;">ACTIVE (Aktif Penuh)</span>
+                <div style="font-size:12px;color:#64748B;margin-top:2px;">User dan Admin dapat membaca dan mengirim pesan, membuat DM/grup, dan mengunggah lampiran.</div>
               </div>
             </label>
 
-            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
+            <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:8px;border:1px solid #E2E8F0;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor='#CBD5E1'" onmouseout="this.style.borderColor='#E2E8F0'">
               <input type="radio" name="chat_status" value="READ_ONLY" style="margin-top:3px;" />
               <div>
-                <span style="font-weight:600;color:#F59E0B;">READ ONLY (Hanya Baca)</span>
-                <div style="font-size:12px;color:#64748B;">User dan Admin hanya dapat membaca history pesan. Pengiriman pesan baru, upload, dan pembuatan chat diblokir.</div>
+                <span style="font-weight:700;color:#F59E0B;font-size:14px;">READ ONLY (Hanya Baca)</span>
+                <div style="font-size:12px;color:#64748B;margin-top:2px;">User dan Admin hanya dapat membaca history pesan. Pengiriman pesan baru, upload, dan pembuatan chat diblokir.</div>
               </div>
             </label>
 
-            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
+            <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:8px;border:1px solid #E2E8F0;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor='#CBD5E1'" onmouseout="this.style.borderColor='#E2E8F0'">
               <input type="radio" name="chat_status" value="DISABLED" style="margin-top:3px;" />
               <div>
-                <span style="font-weight:600;color:#EF4444;">DISABLED (Nonaktif)</span>
-                <div style="font-size:12px;color:#64748B;">Floating chat disembunyikan untuk user biasa. Endpoint chat ditolak. Admin tetap dapat mengakses menu Pengaturan ini.</div>
+                <span style="font-weight:700;color:#EF4444;font-size:14px;">DISABLED (Nonaktif)</span>
+                <div style="font-size:12px;color:#64748B;margin-top:2px;">Floating chat disembunyikan untuk user biasa. Endpoint pesan ditolak. Admin tetap dapat mengakses menu ini.</div>
               </div>
             </label>
           </div>
         </div>
 
         <!-- 2. Feature Toggles -->
-        <div class="card" style="background:#fff;border-radius:12px;padding:20px;margin-bottom:20px;border:1px solid #E2E8F0;">
-          <h3 style="margin:0 0 8px;font-size:15px;font-weight:700;">Fitur & Fungsionalitas</h3>
-          <p style="margin:0 0 16px;font-size:12px;color:#64748B;">Aktifkan atau nonaktifkan fitur spesifik chat.</p>
+        <div class="card" style="background:#fff;border-radius:12px;padding:22px;margin-bottom:20px;border:1px solid #E2E8F0;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+          <h3 style="margin:0 0 4px;font-size:15px;font-weight:700;color:var(--text,#1E293B);">Fitur & Fungsionalitas</h3>
+          <p style="margin:0 0 16px;font-size:12px;color:var(--text-muted,#64748B);">Aktifkan atau nonaktifkan fitur spesifik chat.</p>
 
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
               <input type="checkbox" id="setting-allow-dm" />
               <span style="font-size:13px;font-weight:500;">Izinkan Direct Message (DM)</span>
             </label>
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
               <input type="checkbox" id="setting-allow-group" />
               <span style="font-size:13px;font-weight:500;">Izinkan Grup Chat</span>
             </label>
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
               <input type="checkbox" id="setting-allow-attachment" />
               <span style="font-size:13px;font-weight:500;">Izinkan Lampiran File</span>
             </label>
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
               <input type="checkbox" id="setting-show-read-receipt" />
               <span style="font-size:13px;font-weight:500;">Tampilkan Read Receipt</span>
             </label>
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
               <input type="checkbox" id="setting-show-online" />
               <span style="font-size:13px;font-weight:500;">Tampilkan Status Online</span>
             </label>
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
               <input type="checkbox" id="setting-show-typing" />
               <span style="font-size:13px;font-weight:500;">Indikator Mengetik (Typing)</span>
             </label>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+              <input type="checkbox" id="setting-allow-browser-notification" />
+              <span style="font-size:13px;font-weight:500;">Izinkan Notifikasi Browser</span>
+            </label>
           </div>
 
-          <div style="margin-top:16px;padding-top:16px;border-top:1px solid #E2E8F0;">
-            <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Maksimal Ukuran Lampiran (MB)</label>
-            <input type="number" id="setting-max-attachment-size" min="1" max="50" style="width:120px;padding:6px 10px;border:1px solid #CBD5E1;border-radius:6px;" />
+          <div style="margin-top:18px;padding-top:16px;border-top:1px solid #E2E8F0;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+            <label style="font-size:13px;font-weight:600;color:var(--text,#1E293B);">Maksimal Ukuran Lampiran (MB):</label>
+            <input type="number" id="setting-max-attachment-size" min="1" max="50" style="width:100px;padding:6px 12px;border:1px solid #CBD5E1;border-radius:6px;font-size:13px;" />
           </div>
         </div>
 
         <!-- 3. Role Access -->
-        <div class="card" style="background:#fff;border-radius:12px;padding:20px;border:1px solid #E2E8F0;">
-          <h3 style="margin:0 0 8px;font-size:15px;font-weight:700;">Akses Posisi & Role</h3>
-          <p style="margin:0 0 16px;font-size:12px;color:#64748B;">Pilih posisi operasional yang diizinkan menggunakan Live Chat.</p>
+        <div class="card" style="background:#fff;border-radius:12px;padding:22px;border:1px solid #E2E8F0;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+          <h3 style="margin:0 0 4px;font-size:15px;font-weight:700;color:var(--text,#1E293B);">Akses Posisi & Role</h3>
+          <p style="margin:0 0 16px;font-size:12px;color:var(--text-muted,#64748B);">Pilih posisi operasional yang diizinkan menggunakan Live Chat.</p>
 
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
               <input type="checkbox" id="role-admin" checked disabled />
-              <span style="font-size:13px;font-weight:600;">Administrator (Wajib)</span>
+              <span style="font-size:13px;font-weight:600;color:var(--text,#1E293B);">Administrator (Wajib)</span>
             </label>
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
               <input type="checkbox" id="role-picker" />
               <span style="font-size:13px;">Picker</span>
             </label>
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
               <input type="checkbox" id="role-sorter" />
               <span style="font-size:13px;">Sorter</span>
             </label>
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
               <input type="checkbox" id="role-loader" />
               <span style="font-size:13px;">Loader</span>
             </label>
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
               <input type="checkbox" id="role-return" />
               <span style="font-size:13px;">Return</span>
             </label>
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
               <input type="checkbox" id="role-qc-outbound" />
               <span style="font-size:13px;">QC Outbound</span>
             </label>
@@ -961,9 +1023,31 @@ const ChatSettingsModule = (function() {
 
   function populateForm(s) {
     // Status
-    const statusVal = s.status || 'ACTIVE';
+    const statusVal = s.status || 'DISABLED';
     const statusRadio = document.querySelector(`input[name="chat_status"][value="${statusVal}"]`);
     if (statusRadio) statusRadio.checked = true;
+
+    // Status Alert Box
+    const alertBox = document.getElementById('chat-settings-status-alert');
+    if (alertBox) {
+      alertBox.style.display = 'block';
+      if (statusVal === 'DISABLED') {
+        alertBox.style.backgroundColor = '#FEF2F2';
+        alertBox.style.border = '1px solid #FECACA';
+        alertBox.style.color = '#991B1B';
+        alertBox.innerHTML = '⚠️ <strong>Status Live Chat saat ini: DISABLED (Nonaktif).</strong> Fitur chat disembunyikan dari user operasional. Ubah ke ACTIVE dan klik Simpan Pengaturan setelah smoke test selesai.';
+      } else if (statusVal === 'READ_ONLY') {
+        alertBox.style.backgroundColor = '#FFFBEB';
+        alertBox.style.border = '1px solid #FDE68A';
+        alertBox.style.color = '#92400E';
+        alertBox.innerHTML = '⏸️ <strong>Status Live Chat saat ini: READ ONLY (Hanya Baca).</strong> Pengguna hanya dapat membaca percakapan lampau. Pengiriman pesan baru ditutup.';
+      } else {
+        alertBox.style.backgroundColor = '#ECFDF5';
+        alertBox.style.border = '1px solid #A7F3D0';
+        alertBox.style.color = '#065F46';
+        alertBox.innerHTML = '✅ <strong>Status Live Chat saat ini: ACTIVE (Aktif Penuh).</strong> Fitur chat aktif untuk seluruh pengguna yang diizinkan.';
+      }
+    }
 
     // Feature toggles
     document.getElementById('setting-allow-dm').checked = s.allow_direct_message !== false;
@@ -972,6 +1056,8 @@ const ChatSettingsModule = (function() {
     document.getElementById('setting-show-read-receipt').checked = s.show_read_receipt !== false;
     document.getElementById('setting-show-online').checked = s.show_online_status !== false;
     document.getElementById('setting-show-typing').checked = !!s.show_typing_indicator;
+    const notifEl = document.getElementById('setting-allow-browser-notification');
+    if (notifEl) notifEl.checked = !!s.allow_browser_notification;
     document.getElementById('setting-max-attachment-size').value = s.max_attachment_size_mb || 10;
 
     // Role access
@@ -989,7 +1075,7 @@ const ChatSettingsModule = (function() {
     btn.textContent = 'Menyimpan...';
 
     const statusInput = document.querySelector('input[name="chat_status"]:checked');
-    const status = statusInput ? statusInput.value : 'ACTIVE';
+    const status = statusInput ? statusInput.value : 'DISABLED';
 
     const payload = {
       status,
@@ -999,6 +1085,7 @@ const ChatSettingsModule = (function() {
       show_read_receipt: document.getElementById('setting-show-read-receipt').checked,
       show_online_status: document.getElementById('setting-show-online').checked,
       show_typing_indicator: document.getElementById('setting-show-typing').checked,
+      allow_browser_notification: document.getElementById('setting-allow-browser-notification')?.checked || false,
       max_attachment_size_mb: parseInt(document.getElementById('setting-max-attachment-size').value) || 10,
       role_access: {
         admin: true,
@@ -1022,6 +1109,7 @@ const ChatSettingsModule = (function() {
         throw new Error(err.error || 'Gagal menyimpan');
       }
       showFeedback('Pengaturan Live Chat berhasil disimpan!', true);
+      populateForm(payload);
     } catch(err) {
       showFeedback('Error menyimpan: ' + err.message, false);
     } finally {
