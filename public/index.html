@@ -1804,5 +1804,24 @@
 .rt-cluster-row { display: grid; grid-template-columns: 1fr 80px 90px 70px; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(100,116,139,0.06); }
 .rt-cluster-row:last-child { border-bottom: none; }
 </style>
+
+<!-- ===== FLOATING CHAT MODULE ===== -->
+<link rel="stylesheet" href="/css/chat.css?v=1.0">
+<script src="/chat-user.js?v=1.0"></script>
+<script>
+// FloatingChat auto-initializes on DOMContentLoaded via its own listener
+// Cleanup on logout integration
+(function() {
+  var _origLogout = window.logout;
+  if (typeof _origLogout === 'function') {
+    window.logout = function() {
+      if (window.FloatingChat) FloatingChat.destroy();
+      _origLogout.apply(this, arguments);
+    };
+  }
+})();
+</script>
+
 </body>
 </html>
+

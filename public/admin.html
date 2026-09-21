@@ -162,11 +162,21 @@
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       Log Aktivitas
     </a>
+    <a class="nav-item" onclick="showPage('live-chat')" id="nav-live-chat" style="display:flex;align-items:center;width:100%;">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+      <span style="flex:1;">Live Chat</span>
+      <span id="nav-chat-badge" class="nav-badge" style="display:none;background:#EF4444;color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:20px;margin-left:auto;">0</span>
+    </a>
+    <a class="nav-item" onclick="showPage('chat-settings')" id="nav-chat-settings">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/><circle cx="19" cy="5" r="3" fill="currentColor" stroke="none"/></svg>
+      Pengaturan Chat
+    </a>
     <a class="nav-item" onclick="showPage('feature-guide')" id="nav-feature-guide">
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
       Panduan Fitur Baru
     </a>
   </nav>
+
   <div class="sidebar-footer">
     <div class="user-info">
       <div class="user-avatar" id="userAvatar">A</div>
@@ -3740,5 +3750,72 @@ async function loadPhlUserList() {
 // ===================== END PHL SETTINGS MODULE =====================
 </script>
 
+<!-- ===== LIVE CHAT MODULE ===== -->
+<link rel="stylesheet" href="/css/chat.css?v=1.0">
+
+<!-- Live Chat Page Container (Admin Messenger Layout) -->
+<div id="page-live-chat" class="page-section" style="display:none;padding:0;"></div>
+
+<!-- Chat Settings Page Container -->
+<div id="page-chat-settings" class="page-section" style="display:none;"></div>
+
+<script src="/chat-admin.js?v=1.0"></script>
+<script>
+// ===================== CHAT ADMIN INTEGRATION =====================
+// Hooked into showPage() via page lifecycle events
+
+// Override showPage to add chat lifecycle hooks
+(function patchShowPageForChat() {
+  const _origShowPage = window.showPage;
+  if (typeof _origShowPage !== 'function') return;
+  
+  let chatActive = false;
+  
+  window.showPage = function(page) {
+    // Cleanup previous chat state if leaving chat
+    if (chatActive && page !== 'live-chat') {
+      if (window.ChatAdminModule) {
+        window.ChatAdminModule.destroy();
+      }
+      chatActive = false;
+    }
+    
+    // Call original showPage
+    _origShowPage(page);
+    
+    // Init chat if entering live-chat
+    if (page === 'live-chat') {
+      chatActive = true;
+      if (window.ChatAdminModule) {
+        window.ChatAdminModule.init();
+      }
+    }
+    
+    // Init settings if entering chat-settings
+    if (page === 'chat-settings') {
+      if (window.ChatSettingsModule) {
+        window.ChatSettingsModule.init();
+      }
+    }
+  };
+})();
+
+// Cleanup on logout
+const _origLogout = window.logout;
+if (typeof _origLogout === 'function') {
+  window.logout = function() {
+    if (window.ChatAdminModule) window.ChatAdminModule.destroy();
+    _origLogout();
+  };
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+  if (window.ChatAdminModule) window.ChatAdminModule.destroy();
+});
+// ===================== END CHAT ADMIN INTEGRATION =====================
+</script>
+
 </body>
 </html>
+

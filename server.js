@@ -5981,15 +5981,28 @@ app.get('/api/qc-outbound/loader-armada', requireQcOutbound, async (req, res) =>
 
 // ===================== END QC OUTBOUND =====================
 
+// ===================== LIVE CHAT MODULE =====================
+// Mount chat routes — must be AFTER all existing routes + middleware,
+// BEFORE the listen/export block (no catch-all conflict).
+try {
+  const setupChatRoutes = require('./chat-routes');
+  setupChatRoutes(app, db, jwt, JWT_SECRET);
+  console.log('💬 Live Chat routes registered');
+} catch (err) {
+  console.error('⚠️  Live Chat routes failed to load:', err.message);
+  // Chat failure must NOT crash the main server
+}
+// ===================== END LIVE CHAT MODULE =====================
+
 
 if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
-    console.log(`\nðŸš€ Server berjalan di http://localhost:${PORT}`);
-    console.log(`ðŸ“ Form: http://localhost:${PORT}`);
-    console.log(`ðŸ” Admin: http://localhost:${PORT}/admin`);
-    console.log(`ðŸ‘¤ Login: admin / admin123\n`);
+    console.log(`\n🚀 Server berjalan di http://localhost:${PORT}`);
+    console.log(`📝 Form: http://localhost:${PORT}`);
+    console.log(`🔐 Admin: http://localhost:${PORT}/admin`);
+    console.log(`👤 Login: admin / admin123\n`);
   });
 }
 
 module.exports = app;
-

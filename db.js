@@ -3631,10 +3631,942 @@ module.exports = {
       const db = load();
       return (db.qc_outbound || []).find(e => e.no_polisi === no_polisi && e.tanggal === tanggal) || null;
     }
-  }
+  },   // ← comma: this function is followed by chat functions in the same module.exports
 
   // ===================== END QC OUTBOUND =====================
+
+  // ======================== CHAT FUNCTIONS ========================
+
+  DEFAULT_CHAT_SETTINGS: {
+    status: 'DISABLED',
+    allow_direct_message: true,
+    allow_group_chat: true,
+    allow_attachment: true,
+    show_read_receipt: true,
+    show_online_status: true,
+    show_typing_indicator: false,
+    allow_browser_notification: false,
+    max_attachment_size_mb: 10,
+    role_access: {
+      admin: true,
+      Picker: true,
+      Sorter: true,
+      Loader: true,
+      Return: true,
+      'QC Outbound': true
+    }
+  },
+
+  async getChatSettings() {
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'chat_settings')
+        .maybeSingle();
+      if (error) {
+        console.error('Supabase getChatSettings error:', error);
+        return this.DEFAULT_CHAT_SETTINGS;
+      }
+      return data && data.value ? { ...this.DEFAULT_CHAT_SETTINGS, ...data.value } : this.DEFAULT_CHAT_SETTINGS;
+    }
+    return this.DEFAULT_CHAT_SETTINGS;
+  },
+
+  async saveChatSettings(settings) {
+    const merged = { ...this.DEFAULT_CHAT_SETTINGS, ...settings };
+    if (isSupabaseEnabled) {
+      const { error } = await supabase
+        .from('site_settings')
+        .upsert({ 
+          key: 'chat_settings', 
+          value: merged
+        }, { onConflict: 'key' });
+      if (error) {
+        console.error('Supabase saveChatSettings error:', error);
+        throw error;
+      }
+      return merged;
+    }
+    return merged;
+  },
+
+  chatAccessAllowed(settings, userRole, userPosisi) {
+    if (!settings) return false;
+    if (settings.status && settings.status !== 'ACTIVE') return false;
+    if (settings.is_enabled === false) return false;
+    if (userRole === 'admin') return true;
+    if (userRole === 'operasional') {
+      const allowedRoles = settings.role_access?.operasional || [];
+      return allowedRoles.includes(userPosisi);
+    }
+    return false;
+  },
+
+  async findOrCreateDirectConversation(userAId, userBId, creatorId) {
+    if (!isSupabaseEnabled) return null;
+    if (userAId === userBId) throw new Error('Cannot create conversation with yourself');
+    
+    const sortedIds = [userAId, userBId].sort();
+    const directKey = `${sortedIds[0]}:${sortedIds[1]}`;
+    
+    // 1. Try to find existing
+    const { data: existing } = await supabase
+      .from('chat_conversations')
+      .select('id')
+      .eq('direct_key', directKey)
+      .maybeSingle();
+
+    let conversationId;
+    if (existing) {
+      conversationId = existing.id;
+    } else {
+      // 2. Insert new
+      const newConvId = uuidv4();
+      const nowIso = new Date().toISOString();
+      const { data: inserted, error: insErr } = await supabase
+        .from('chat_conversations')
+        .insert([{
+          id: newConvId,
+          type: 'direct',
+          direct_key: directKey,
+          created_by: creatorId,
+          created_at: nowIso,
+          updated_at: nowIso
+        }])
+        .select('id')
+        .single();
+
+      if (insErr) {
+        if (insErr.code === '23505') {
+          const { data: found } = await supabase
+            .from('chat_conversations')
+            .select('id')
+            .eq('direct_key', directKey)
+            .single();
+          if (found) conversationId = found.id;
+          else throw insErr;
+        } else {
+          console.error('Supabase findOrCreateDirectConversation insert error:', insErr);
+          throw insErr;
+        }
+      } else {
+        conversationId = inserted.id;
+      }
+    }
+
+    // Ensure participants exist
+    const { data: partA } = await supabase.from('chat_participants').select('id').eq('conversation_id', conversationId).eq('user_id', userAId).is('removed_at', null).maybeSingle();
+    if (!partA) {
+      await supabase.from('chat_participants').insert([{ conversation_id: conversationId, user_id: userAId, role: 'member' }]);
+    }
+    const { data: partB } = await supabase.from('chat_participants').select('id').eq('conversation_id', conversationId).eq('user_id', userBId).is('removed_at', null).maybeSingle();
+    if (!partB) {
+      await supabase.from('chat_participants').insert([{ conversation_id: conversationId, user_id: userBId, role: 'member' }]);
+    }
+    
+    return { id: conversationId };
+  },
+
+  async createGroupConversation(arg1, arg2, arg3) {
+    if (!isSupabaseEnabled) return null;
+    let name, memberIds, createdByUserId;
+    if (typeof arg1 === 'object' && arg1 !== null && !Array.isArray(arg1)) {
+      name = arg1.name;
+      memberIds = arg1.memberIds || arg1.member_ids || [];
+      createdByUserId = arg1.createdByUserId || arg1.created_by_user_id || arg1.created_by;
+    } else {
+      name = arg1;
+      memberIds = arg2 || [];
+      createdByUserId = arg3;
+    }
+    
+    if (!name || name.trim() === '') throw new Error('Group name is required');
+    if (!memberIds || memberIds.length === 0) throw new Error('Members are required');
+    
+    const allMembers = new Set([...memberIds, createdByUserId]);
+    const convId = uuidv4();
+    const nowIso = new Date().toISOString();
+    
+    const { data: convData, error: convError } = await supabase
+      .from('chat_conversations')
+      .insert({
+        id: convId,
+        type: 'group',
+        name: name.trim(),
+        created_by: createdByUserId,
+        created_at: nowIso,
+        updated_at: nowIso
+      })
+      .select('id')
+      .single();
+      
+    if (convError) {
+      console.error('Supabase createGroupConversation error:', convError);
+      throw convError;
+    }
+    
+    const participants = Array.from(allMembers).map(userId => ({
+      conversation_id: convId,
+      user_id: userId,
+      role: userId === createdByUserId ? 'admin' : 'member'
+    }));
+    
+    const { error: partError } = await supabase
+      .from('chat_participants')
+      .insert(participants);
+      
+    if (partError) {
+      console.error('Supabase createGroup participants error:', partError);
+    }
+    
+    return { id: convId };
+  },
+
+  async getUserConversations(userId) {
+    if (!isSupabaseEnabled) return [];
+    
+    const { data, error } = await supabase
+      .from('chat_participants')
+      .select(`
+        role,
+        removed_at,
+        last_read_message_id,
+        last_read_at,
+        conversation_id,
+        chat_conversations (
+          id,
+          type,
+          name,
+          updated_at,
+          last_message_at
+        )
+      `)
+      .eq('user_id', userId);
+      
+    if (error) {
+      console.error('Supabase getUserConversations error:', error);
+      throw error;
+    }
+    
+    const seenConvs = new Set();
+    const result = [];
+    for (const p of (data || [])) {
+      if (!p.chat_conversations) continue;
+      const conv = p.chat_conversations;
+      if (seenConvs.has(conv.id)) continue;
+      seenConvs.add(conv.id);
+      
+      let unreadCount = 0;
+      
+      if (!p.removed_at) {
+        let countQuery = supabase
+          .from('chat_messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('conversation_id', conv.id)
+          .is('deleted_at', null)
+          .neq('sender_user_id', userId);
+
+        if (p.last_read_at) {
+          countQuery = countQuery.gt('created_at', p.last_read_at);
+        }
+        const { count, error: countError } = await countQuery;
+        if (!countError) unreadCount = count || 0;
+      }
+      
+      const { data: lastMsg } = await supabase
+        .from('chat_messages')
+        .select('id, content, message_type, created_at, sender_user_id, sender_name')
+        .eq('conversation_id', conv.id)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let displayName = conv.name;
+      let otherParticipant = null;
+      if (conv.type === 'direct') {
+        const { data: otherPart } = await supabase
+          .from('chat_participants')
+          .select('user_id, users(id, username, nama_lengkap, role, posisi)')
+          .eq('conversation_id', conv.id)
+          .neq('user_id', userId)
+          .maybeSingle();
+          
+        if (otherPart && otherPart.users) {
+          displayName = otherPart.users.nama_lengkap || otherPart.users.username;
+          otherParticipant = otherPart.users;
+        }
+      }
+      
+      result.push({
+        id: conv.id,
+        type: conv.type,
+        name: displayName,
+        display_name: displayName,
+        other_participant_name: displayName,
+        other_participant: otherParticipant,
+        is_group: conv.type === 'group',
+        updated_at: conv.last_message_at || conv.updated_at,
+        last_message_at: conv.last_message_at,
+        is_former_member: !!p.removed_at,
+        removed_at: p.removed_at,
+        my_role: p.role,
+        last_message: lastMsg || null,
+        unread_count: unreadCount
+      });
+    }
+    
+    result.sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0));
+    return result;
+  },
+
+  async getConversationById(conversationId, requestingUserId) {
+    if (!isSupabaseEnabled) return null;
+    
+    const part = await this.getParticipantRecord(conversationId, requestingUserId);
+    if (!part) return null; // Not a participant
+    
+    const { data: convData, error: convError } = await supabase
+      .from('chat_conversations')
+      .select('*')
+      .eq('id', conversationId)
+      .single();
+      
+    if (convError || !convData) return null;
+    
+    return {
+      ...convData,
+      is_former_member: !!part.removed_at,
+      removed_at: part.removed_at,
+      my_role: part.role
+    };
+  },
+
+  async isActiveParticipant(conversationId, userId) {
+    if (!isSupabaseEnabled) return false;
+    const { data, error } = await supabase
+      .from('chat_participants')
+      .select('id, removed_at')
+      .eq('conversation_id', conversationId)
+      .eq('user_id', userId)
+      .is('removed_at', null)
+      .maybeSingle();
+    if (error || !data) return false;
+    return true;
+  },
+
+  async getParticipantRecord(conversationId, userId) {
+    if (!isSupabaseEnabled) return null;
+    // Prefer active membership
+    const { data: active, error: activeErr } = await supabase
+      .from('chat_participants')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .eq('user_id', userId)
+      .is('removed_at', null)
+      .maybeSingle();
+    if (!activeErr && active) return active;
+    
+    // Fallback to most recent membership record
+    const { data: latest, error: latestErr } = await supabase
+      .from('chat_participants')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .eq('user_id', userId)
+      .order('joined_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latestErr) return null;
+    return latest;
+  },
+
+  async getUserMembershipPeriods(conversationId, userId) {
+    if (!isSupabaseEnabled) return [];
+    const { data, error } = await supabase
+      .from('chat_participants')
+      .select('id, joined_at, removed_at, role')
+      .eq('conversation_id', conversationId)
+      .eq('user_id', userId)
+      .order('joined_at', { ascending: true });
+    if (error) {
+      console.error('Supabase getUserMembershipPeriods error:', error);
+      return [];
+    }
+    return data || [];
+  },
+
+  async addParticipant(conversationId, userId, role = 'member') {
+    if (!isSupabaseEnabled) return null;
+    // Check if user is ALREADY active
+    const { data: active } = await supabase
+      .from('chat_participants')
+      .select('id')
+      .eq('conversation_id', conversationId)
+      .eq('user_id', userId)
+      .is('removed_at', null)
+      .maybeSingle();
+      
+    if (active) {
+      const { data, error } = await supabase
+        .from('chat_participants')
+        .update({ role })
+        .eq('id', active.id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    }
+
+    // Insert new membership period row (rejoin or initial join)
+    const { data, error } = await supabase
+      .from('chat_participants')
+      .insert([{
+        id: uuidv4(),
+        conversation_id: conversationId,
+        user_id: userId,
+        role: role,
+        joined_at: new Date().toISOString(),
+        removed_at: null
+      }])
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async removeParticipant(conversationId, userId) {
+    if (!isSupabaseEnabled) return null;
+    const { data, error } = await supabase
+      .from('chat_participants')
+      .update({ removed_at: new Date().toISOString() })
+      .eq('conversation_id', conversationId)
+      .eq('user_id', userId)
+      .is('removed_at', null)
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
+  async getConversationParticipants(conversationId) {
+    if (!isSupabaseEnabled) return [];
+    const { data, error } = await supabase
+      .from('chat_participants')
+      .select('user_id, role, joined_at, users (username, nama_lengkap, role, posisi)')
+      .eq('conversation_id', conversationId)
+      .is('removed_at', null);
+    if (error) throw error;
+    return data;
+  },
+
+  async updateLastRead(conversationId, userId, messageId) {
+    if (!isSupabaseEnabled) return null;
+    const { data, error } = await supabase
+      .from('chat_participants')
+      .update({ last_read_message_id: messageId, last_read_at: new Date().toISOString() })
+      .eq('conversation_id', conversationId)
+      .eq('user_id', userId)
+      .is('removed_at', null)
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
+  async insertMessage(params) {
+    if (!isSupabaseEnabled) return null;
+    
+    const conversationId = params.conversationId || params.conversation_id;
+    const senderUserId = params.senderUserId || params.senderId || params.sender_user_id || null;
+    const content = params.content || null;
+    const messageType = params.messageType || params.message_type || 'text';
+    const replyToMessageId = params.replyToMessageId || params.replyTo || params.reply_to_message_id || null;
+    const idempotencyKey = params.idempotencyKey || params.idempotency_key || uuidv4();
+    const attachmentInfo = params.attachmentInfo || params.attachment_info || null;
+
+    let senderName = params.senderName || params.sender_name || null;
+    if (!senderName && senderUserId) {
+      try {
+        const { data: senderUser } = await supabase.from('users').select('nama_lengkap, username').eq('id', senderUserId).maybeSingle();
+        if (senderUser) senderName = senderUser.nama_lengkap || senderUser.username;
+      } catch(e) {}
+    }
+
+    const record = {
+      id: uuidv4(),
+      conversation_id: conversationId,
+      sender_user_id: senderUserId,
+      sender_name: senderName,
+      content: content,
+      message_type: messageType,
+      reply_to_message_id: replyToMessageId,
+      idempotency_key: idempotencyKey
+    };
+
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .insert([record])
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === '23505' && error.message && error.message.includes('idempotency')) {
+        const { data: existing, error: existError } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('conversation_id', conversationId)
+          .eq('sender_user_id', senderUserId)
+          .eq('idempotency_key', record.idempotency_key)
+          .single();
+        if (existError) throw existError;
+        return { ...existing, isOwn: true };
+      }
+      throw error;
+    }
+    
+    if (attachmentInfo) {
+      try {
+        await supabase.from('chat_attachments').insert([{
+          id: uuidv4(),
+          message_id: data.id,
+          storage_path: attachmentInfo.storage_path,
+          original_filename: attachmentInfo.filename || attachmentInfo.original_filename,
+          mime_type: attachmentInfo.mimetype || attachmentInfo.mime_type,
+          file_size: attachmentInfo.size || attachmentInfo.file_size
+        }]);
+      } catch (attErr) {
+        console.error('Error inserting chat attachment:', attErr);
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+    await supabase
+      .from('chat_conversations')
+      .update({ 
+        last_message_at: nowIso, 
+        updated_at: nowIso 
+      })
+      .eq('id', conversationId);
+
+    return { ...data, isOwn: true };
+  },
+
+  async getMessages(conversationId, requestingUserId, { limit = 30, beforeId, afterId, afterCreatedAt } = {}) {
+    if (!isSupabaseEnabled) return [];
+    
+    const periods = await this.getUserMembershipPeriods(conversationId, requestingUserId);
+    if (!periods || periods.length === 0) return [];
+    
+    let query = supabase
+      .from('chat_messages')
+      .select(`
+        *,
+        users (username, nama_lengkap),
+        chat_attachments (*),
+        reply_to:reply_to_message_id (id, content, message_type, users (username, nama_lengkap))
+      `)
+      .eq('conversation_id', conversationId)
+      .is('deleted_at', null);
+
+    if (afterId && afterCreatedAt) {
+      query = query
+        .gt('created_at', afterCreatedAt)
+        .order('created_at', { ascending: true })
+        .limit(Math.min(limit, 50));
+    } else if (beforeId) {
+      const { data: beforeMsg } = await supabase.from('chat_messages').select('created_at').eq('id', beforeId).single();
+      if (beforeMsg) {
+        query = query.lt('created_at', beforeMsg.created_at);
+      }
+      query = query
+        .order('created_at', { ascending: false })
+        .limit(Math.min(limit, 50));
+    } else {
+      query = query
+        .order('created_at', { ascending: false })
+        .limit(Math.min(limit, 50));
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('Supabase getMessages error:', error);
+      throw error;
+    }
+    
+    // Filter messages by membership intervals (rejoin support)
+    const visibleMessages = (data || []).filter(m => {
+      const msgTime = new Date(m.created_at).getTime();
+      return periods.some(p => {
+        const joinTime = new Date(p.joined_at).getTime();
+        const removeTime = p.removed_at ? new Date(p.removed_at).getTime() : Infinity;
+        return msgTime >= joinTime && msgTime <= removeTime;
+      });
+    });
+
+    return visibleMessages.map(m => ({
+      ...m,
+      sender_name: m.sender_name || (m.users ? (m.users.nama_lengkap || m.users.username) : 'User'),
+      isOwn: m.sender_user_id === requestingUserId
+    }));
+  },
+
+  async editMessage(messageId, senderUserId, newContent) {
+    if (!isSupabaseEnabled) return null;
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .update({ content: newContent, edited_at: new Date().toISOString() })
+      .eq('id', messageId)
+      .eq('sender_user_id', senderUserId)
+      .is('deleted_at', null)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async softDeleteMessage(messageId, senderUserId) {
+    if (!isSupabaseEnabled) return null;
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', messageId)
+      .eq('sender_user_id', senderUserId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async getUnreadCount(userId) {
+    if (!isSupabaseEnabled) return 0;
+    
+    // First get active conversations for user
+    const { data: parts, error: partError } = await supabase
+      .from('chat_participants')
+      .select('conversation_id, last_read_message_id')
+      .eq('user_id', userId)
+      .is('removed_at', null);
+      
+    if (partError || !parts || parts.length === 0) return 0;
+    
+    let totalUnread = 0;
+    for (const p of parts) {
+      const { count, error } = await supabase
+        .from('chat_messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('conversation_id', p.conversation_id)
+        .is('deleted_at', null)
+        .gt('id', p.last_read_message_id || '00000000-0000-0000-0000-000000000000');
+      if (!error && count) totalUnread += count;
+    }
+    
+    return totalUnread;
+  },
+
+  async getConversationUnreadCount(conversationId, userId) {
+    if (!isSupabaseEnabled) return 0;
+    const part = await this.getParticipantRecord(conversationId, userId);
+    if (!part || part.removed_at) return 0;
+    
+    const { count, error } = await supabase
+      .from('chat_messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('conversation_id', conversationId)
+      .is('deleted_at', null)
+      .gt('id', part.last_read_message_id || '00000000-0000-0000-0000-000000000000');
+      
+    if (error) return 0;
+    return count || 0;
+  },
+
+  async checkRateLimit(userId, windowMs, maxMessages) {
+    if (!isSupabaseEnabled) return { allowed: true, count: 0, limit: maxMessages };
+    
+    const timeLimit = new Date(Date.now() - windowMs).toISOString();
+    
+    const { count, error } = await supabase
+      .from('chat_messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('sender_user_id', userId)
+      .gt('created_at', timeLimit)
+      .is('deleted_at', null);
+      
+    if (error) {
+      console.error('Supabase checkRateLimit error:', error);
+      return { allowed: true, count: 0, limit: maxMessages }; // fail open
+    }
+    
+    const currentCount = count || 0;
+    return {
+      allowed: currentCount < maxMessages,
+      count: currentCount,
+      limit: maxMessages
+    };
+  },
+
+  async insertAttachment({ messageId, storagePath, originalFilename, mimeType, fileSize }) {
+    if (!isSupabaseEnabled) return null;
+    const record = {
+      id: uuidv4(),
+      message_id: messageId,
+      storage_path: storagePath,
+      original_filename: originalFilename,
+      mime_type: mimeType,
+      file_size: fileSize
+    };
+    const { data, error } = await supabase
+      .from('chat_attachments')
+      .insert([record])
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async getAttachmentByMessageId(messageId) {
+    if (!isSupabaseEnabled) return null;
+    const { data, error } = await supabase
+      .from('chat_attachments')
+      .select('*')
+      .eq('message_id', messageId)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
+  async updatePresence(userId) {
+    if (!isSupabaseEnabled) return;
+    const nowIso = new Date().toISOString();
+    const { error } = await supabase
+      .from('chat_presence')
+      .upsert({ user_id: userId, last_seen_at: nowIso, updated_at: nowIso }, { onConflict: 'user_id' });
+    if (error) console.error('Supabase updatePresence error:', error);
+  },
+
+  async getPresence(userIds) {
+    if (!isSupabaseEnabled || !userIds || userIds.length === 0) return [];
+    const { data, error } = await supabase
+      .from('chat_presence')
+      .select('user_id, last_seen_at')
+      .in('user_id', userIds);
+    if (error) {
+      console.error('Supabase getPresence error:', error);
+      return [];
+    }
+    return data || [];
+  },
+
+  async updateTyping(userId, conversationId) {
+    if (!isSupabaseEnabled) return;
+    const { error } = await supabase
+      .from('chat_participants')
+      .update({ last_typing_at: new Date().toISOString() })
+      .eq('conversation_id', conversationId)
+      .eq('user_id', userId);
+    if (error) console.error('Supabase updateTyping error:', error);
+  },
+
+  async getTypingUsers(conversationId) {
+    if (!isSupabaseEnabled) return [];
+    const fiveSecondsAgo = new Date(Date.now() - 5000).toISOString();
+    const { data, error } = await supabase
+      .from('chat_participants')
+      .select('user_id, users (username, nama_lengkap)')
+      .eq('conversation_id', conversationId)
+      .gt('last_typing_at', fiveSecondsAgo);
+    if (error) {
+      console.error('Supabase getTypingUsers error:', error);
+      return [];
+    }
+    return data.map(d => d.user_id);
+  },
+
+  async getChatEligibleUsers(requestingUserId, searchQuery = '') {
+    if (!isSupabaseEnabled) return [];
+    
+    // First get chat settings to know allowed roles
+    const settings = await this.getChatSettings();
+    if (!settings.is_enabled) return [];
+    
+    let query = supabase
+      .from('users')
+      .select('id, username, nama_lengkap, role, posisi')
+      .neq('id', requestingUserId)
+      .is('is_active', true)
+      .in('role', ['admin', 'operasional']);
+      
+    if (searchQuery) {
+      query = query.or(`username.ilike.%${searchQuery}%,nama_lengkap.ilike.%${searchQuery}%`);
+    }
+    
+    const { data, error } = await query;
+    if (error) {
+      console.error('Supabase getChatEligibleUsers error:', error);
+      return [];
+    }
+    
+    // Filter operasional roles based on settings
+    const allowedOperasionalRoles = settings.role_access?.operasional || [];
+    
+    return data.filter(u => {
+      if (u.role === 'admin') return true;
+      if (u.role === 'operasional') return allowedOperasionalRoles.includes(u.posisi);
+      return false;
+    });
+  },
+
+  async archiveConversation(conversationId, userId) {
+    if (!isSupabaseEnabled) return null;
+    throw new Error('Not implemented: archiveConversation');
+  },
+
+  async updateGroupName(conversationId, newName) {
+    if (!isSupabaseEnabled) return null;
+    const { data, error } = await supabase
+      .from('chat_conversations')
+      .update({ name: newName, updated_at: new Date().toISOString() })
+      .eq('id', conversationId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  // ===================== CHAT ALIAS / BRIDGE FUNCTIONS =====================
+  // These bridge naming differences between chat-routes.js and db implementation
+
+  // Alias: getParticipant → getParticipantRecord
+  async getParticipant(conversationId, userId) {
+    return this.getParticipantRecord(conversationId, userId);
+  },
+
+  // Get a single message by ID
+  async getMessage(messageId) {
+    if (!isSupabaseEnabled) return null;
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .select('*, sender:users!sender_user_id(id, username, nama_lengkap, role, posisi)')
+      .eq('id', messageId)
+      .maybeSingle();
+    if (error) { console.error('getMessage error:', error); return null; }
+    return data;
+  },
+
+  // Alias: sendMessage → insertMessage
+  async sendMessage(params) {
+    return this.insertMessage(params);
+  },
+
+  // Alias: getAttachment → getAttachmentByMessageId (by attachment id)
+  async getAttachment(attachmentId) {
+    if (!isSupabaseEnabled) return null;
+    const { data, error } = await supabase
+      .from('chat_attachments')
+      .select('*')
+      .eq('id', attachmentId)
+      .maybeSingle();
+    if (error) { console.error('getAttachment error:', error); return null; }
+    return data;
+  },
+
+  // Get conversation details including participants
+  async getConversationDetails(conversationId) {
+    if (!isSupabaseEnabled) return null;
+    const [convResult, participantsResult] = await Promise.all([
+      supabase.from('chat_conversations').select('*').eq('id', conversationId).maybeSingle(),
+      supabase.from('chat_participants')
+        .select('*, user:users!user_id(id, username, nama_lengkap, role, posisi)')
+        .eq('conversation_id', conversationId)
+        .is('removed_at', null)
+    ]);
+    if (convResult.error) throw convResult.error;
+    if (!convResult.data) return null;
+    return {
+      ...convResult.data,
+      participants: participantsResult.data || []
+    };
+  },
+
+  // Get group info (same as conversation details for groups)
+  async getGroupInfo(conversationId) {
+    return this.getConversationDetails(conversationId);
+  },
+
+  // Get unread counts for all conversations (alias)
+  async getUnreadCounts(userId) {
+    return this.getUnreadCount(userId);
+  },
+
+  // Get updated read states for a conversation (for poll endpoint)
+  async getUpdatedReadStates(conversationId, requestingUserId) {
+    if (!isSupabaseEnabled) return [];
+    const { data, error } = await supabase
+      .from('chat_participants')
+      .select('user_id, last_read_message_id, last_read_at')
+      .eq('conversation_id', conversationId)
+      .is('removed_at', null);
+    if (error) { console.error('getUpdatedReadStates error:', error); return []; }
+    return data || [];
+  },
+
+  // Get presence for a conversation (all active participants' presence)
+  async getPresence(conversationId) {
+    if (!isSupabaseEnabled) return [];
+    // Get active participant userIds
+    const { data: participants, error: pErr } = await supabase
+      .from('chat_participants')
+      .select('user_id')
+      .eq('conversation_id', conversationId)
+      .is('removed_at', null);
+    if (pErr || !participants || participants.length === 0) return [];
+    const userIds = participants.map(p => p.user_id);
+    const { data: presence, error: prErr } = await supabase
+      .from('chat_presence')
+      .select('user_id, last_seen_at')
+      .in('user_id', userIds);
+    if (prErr) return [];
+    const TWO_MINUTES = 2 * 60 * 1000;
+    const now = Date.now();
+    return (presence || []).map(p => ({
+      user_id: p.user_id,
+      last_seen_at: p.last_seen_at,
+      is_online: p.last_seen_at && (now - new Date(p.last_seen_at).getTime()) < TWO_MINUTES
+    }));
+  },
+
+  // Create group conversation with member_ids array (alias for chat-routes.js)
+  async createGroupConversation(name, memberIds, createdByUserId) {
+    if (!isSupabaseEnabled) throw new Error('Chat requires Supabase');
+    const { v4: uuidv4Fn } = require('uuid');
+    const convId = uuidv4Fn();
+    const now = new Date().toISOString();
+    // Create the conversation
+    const { data: conv, error: convErr } = await supabase
+      .from('chat_conversations')
+      .insert([{ id: convId, type: 'group', name, created_by: createdByUserId, created_at: now, updated_at: now }])
+      .select()
+      .single();
+    if (convErr) throw convErr;
+    // Add all members as participants (including creator)
+    const allMembers = [...new Set([createdByUserId, ...(Array.isArray(memberIds) ? memberIds : [])])];
+    const participantRows = allMembers.map(uid => ({
+      id: uuidv4Fn(),
+      conversation_id: convId,
+      user_id: uid,
+      role: uid === createdByUserId ? 'group_admin' : 'member',
+      joined_at: now
+    }));
+    const { error: partErr } = await supabase.from('chat_participants').insert(participantRows);
+    if (partErr) throw partErr;
+    return conv;
+  },
+
+  // Expose supabase client for storage operations in chat-routes.js
+  get supabase() { return supabase; }
+
 };
+
 
 
 
