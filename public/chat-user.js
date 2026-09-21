@@ -53,6 +53,7 @@ const FloatingChat = (function() {
   }
 
   function injectHTML() {
+    if (document.getElementById('chat-float-btn')) return;
     // 1. Floating circular button
     const btn = document.createElement('button');
     btn.id = 'chat-float-btn';
