@@ -872,7 +872,8 @@
   // ===================== 5. DETAIL KEJADIAN MODAL =====================
   async function openDetailModal(incidentId) {
     try {
-      const inc = await apiFetch(`/api/discipline/my/incidents/${encodeURIComponent(incidentId)}`);
+      const res = await apiFetch(`/api/discipline/my/incidents/${encodeURIComponent(incidentId)}`);
+      const inc = res.incident || res;
       state.selectedIncident = inc;
 
       const modal = document.getElementById('disc-user-detail-modal');
@@ -951,7 +952,7 @@
             <div class="disc-detail-label" style="margin-bottom:6px;">Bukti / Lampiran</div>
             <div class="disc-att-list">
               ${inc.attachments.map(a => `
-                <a class="disc-att-chip" href="/api/discipline/attachments/${esc(a.id)}" target="_blank" rel="noopener">
+                <a class="disc-att-chip" href="${esc(a.signed_url || ('/api/discipline/attachments/' + a.id + '/url'))}" target="_blank" rel="noopener">
                   📎 ${esc(a.original_filename)} <span style="opacity:0.75;">(${a.source_type === 'APPEAL' ? 'Klarifikasi' : 'Kejadian'})</span>
                 </a>
               `).join('')}
@@ -1073,19 +1074,19 @@
       btn.disabled = true;
       btn.textContent = 'Mengirim...';
 
-      const res = await apiFetch(`/api/discipline/incidents/${encodeURIComponent(incidentId)}/appeals`, {
-        method: 'POST',
-        body: JSON.stringify({ alasan, kronologi_user })
-      });
-
-      if (fileInput && fileInput.files && fileInput.files[0] && res.appeal && res.appeal.id) {
+      if (fileInput && fileInput.files && fileInput.files[0]) {
         const fd = new FormData();
-        fd.append('incident_id', incidentId);
-        fd.append('appeal_id', res.appeal.id);
-        fd.append('file', fileInput.files[0]);
-        await apiFetch('/api/discipline/attachments', {
+        fd.append('alasan', alasan);
+        fd.append('kronologi_user', kronologi_user);
+        fd.append('evidence_files', fileInput.files[0]);
+        await apiFetch(`/api/discipline/my/incidents/${encodeURIComponent(incidentId)}/appeals`, {
           method: 'POST',
           body: fd
+        });
+      } else {
+        await apiFetch(`/api/discipline/my/incidents/${encodeURIComponent(incidentId)}/appeals`, {
+          method: 'POST',
+          body: JSON.stringify({ alasan, kronologi_user })
         });
       }
 
