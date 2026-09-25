@@ -1,4 +1,7 @@
 .vercel
+.vercel.zip
+vercel.exe
+scratch/
 node_modules/
 .env
 *.xlsx

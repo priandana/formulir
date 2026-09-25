@@ -458,6 +458,14 @@ function switchTab(tab) {
     document.getElementById('panel-calendar').classList.add('active');
     document.getElementById('tab-calendar').classList.add('active-blue');
     loadCalendarData();
+  } else if (tab === 'kinerja-saya') {
+    const panelKinerja = document.getElementById('panel-kinerja-saya');
+    if (panelKinerja) panelKinerja.classList.add('active');
+    const tabKinerja = document.getElementById('tab-kinerja-saya');
+    if (tabKinerja) tabKinerja.classList.add('active-green');
+    if (window.DisciplineUserModule) {
+      window.DisciplineUserModule.init();
+    }
   } else if (tab === 'picker') {
     document.getElementById('panel-picker').classList.add('active');
     document.getElementById('tab-picker').classList.add('active-purple');

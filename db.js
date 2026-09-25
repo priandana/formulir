@@ -4957,6 +4957,11 @@ module.exports = {
 
 };
 
-
-
-
+// Attach Discipline & Performance Notes module functions onto db exports
+try {
+  const createDisciplineDb = require('./discipline-db');
+  const disciplineDb = createDisciplineDb(module.exports);
+  Object.assign(module.exports, disciplineDb);
+} catch (err) {
+  console.error('Failed to initialize discipline-db module:', err.message);
+}

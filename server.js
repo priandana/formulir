@@ -6080,6 +6080,16 @@ try {
 }
 // ===================== END LIVE CHAT MODULE =====================
 
+// ===================== POIN DISIPLIN & CATATAN KINERJA MODULE =====================
+try {
+  const setupDisciplineRoutes = require('./discipline-routes');
+  setupDisciplineRoutes(app, db, jwt, JWT_SECRET, storeNotification);
+  console.log('🛡️  Discipline & Performance Notes routes registered');
+} catch (err) {
+  console.error('⚠️  Discipline routes failed to load:', err.message);
+}
+// ===================== END POIN DISIPLIN MODULE =====================
+
 
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;

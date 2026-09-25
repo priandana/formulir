@@ -1,5 +1,6 @@
 # Vercel Ignore file to reduce deployment bundle size
 vercel.exe
+.vercel.zip
 *.zip
 *.xlsx
 .env
@@ -10,6 +11,7 @@ database.json
 *.js.map
 scratch/
 design/
+supabase/
 .git
 .vercel
 *Compare*.js

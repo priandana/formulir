@@ -65,13 +65,17 @@ function showOnscreenError(source, err) {
       'dashboard', 'submissions', 'loader', 'data-carian', 'rekap-toko',
       'status-carian', 'users', 'absensi', 'ketentuan-harga', 'rekap-pendapatan', 'penggajian', 'announcements',
       'export', 'gsheets', 'login-settings', 'admin-accounts',
-      'audit-logs', 'live-chat', 'chat-settings'
+      'audit-logs', 'live-chat', 'chat-settings',
+      'discipline-dashboard', 'discipline-input', 'discipline-history',
+      'discipline-categories', 'discipline-appeals', 'discipline-settings'
     ];
 
     pages.forEach(p => {
       const nav = document.getElementById('nav-' + p);
       if (nav) {
-        const hasAccess = isSuperAdmin || p === 'live-chat' || p === 'chat-settings' || allowed.includes(p);
+        const isDisciplinePage = p.startsWith('discipline-');
+        const hasDisciplineAccess = isSuperAdmin || allowed.length === 0 || allowed.includes('discipline') || allowed.includes(p) || allowed.includes('users') || allowed.includes('absensi') || allowed.includes('penggajian');
+        const hasAccess = isSuperAdmin || p === 'live-chat' || p === 'chat-settings' || allowed.includes(p) || (isDisciplinePage && hasDisciplineAccess);
         nav.style.display = hasAccess ? 'flex' : 'none';
       }
     });
@@ -1560,7 +1564,9 @@ function showOnscreenError(source, err) {
 
     const isSuperAdmin = currentUser.username && currentUser.username.toLowerCase() === 'admin';
     const allowed = currentUser.allowed_pages || [];
-    const isAllowed = isSuperAdmin || page === 'feature-guide' || page === 'live-chat' || page === 'chat-settings' || allowed.includes(page);
+    const isDisciplinePage = page.startsWith('discipline-');
+    const hasDisciplineAccess = isSuperAdmin || allowed.length === 0 || allowed.includes('discipline') || allowed.includes(page) || allowed.includes('users') || allowed.includes('absensi') || allowed.includes('penggajian');
+    const isAllowed = isSuperAdmin || page === 'feature-guide' || page === 'live-chat' || page === 'chat-settings' || allowed.includes(page) || (isDisciplinePage && hasDisciplineAccess);
 
     if (!isAllowed) {
       showToast('Akses Ditolak: Anda tidak memiliki hak akses untuk halaman ini.', 'error');
@@ -1575,7 +1581,7 @@ function showOnscreenError(source, err) {
     currentView = page;
     const sidebar = document.getElementById('sidebar');
     if (sidebar) sidebar.classList.remove('open');
-    ['dashboard','submissions','data-carian','rekap-toko','status-carian','welcome','users','loader','return-validation','absensi','export','gsheets','login-settings','periode-aktif','phl-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga','rekap-pendapatan','penggajian','live-chat','chat-settings'].forEach(p => {
+    ['dashboard','submissions','data-carian','rekap-toko','status-carian','welcome','users','loader','return-validation','absensi','export','gsheets','login-settings','periode-aktif','phl-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga','rekap-pendapatan','penggajian','live-chat','chat-settings','discipline-dashboard','discipline-input','discipline-history','discipline-categories','discipline-appeals','discipline-settings'].forEach(p => {
       const el = document.getElementById('page-' + p);
       if (el) el.style.display = p === page ? 'block' : 'none';
     });
@@ -1604,11 +1610,17 @@ function showOnscreenError(source, err) {
       'rekap-pendapatan': 'Rekap Pendapatan Pekerja',
       'penggajian': 'Rekap Penggajian (HR Payroll)',
       'live-chat': 'Live Chat',
-      'chat-settings': 'Pengaturan Live Chat'
+      'chat-settings': 'Pengaturan Live Chat',
+      'discipline-dashboard': 'Poin & Disiplin — Dashboard Analitik',
+      'discipline-input': 'Poin & Disiplin — Input Kejadian',
+      'discipline-history': 'Poin & Disiplin — Riwayat Poin',
+      'discipline-categories': 'Poin & Disiplin — Master Pelanggaran',
+      'discipline-appeals': 'Poin & Disiplin — Review Klarifikasi',
+      'discipline-settings': 'Poin & Disiplin — Pengaturan Modul'
     };
     document.getElementById('pageTitle').textContent = titles[page] || page;
 
-    ['dashboard','submissions','data-carian','rekap-toko','status-carian','welcome','users','loader','return-validation','absensi','export','gsheets','login-settings','periode-aktif','phl-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga','rekap-pendapatan','penggajian','live-chat','chat-settings'].forEach(p => {
+    ['dashboard','submissions','data-carian','rekap-toko','status-carian','welcome','users','loader','return-validation','absensi','export','gsheets','login-settings','periode-aktif','phl-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga','rekap-pendapatan','penggajian','live-chat','chat-settings','discipline-dashboard','discipline-input','discipline-history','discipline-categories','discipline-appeals','discipline-settings'].forEach(p => {
       const nav = document.getElementById('nav-' + p);
       if (nav) {
         const isActive = p === page;
@@ -1641,7 +1653,12 @@ function showOnscreenError(source, err) {
       loadAuditLogs(1);
     }
     if (page === 'announcements') loadAnnouncements();
-    if (page === 'dashboard') loadMonitoringMPP();
+    if (page === 'dashboard') {
+      loadMonitoringMPP();
+      if (window.DisciplineAdminModule && typeof window.DisciplineAdminModule.loadMppWidget === 'function') {
+        window.DisciplineAdminModule.loadMppWidget();
+      }
+    }
     if (page === 'ketentuan-harga') loadKetentuanHarga();
     if (page === 'rekap-pendapatan') loadRekapPendapatan();
     if (page === 'status-carian') loadStatusCarian();
@@ -1661,6 +1678,36 @@ function showOnscreenError(source, err) {
     if (page === 'chat-settings') {
       if (window.ChatSettingsModule && typeof window.ChatSettingsModule.init === 'function') {
         window.ChatSettingsModule.init();
+      }
+    }
+    if (page === 'discipline-dashboard') {
+      if (window.DisciplineAdminModule && typeof window.DisciplineAdminModule.initDashboard === 'function') {
+        window.DisciplineAdminModule.initDashboard();
+      }
+    }
+    if (page === 'discipline-input') {
+      if (window.DisciplineAdminModule && typeof window.DisciplineAdminModule.initInputPage === 'function') {
+        window.DisciplineAdminModule.initInputPage();
+      }
+    }
+    if (page === 'discipline-history') {
+      if (window.DisciplineAdminModule && typeof window.DisciplineAdminModule.initHistoryPage === 'function') {
+        window.DisciplineAdminModule.initHistoryPage();
+      }
+    }
+    if (page === 'discipline-categories') {
+      if (window.DisciplineAdminModule && typeof window.DisciplineAdminModule.initCategoriesPage === 'function') {
+        window.DisciplineAdminModule.initCategoriesPage();
+      }
+    }
+    if (page === 'discipline-appeals') {
+      if (window.DisciplineAdminModule && typeof window.DisciplineAdminModule.initAppealsPage === 'function') {
+        window.DisciplineAdminModule.initAppealsPage();
+      }
+    }
+    if (page === 'discipline-settings') {
+      if (window.DisciplineAdminModule && typeof window.DisciplineAdminModule.initSettingsPage === 'function') {
+        window.DisciplineAdminModule.initSettingsPage();
       }
     }
   }
@@ -2128,6 +2175,7 @@ function showOnscreenError(source, err) {
       absensi: 'Absensi',
       'ketentuan-harga': 'Harga',
       announcements: 'Pengumuman',
+      discipline: 'Poin & Disiplin',
       export: 'Ekspor',
       gsheets: 'GSheets'
     };
@@ -3338,6 +3386,10 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
           if (notif.type === 'new_submission') {
             playNotificationSound();
             showToast(`Submission PENDING baru dari ${notif.data.nama} (${notif.data.posisi})!`, 'warning');
+          } else if (notif.type === 'new_discipline_appeal') {
+            playNotificationSound();
+            showToast(`Klarifikasi catatan kinerja baru dari ${notif.data.nama || 'User'} (${notif.data.incident_code || ''})!`, 'warning');
+            if (typeof loadMppDisciplineWidget === 'function') loadMppDisciplineWidget();
           }
         });
         loadData();
@@ -3493,7 +3545,10 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
         let actionText = l.action || 'OTHER';
         const action = l.action || '';
         
-        if (action.includes('LOGIN')) {
+        if (action.includes('DISCIPLINE')) {
+          actionClass = 'log-badge-update';
+          actionText = '⚖️ ' + actionText;
+        } else if (action.includes('LOGIN')) {
           actionClass = 'log-badge-login';
           actionText = '🔑 ' + actionText;
         } else if (action.includes('LOGOUT')) {

@@ -9,6 +9,7 @@
   <link rel="dns-prefetch" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/index.css?v=1.4">
+  <link rel="stylesheet" href="/css/discipline.css?v=1.0">
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       if (localStorage.getItem('theme') === 'dark' && document.body) {
@@ -103,6 +104,18 @@
             <div class="sidebar-item-label">Kalender Kerja</div>
             <div class="sidebar-item-sub">Riwayat masuk & off Anda</div>
           </div>
+        </button>
+        <button class="tab-btn sidebar-item" id="tab-kinerja-saya" onclick="switchTab('kinerja-saya')" style="position:relative;">
+          <span class="sidebar-item-icon">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+          </span>
+          <div class="sidebar-item-text">
+            <div class="sidebar-item-label">Kinerja Saya</div>
+            <div class="sidebar-item-sub">Catatan disiplin & poin</div>
+          </div>
+          <span id="kinerjaSayaBadge" style="display:none; position:absolute; top:8px; right:10px; background:#ef4444; color:#fff; font-size:10px; font-weight:800; min-width:18px; height:18px; padding:0 5px; border-radius:20px; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(239,68,68,0.35);">0</span>
         </button>
         <button class="tab-btn sidebar-item" id="tab-pendapatan" onclick="switchTab('pendapatan')" style="position:relative;">
           <span class="sidebar-item-icon">
@@ -1626,6 +1639,9 @@
         </form>
       </div><!-- end panel-return -->
 
+      <!-- ===== TAB KINERJA SAYA ===== -->
+      <div class="tab-panel" id="panel-kinerja-saya"></div>
+
     </div><!-- end content-area -->
 
   </div><!-- end main-wrapper -->
@@ -1792,7 +1808,8 @@
   </div>
 </div>
 
-<script src="/js/index.js?v=3.0" defer></script>
+<script src="/js/index.js?v=3.1" defer></script>
+<script src="/discipline-user.js?v=1.1"></script>
 
 <!-- Print styles -->
 <style>
