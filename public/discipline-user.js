@@ -292,7 +292,7 @@
       btn.className = 'sidebar-item';
       btn.id = 'tab-kinerja-saya';
       btn.type = 'button';
-      btn.setAttribute('onclick', "switchTab('kinerja-saya')");
+      btn.setAttribute('onclick', "window.DisciplineUser.openTab()");
       btn.innerHTML = `
         <div class="sidebar-item-icon">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -403,20 +403,27 @@
       document.body.appendChild(modalWrap);
     }
 
-    // Hook into switchTab so opening 'kinerja-saya' works seamlessly
+    hookSwitchTab();
+  }
+
+  function openTab() {
+    document.querySelectorAll('.sidebar-item').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    const tabEl = document.getElementById('tab-kinerja-saya');
+    const panelEl = document.getElementById('panel-kinerja-saya');
+    if (tabEl) tabEl.classList.add('active');
+    if (panelEl) panelEl.classList.add('active');
+    if (typeof window.closeMobileSidebar === 'function') window.closeMobileSidebar();
+    try { sessionStorage.setItem('ss08_active_tab', 'kinerja-saya'); } catch (_) {}
+    refreshSummary();
+  }
+
+  function hookSwitchTab() {
     if (typeof window.switchTab === 'function' && !window.__discSwitchTabHooked) {
       const origSwitchTab = window.switchTab;
       window.switchTab = function (tab) {
         if (tab === 'kinerja-saya') {
-          document.querySelectorAll('.sidebar-item').forEach(b => b.classList.remove('active'));
-          document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-          const tabEl = document.getElementById('tab-kinerja-saya');
-          const panelEl = document.getElementById('panel-kinerja-saya');
-          if (tabEl) tabEl.classList.add('active');
-          if (panelEl) panelEl.classList.add('active');
-          if (typeof window.closeMobileSidebar === 'function') window.closeMobileSidebar();
-          try { sessionStorage.setItem('ss08_active_tab', tab); } catch (_) {}
-          refreshSummary();
+          openTab();
           return;
         }
         return origSwitchTab.apply(this, arguments);
@@ -1134,8 +1141,10 @@
   } else {
     init();
   }
+  window.addEventListener('load', hookSwitchTab);
 
   window.DisciplineUser = {
+    openTab,
     refresh: refreshSummary,
     openDetailModal,
     closeDetailModal,
