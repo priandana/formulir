@@ -72,12 +72,95 @@
     users: [],
     categories: [],
     settings: {},
+    lastBaseDataFetchAt: 0,
     historyPage: 1,
     historyLimit: 15,
     currentHistoryItems: [],
     pendingConfirmFormData: null,
 
-    async ensureBaseData() {
+    renderPageSkeleton(container, badgeText, title, subtitle) {
+      if (!container) return;
+      container.innerHTML = `
+        <div class="disc-hero">
+          <div>
+            <div class="disc-hero-badge">${badgeText}</div>
+            <h1 class="disc-hero-title">${title}</h1>
+            <p class="disc-hero-sub">${subtitle}</p>
+          </div>
+        </div>
+        <div style="text-align:left;margin-bottom:14px;">
+          <div class="disc-page-loader-banner">
+            <span class="disc-page-loader-dot"></span>
+            <span>Sedang memuat data Poin &amp; Disiplin...</span>
+          </div>
+        </div>
+        <div class="disc-kpi-grid">
+          ${[1, 2, 3, 4].map(() => `
+            <div class="disc-kpi-card">
+              <div class="disc-skeleton disc-skeleton-line" style="width:55%;"></div>
+              <div class="disc-skeleton disc-skeleton-value" style="margin-top:6px;"></div>
+              <div class="disc-skeleton disc-skeleton-line" style="width:75%;margin-top:6px;"></div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="disc-card" style="padding:24px;">
+          <div class="disc-skeleton disc-skeleton-line" style="width:35%;height:16px;margin-bottom:16px;"></div>
+          <div class="disc-skeleton disc-skeleton-line" style="width:100%;height:42px;margin-bottom:12px;"></div>
+          <div class="disc-skeleton disc-skeleton-line" style="width:92%;height:42px;margin-bottom:12px;"></div>
+          <div class="disc-skeleton disc-skeleton-line" style="width:85%;height:42px;"></div>
+        </div>
+      `;
+    },
+
+    setDashboardContentLoading() {
+      const barSkeleton = `
+        <div style="display:flex;flex-direction:column;gap:12px;padding:6px 0;">
+          <div>
+            <div class="disc-skeleton disc-skeleton-line" style="width:48%;margin-bottom:6px;"></div>
+            <div class="disc-skeleton" style="width:100%;height:8px;border-radius:99px;"></div>
+          </div>
+          <div>
+            <div class="disc-skeleton disc-skeleton-line" style="width:62%;margin-bottom:6px;"></div>
+            <div class="disc-skeleton" style="width:82%;height:8px;border-radius:99px;"></div>
+          </div>
+          <div>
+            <div class="disc-skeleton disc-skeleton-line" style="width:40%;margin-bottom:6px;"></div>
+            <div class="disc-skeleton" style="width:65%;height:8px;border-radius:99px;"></div>
+          </div>
+        </div>
+      `;
+      const listSkeleton = `
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div class="disc-skeleton" style="width:100%;height:52px;border-radius:12px;"></div>
+          <div class="disc-skeleton" style="width:100%;height:52px;border-radius:12px;"></div>
+        </div>
+      `;
+      const catEl = document.getElementById('discChartCategory');
+      const trendEl = document.getElementById('discChartTrend');
+      const posEl = document.getElementById('discChartPosisi');
+      const expEl = document.getElementById('discListExpiring');
+      const repEl = document.getElementById('discListRepeatCoaching');
+      if (catEl) catEl.innerHTML = barSkeleton;
+      if (posEl) posEl.innerHTML = barSkeleton;
+      if (expEl) expEl.innerHTML = listSkeleton;
+      if (repEl) repEl.innerHTML = listSkeleton;
+      if (trendEl) {
+        trendEl.innerHTML = [45, 70, 55, 85, 60, 90].map(h => `
+          <div class="disc-trend-col">
+            <div class="disc-skeleton" style="width:20px;height:10px;border-radius:4px;"></div>
+            <div class="disc-trend-bar-wrap">
+              <div class="disc-skeleton" style="width:100%;height:${h}%;border-radius:8px;"></div>
+            </div>
+            <div class="disc-skeleton" style="width:28px;height:10px;border-radius:4px;"></div>
+          </div>
+        `).join('');
+      }
+    },
+
+    async ensureBaseData(force = false) {
+      if (!force && this.users.length > 0 && this.categories.length > 0 && (Date.now() - this.lastBaseDataFetchAt < 25000)) {
+        return;
+      }
       try {
         const [uRes, cRes, sRes] = await Promise.all([
           fetch('/api/users', { credentials: 'include' }).then(r => r.ok ? r.json() : []),
@@ -87,6 +170,7 @@
         this.users = (Array.isArray(uRes) ? uRes : []).filter(u => u.role !== 'admin' && u.is_active !== false);
         this.categories = cRes.categories || [];
         this.settings = sRes.settings || {};
+        this.lastBaseDataFetchAt = Date.now();
       } catch (e) {
         console.error('ensureBaseData error:', e);
       }
@@ -125,6 +209,15 @@
     async initDashboard() {
       const container = document.getElementById('page-discipline-dashboard');
       if (!container) return;
+
+      if (!container.dataset.rendered && this.categories.length === 0) {
+        this.renderPageSkeleton(
+          container,
+          '🛡️ Monitoring &amp; Pembinaan Kinerja',
+          'Dashboard Poin &amp; Disiplin',
+          'Pemantauan objektif catatan kinerja, analisis tren operasional, dan evaluasi pembinaan karyawan SS08.'
+        );
+      }
 
       await this.ensureBaseData();
       const uniqueCats = [...new Set(this.categories.map(c => c.nama_kategori))];
@@ -172,7 +265,7 @@
               </div>
               <div class="disc-field-group">
                 <label class="disc-field-label">Kategori</label>
-                <select id="discDashKategori" class="disc-select" onchange="DisciplineAdminModule.loadDashboardData()">
+                <select id="discDashKategori" class="disc-select" data-searchable="true" onchange="DisciplineAdminModule.loadDashboardData()">
                   <option value="all">Semua Kategori</option>
                   ${uniqueCats.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('')}
                 </select>
@@ -289,10 +382,15 @@
         container.dataset.rendered = 'true';
       }
 
+      if (typeof window.initCustomSelects === 'function') {
+        window.initCustomSelects(container);
+      }
+
       await this.loadDashboardData();
     },
 
     async loadDashboardData() {
+      this.setDashboardContentLoading();
       try {
         const params = new URLSearchParams({
           date_from: document.getElementById('discDashDateFrom')?.value || '',
@@ -456,6 +554,9 @@
       const container = document.getElementById('page-discipline-input');
       if (!container) return;
 
+      if (this.users.length === 0) {
+        this.renderPageSkeleton(container, 'Menyiapkan Formulir Input Kejadian & Daftar Karyawan…');
+      }
       await this.ensureBaseData();
       const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jakarta' });
       const activeCats = this.categories.filter(c => c.is_active !== false);
@@ -480,7 +581,7 @@
               </div>
               <div class="disc-field-group">
                 <label class="disc-field-label">Pilih Karyawan <span style="color:#EF4444">*</span></label>
-                <select id="discInUser" class="disc-select" required onchange="DisciplineAdminModule.onUserSelectChange()">
+                <select id="discInUser" class="disc-select" data-searchable="true" required onchange="DisciplineAdminModule.onUserSelectChange()">
                   <option value="">— Pilih Karyawan Operasional —</option>
                   ${this.users.map(u => `<option value="${escHtml(u.id)}" data-posisi="${escHtml(u.posisi || 'Operasional')}" data-nik="${escHtml(u.nik || '-')}" data-nama="${escHtml(u.nama_lengkap || u.username)}">${escHtml(u.nama_lengkap || u.username)} (${escHtml(u.posisi || '-')})</option>`).join('')}
                 </select>
@@ -494,7 +595,7 @@
               </div>
               <div class="disc-field-group">
                 <label class="disc-field-label">Kategori Pelanggaran <span style="color:#EF4444">*</span></label>
-                <select id="discInKategori" class="disc-select" required onchange="DisciplineAdminModule.onKategoriSelectChange()">
+                <select id="discInKategori" class="disc-select" data-searchable="true" required onchange="DisciplineAdminModule.onKategoriSelectChange()">
                   <option value="">— Pilih Kategori —</option>
                   ${uniqueKategoriNames.map(k => `<option value="${escHtml(k)}">${escHtml(k)}</option>`).join('')}
                 </select>
@@ -504,7 +605,7 @@
             <div class="disc-analytics-grid" style="margin-bottom:16px;">
               <div class="disc-field-group">
                 <label class="disc-field-label">Jenis Pelanggaran / Subkategori <span style="color:#EF4444">*</span></label>
-                <select id="discInSubkategori" class="disc-select" required onchange="DisciplineAdminModule.onSubkategoriSelectChange()">
+                <select id="discInSubkategori" class="disc-select" data-searchable="true" required onchange="DisciplineAdminModule.onSubkategoriSelectChange()">
                   <option value="">— Pilih Kategori Terlebih Dahulu —</option>
                 </select>
               </div>
@@ -569,7 +670,7 @@
             </div>
 
             <div style="display:flex;justify-content:flex-end;gap:12px;padding-top:14px;border-top:1px solid var(--card-border);">
-              <button type="reset" class="btn btn-outline" onclick="setTimeout(()=>DisciplineAdminModule.updateExpiryPreview(),50)">Reset Form</button>
+              <button type="reset" class="btn btn-outline" onclick="setTimeout(()=>{const sub=document.getElementById('discInSubkategori');if(sub)sub.innerHTML='<option value=&quot;&quot;>— Pilih Kategori Terlebih Dahulu —</option>';DisciplineAdminModule.updateExpiryPreview();if(typeof window.initCustomSelects==='function')window.initCustomSelects(document.getElementById('page-discipline-input'));},50)">Reset Form</button>
               <button type="submit" class="btn btn-primary" style="padding:10px 22px;font-weight:700;">
                 Lanjut &amp; Konfirmasi Simpan →
               </button>
@@ -578,6 +679,9 @@
         </div>
       `;
 
+      if (typeof window.initCustomSelects === 'function') {
+        window.initCustomSelects(container);
+      }
       this.updateExpiryPreview();
     },
 
@@ -775,6 +879,9 @@
       const container = document.getElementById('page-discipline-history');
       if (!container) return;
 
+      if (!container.dataset.rendered) {
+        this.renderPageSkeleton(container, 'Menyiapkan Halaman Riwayat Poin & Kejadian…');
+      }
       await this.ensureBaseData();
       const uniqueCats = [...new Set(this.categories.map(c => c.nama_kategori))];
 
@@ -824,7 +931,7 @@
               </div>
               <div class="disc-field-group">
                 <label class="disc-field-label">Kategori</label>
-                <select id="discHistKategori" class="disc-select" onchange="DisciplineAdminModule.loadHistory(1)">
+                <select id="discHistKategori" class="disc-select" data-searchable="true" onchange="DisciplineAdminModule.loadHistory(1)">
                   <option value="all">Semua Kategori</option>
                   ${uniqueCats.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('')}
                 </select>
@@ -869,6 +976,9 @@
           </div>
         `;
         container.dataset.rendered = 'true';
+        if (typeof window.initCustomSelects === 'function') {
+          window.initCustomSelects(container);
+        }
       }
 
       await this.loadHistory(1);
@@ -891,6 +1001,14 @@
       this.historyPage = page;
       const tbody = document.getElementById('discHistTableBody');
       if (!tbody) return;
+
+      tbody.innerHTML = Array(4).fill(0).map(() => `
+        <tr>
+          <td colspan="9" style="padding:14px 20px;">
+            <div class="disc-skeleton" style="height:26px;border-radius:8px;width:100%;"></div>
+          </td>
+        </tr>
+      `).join('');
 
       try {
         const params = this.getHistoryFilterParams(page);
@@ -1239,6 +1357,9 @@
       const container = document.getElementById('page-discipline-categories');
       if (!container) return;
 
+      if (this.categories.length === 0) {
+        this.renderPageSkeleton(container, 'Memuat Master Pelanggaran & Bobot Poin…');
+      }
       await this.ensureBaseData();
 
       container.innerHTML = `
@@ -1390,7 +1511,7 @@
 
         this.closeModal();
         notifyToast('Master pelanggaran berhasil disimpan.', 'success');
-        await this.ensureBaseData();
+        await this.ensureBaseData(true);
         this.renderCategoriesTable();
       } catch (err) {
         notifyToast(err.message, 'error');
@@ -1408,7 +1529,7 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Gagal mengubah status.');
         notifyToast('Status master pelanggaran diperbarui.', 'success');
-        await this.ensureBaseData();
+        await this.ensureBaseData(true);
         this.renderCategoriesTable();
       } catch (err) {
         notifyToast(err.message, 'error');
@@ -1450,12 +1571,20 @@
         <div id="discAppealsList" style="display:flex;flex-direction:column;gap:14px;"></div>
       `;
 
+      if (typeof window.initCustomSelects === 'function') {
+        window.initCustomSelects(container);
+      }
       await this.loadAppeals();
     },
 
     async loadAppeals() {
       const listEl = document.getElementById('discAppealsList');
       if (!listEl) return;
+
+      listEl.innerHTML = `
+        <div class="disc-skeleton" style="height:120px;border-radius:16px;"></div>
+        <div class="disc-skeleton" style="height:120px;border-radius:16px;"></div>
+      `;
 
       try {
         const params = new URLSearchParams({
@@ -1623,6 +1752,9 @@
       const container = document.getElementById('page-discipline-settings');
       if (!container) return;
 
+      if (!this._baseDataLoaded) {
+        this.renderPageSkeleton(container, 'Memuat Pengaturan Poin & Disiplin…');
+      }
       await this.ensureBaseData();
       const s = this.settings || {};
       const hrThresholdVal = (s.hr_review_point_threshold === null || s.hr_review_point_threshold === undefined || s.hr_review_point_threshold === '')
@@ -1760,9 +1892,15 @@
       document.getElementById('discAdminModalBody').innerHTML = bodyHtml;
       document.getElementById('discAdminModalFooter').innerHTML = footerHtml || '';
       overlay.classList.add('visible');
+      if (typeof window.initCustomSelects === 'function') {
+        window.initCustomSelects(overlay);
+      }
     },
 
     closeModal() {
+      if (typeof window.closeAllCustomDropdowns === 'function') {
+        window.closeAllCustomDropdowns();
+      }
       const overlay = document.getElementById('discAdminModalOverlay');
       if (overlay) overlay.classList.remove('visible');
     },

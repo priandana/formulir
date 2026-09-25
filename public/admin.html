@@ -8,17 +8,58 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="dns-prefetch" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/admin.css?v=1.8">
+  <link rel="stylesheet" href="/css/admin.css?v=1.9">
   <link rel="stylesheet" href="/css/absensi.css?v=1.1">
   <link rel="stylesheet" href="/css/chat.css?v=3.0">
-  <link rel="stylesheet" href="/css/discipline.css?v=1.0">
+  <link rel="stylesheet" href="/css/discipline.css?v=1.2">
   <script>
     if (localStorage.getItem('theme') === 'dark') {
       document.body.classList.add('dark-mode');
     }
   </script>
 </head>
-<body class="">
+<body class="admin-loading-lock">
+
+<!-- Global Initial Admin Loading Overlay -->
+<div id="adminGlobalLoadingOverlay" class="admin-global-loading-overlay" role="status" aria-live="polite" aria-busy="true">
+  <div class="admin-global-loading-card">
+    <div class="admin-global-loading-brand">
+      <div class="admin-global-loading-logo">
+        <svg width="26" height="26" fill="none" stroke="white" stroke-width="2.4" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+      </div>
+      <div class="admin-global-loading-badge">SS08 Operations Suite</div>
+    </div>
+
+    <div id="adminGlobalLoadingSpinnerWrap" class="admin-global-loading-spinner-wrap">
+      <div class="admin-global-loading-ring"></div>
+      <div class="admin-global-loading-ring-inner"></div>
+    </div>
+
+    <div id="adminGlobalLoadingErrorIcon" class="admin-global-loading-error-icon" style="display:none;">
+      <svg width="34" height="34" fill="none" stroke="#EF4444" stroke-width="2.2" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+    </div>
+
+    <h2 id="adminGlobalLoadingTitle" class="admin-global-loading-title">Mohon tunggu, data sedang dimuat…</h2>
+    <p id="adminGlobalLoadingSub" class="admin-global-loading-sub">Sedang menyiapkan data operasional.</p>
+
+    <div id="adminGlobalLoadingProgress" class="admin-global-loading-progress">
+      <div class="admin-global-loading-progress-bar"></div>
+    </div>
+
+    <div id="adminGlobalLoadingActions" class="admin-global-loading-actions" style="display:none;">
+      <button type="button" id="adminGlobalLoadingRetryBtn" class="btn btn-primary" onclick="window.retryInitialAdminLoad && window.retryInitialAdminLoad()">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        Coba Lagi
+      </button>
+    </div>
+  </div>
+</div>
 
 <!-- Floating blobs in background -->
 <div class="bg-blobs">
@@ -3041,8 +3082,8 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
 </div>
 
 <script src="/chat-admin.js?v=3.0"></script>
-<script src="/discipline-admin.js?v=1.1"></script>
-<script src="/js/admin.js?v=2.5" defer></script>
+<script src="/discipline-admin.js?v=1.2"></script>
+<script src="/js/admin.js?v=2.6" defer></script>
 
 <!-- ===== ABSENSI SETTINGS MODAL ===== -->
 <div class="modal-overlay" id="absensiSettingsModal">

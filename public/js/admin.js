@@ -98,44 +98,125 @@ function showOnscreenError(source, err) {
     }
   }
 
-  // ============= INIT =============
-  (async () => {
-    const auth = await fetch('/api/check-auth').then(r => r.json());
-    if (!auth.authenticated) { window.location.href = '/login'; return; }
-    if (auth.role === 'operasional') { window.location.href = '/'; return; }
-    currentUser = {
-      username: auth.username,
-      allowed_pages: auth.allowed_pages || []
-    };
-    document.getElementById('userName').textContent = auth.nama_lengkap || auth.username;
-    document.getElementById('userAvatar').textContent = (auth.nama_lengkap || auth.username).charAt(0).toUpperCase();
-    applySidebarPermissions();
-    // Set today's date as default for filters
-    const today = new Date().toISOString().slice(0, 10);
-    document.getElementById('dcDateFilter').value = today;
-    document.getElementById('importTanggal').value = today;
-    document.getElementById('acTanggal').value = today;
-    document.getElementById('loaderDateFilter').value = today;
-    // Set date picker for Monitoring MPP
-    const mppPicker = document.getElementById('mppDatePicker');
-    if (mppPicker) mppPicker.value = today;
-    // Load core data (submissions)
-    try { await loadData(); } catch(e) { console.error('loadData init:', e); }
-    initTheme();
-    initRealtimeNotifications();
-    initCustomSelects();
-    initTopbarClock();
-    // Init selesai — tandai appReady agar showPage bisa berjalan
-    appReady = true;
+  // ============= GLOBAL INITIAL LOADING OVERLAY HELPERS =============
+  function setGlobalLoadingState({ loading = true, errorMsg = '' } = {}) {
+    const overlay = document.getElementById('adminGlobalLoadingOverlay');
+    if (!overlay) return;
+    const spinnerWrap = document.getElementById('adminGlobalLoadingSpinnerWrap');
+    const errorIcon = document.getElementById('adminGlobalLoadingErrorIcon');
+    const titleEl = document.getElementById('adminGlobalLoadingTitle');
+    const subEl = document.getElementById('adminGlobalLoadingSub');
+    const progressEl = document.getElementById('adminGlobalLoadingProgress');
+    const actionsEl = document.getElementById('adminGlobalLoadingActions');
 
-    // Kalau user sempat klik menu sebelum init selesai, navigate ke sana
-    // Kalau tidak, navigate ke default (dashboard atau halaman pertama yang diizinkan)
-    const isSuperAdmin = currentUser.username && currentUser.username.toLowerCase() === 'admin';
-    const allowed = currentUser.allowed_pages || [];
-    const targetPage = pendingPage || (isSuperAdmin || allowed.includes('dashboard') ? 'dashboard' : (allowed.length > 0 ? allowed[0] : 'feature-guide'));
-    pendingPage = null;
-    showPage(targetPage);
-  })();
+    if (loading) {
+      document.body.classList.add('admin-loading-lock');
+      overlay.classList.remove('hidden');
+      overlay.setAttribute('aria-busy', 'true');
+      if (spinnerWrap) spinnerWrap.style.display = 'flex';
+      if (errorIcon) errorIcon.style.display = 'none';
+      if (titleEl) titleEl.textContent = 'Mohon tunggu, data sedang dimuat…';
+      if (subEl) subEl.textContent = 'Sedang menyiapkan data operasional.';
+      if (progressEl) progressEl.style.display = 'block';
+      if (actionsEl) actionsEl.style.display = 'none';
+    } else if (errorMsg) {
+      document.body.classList.add('admin-loading-lock');
+      overlay.classList.remove('hidden');
+      overlay.setAttribute('aria-busy', 'false');
+      if (spinnerWrap) spinnerWrap.style.display = 'none';
+      if (errorIcon) errorIcon.style.display = 'flex';
+      if (titleEl) titleEl.textContent = 'Data gagal dimuat.';
+      if (subEl) subEl.textContent = errorMsg;
+      if (progressEl) progressEl.style.display = 'none';
+      if (actionsEl) actionsEl.style.display = 'flex';
+    } else {
+      document.body.classList.remove('admin-loading-lock');
+      overlay.classList.add('hidden');
+      overlay.setAttribute('aria-busy', 'false');
+    }
+  }
+
+  let initialBootstrapInitialized = false;
+
+  async function runAdminInitialBootstrap() {
+    setGlobalLoadingState({ loading: true });
+    let timeoutId = null;
+    try {
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error('Waktu muat habis (timeout). Periksa koneksi internet Anda lalu klik Coba Lagi.'));
+        }, 20000);
+      });
+
+      await Promise.race([
+        (async () => {
+          const authRes = await fetch('/api/check-auth', { credentials: 'include' });
+          if (!authRes.ok) throw new Error('Gagal memverifikasi sesi login.');
+          const auth = await authRes.json();
+          if (!auth.authenticated) { window.location.href = '/login'; return; }
+          if (auth.role === 'operasional') { window.location.href = '/'; return; }
+
+          currentUser = {
+            username: auth.username,
+            allowed_pages: auth.allowed_pages || []
+          };
+          const userNameEl = document.getElementById('userName');
+          const userAvatarEl = document.getElementById('userAvatar');
+          if (userNameEl) userNameEl.textContent = auth.nama_lengkap || auth.username;
+          if (userAvatarEl) userAvatarEl.textContent = (auth.nama_lengkap || auth.username).charAt(0).toUpperCase();
+          applySidebarPermissions();
+
+          // Set today's date as default for filters
+          const today = new Date().toISOString().slice(0, 10);
+          ['dcDateFilter', 'importTanggal', 'acTanggal', 'loaderDateFilter', 'mppDatePicker'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el && !el.value) el.value = today;
+          });
+
+          // Load core operational data & discipline base data in parallel
+          const initTasks = [loadData({ throwOnError: true })];
+          if (window.DisciplineAdminModule && typeof window.DisciplineAdminModule.ensureBaseData === 'function') {
+            initTasks.push(window.DisciplineAdminModule.ensureBaseData().catch(() => {}));
+          }
+          await Promise.all(initTasks);
+
+          if (!initialBootstrapInitialized) {
+            initTheme();
+            initRealtimeNotifications();
+            initCustomSelects();
+            initTopbarClock();
+            initialBootstrapInitialized = true;
+          } else {
+            initCustomSelects();
+          }
+
+          appReady = true;
+          const isSuperAdmin = currentUser.username && currentUser.username.toLowerCase() === 'admin';
+          const allowed = currentUser.allowed_pages || [];
+          const targetPage = pendingPage || (isSuperAdmin || allowed.includes('dashboard') ? 'dashboard' : (allowed.length > 0 ? allowed[0] : 'feature-guide'));
+          pendingPage = null;
+          showPage(targetPage);
+        })(),
+        timeoutPromise
+      ]);
+
+      if (timeoutId) clearTimeout(timeoutId);
+      setGlobalLoadingState({ loading: false });
+    } catch (err) {
+      if (timeoutId) clearTimeout(timeoutId);
+      console.error('Admin initial bootstrap error:', err);
+      setGlobalLoadingState({
+        loading: false,
+        errorMsg: err && err.message ? err.message : 'Terjadi kendala jaringan saat menyiapkan data operasional. Silakan coba lagi.'
+      });
+    }
+  }
+
+  window.retryInitialAdminLoad = runAdminInitialBootstrap;
+  window.setGlobalLoadingState = setGlobalLoadingState;
+
+  // ============= INIT =============
+  runAdminInitialBootstrap();
 
   // ============= TOPBAR INFO STRIP =============
   function initTopbarClock() {
@@ -219,12 +300,13 @@ function showOnscreenError(source, err) {
     requestAnimationFrame(update);
   }
 
-  async function loadData() {
+  async function loadData(opts = {}) {
+    const throwOnError = !!(opts && opts.throwOnError);
     try {
       // Fetch data paralel: semua submissions (top-1000) + SEMUA pending (tanpa batas)
       const [submissions, stats, pendingCountRes, pendingSubmissions] = await Promise.all([
-        fetch('/api/submissions').then(r => r.json()),
-        fetch('/api/stats').then(r => r.json()),
+        fetch('/api/submissions').then(r => { if (!r.ok && throwOnError) throw new Error('Gagal memuat data submissions.'); return r.json(); }),
+        fetch('/api/stats').then(r => { if (!r.ok && throwOnError) throw new Error('Gagal memuat statistik operasional.'); return r.json(); }),
         fetch('/api/submissions/pending-count').then(r => r.json()).catch(() => ({ count: 0 })),
         fetch('/api/submissions?status=pending').then(r => r.json()).catch(() => [])
       ]);
@@ -284,9 +366,9 @@ function showOnscreenError(source, err) {
       // Re-apply filter aktif setelah data di-reload (bukan langsung renderAllTable)
       filterTable();
     } catch(err) {
-
       console.error('loadData error:', err);
       showToast('Gagal memuat data.', 'error');
+      if (throwOnError) throw err;
     }
   }
 
@@ -3620,23 +3702,69 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
     }
   }
 
-  // ===================== CUSTOM SELECTS =====================
-  function initCustomSelects() {
-    const selects = document.querySelectorAll('select.form-control');
+  // ===================== CUSTOM SELECTS (MODERN SEARCHABLE DROPDOWN) =====================
+  const SEARCHABLE_SELECT_IDS = new Set([
+    'discInUser',
+    'discInKategori',
+    'discInSubkategori',
+    'discDashKategori',
+    'discHistKategori',
+    'riwayatUserSelect',
+    'logUserFilter',
+    'rekapGroupFilter'
+  ]);
+
+  function parseSelectOptionDisplay(opt) {
+    const raw = (opt.textContent || '').trim();
+    if (!opt.value || opt.value === '' || raw.startsWith('—')) {
+      return { label: raw, badge: '', badgeClass: '' };
+    }
+    if (opt.dataset && opt.dataset.posisi) {
+      const pos = opt.dataset.posisi;
+      const nama = opt.dataset.nama || raw.replace(/\s*\([^)]*\)\s*$/, '').trim();
+      const posLower = pos.toLowerCase();
+      let cls = '';
+      if (posLower.includes('picker')) cls = 'badge-pos-picker';
+      else if (posLower.includes('sorter')) cls = 'badge-pos-sorter';
+      else if (posLower.includes('loader')) cls = 'badge-pos-loader';
+      return { label: nama, badge: pos, badgeClass: cls };
+    }
+    const poinMatch = raw.match(/^(.*?)\s*\(\+(\d+)\s*Poin\)\s*$/i);
+    if (poinMatch) {
+      return {
+        label: poinMatch[1].trim(),
+        badge: `+${poinMatch[2]} Poin`,
+        badgeClass: 'badge-poin'
+      };
+    }
+    return { label: raw, badge: '', badgeClass: '' };
+  }
+
+  function initCustomSelects(root = document) {
+    const scope = (root && typeof root.querySelectorAll === 'function') ? root : document;
+    const selects = scope.querySelectorAll('select.form-control, select.disc-select');
+
     selects.forEach(select => {
-      if (select.dataset.customSelectInitialized) return;
+      if (select.dataset.customSelectInitialized === 'true') {
+        if (typeof select._refreshCustomSelect === 'function') {
+          select._refreshCustomSelect();
+        }
+        return;
+      }
       select.dataset.customSelectInitialized = 'true';
 
-      // Create wrapper
       const wrapper = document.createElement('div');
       wrapper.className = 'custom-select-wrapper';
-      
-      // Copy layout styles from select to wrapper
+      if (select.id) wrapper.dataset.selectId = select.id;
+
       if (select.style.width) {
         wrapper.style.width = select.style.width;
         wrapper.style.flexShrink = '0';
       }
-      if (select.style.display) {
+      if (select.classList.contains('disc-select')) {
+        wrapper.style.display = 'block';
+        wrapper.style.width = '100%';
+      } else if (select.style.display) {
         wrapper.style.display = select.style.display;
       } else {
         wrapper.style.display = 'inline-block';
@@ -3645,121 +3773,364 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
       if (select.style.marginLeft) wrapper.style.marginLeft = select.style.marginLeft;
       if (select.style.marginTop) wrapper.style.marginTop = select.style.marginTop;
       if (select.style.marginBottom) wrapper.style.marginBottom = select.style.marginBottom;
-      
-      // Insert wrapper before select in DOM
+
       select.parentNode.insertBefore(wrapper, select);
       wrapper.appendChild(select);
-      
-      // Create trigger button
+
       const trigger = document.createElement('button');
       trigger.type = 'button';
       trigger.className = 'custom-select-trigger';
-      
+      trigger.setAttribute('aria-haspopup', 'listbox');
+      trigger.setAttribute('aria-expanded', 'false');
+
+      const triggerContent = document.createElement('span');
+      triggerContent.className = 'custom-select-trigger-content';
+
       const triggerText = document.createElement('span');
       triggerText.className = 'custom-select-trigger-text';
-      trigger.appendChild(triggerText);
-      
+      triggerContent.appendChild(triggerText);
+
+      const triggerBadge = document.createElement('span');
+      triggerBadge.className = 'custom-select-trigger-badge';
+      triggerBadge.style.display = 'none';
+      triggerContent.appendChild(triggerBadge);
+
+      trigger.appendChild(triggerContent);
+
       const triggerArrow = document.createElement('span');
       triggerArrow.className = 'custom-select-arrow';
-      triggerArrow.innerHTML = `<svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7l5 5 5-5"/></svg>`;
+      triggerArrow.innerHTML = `<svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5l5 5 5-5"/></svg>`;
       trigger.appendChild(triggerArrow);
-      
+
       wrapper.appendChild(trigger);
-      
-      // Create options container
+
       const optionsContainer = document.createElement('div');
       optionsContainer.className = 'custom-select-options-container';
+      optionsContainer.setAttribute('role', 'listbox');
+
+      const searchBox = document.createElement('div');
+      searchBox.className = 'custom-select-search-box';
+      searchBox.style.display = 'none';
+      searchBox.innerHTML = `
+        <div class="custom-select-search-inner">
+          <span class="custom-select-search-icon">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          </span>
+          <input type="text" class="custom-select-search-input" placeholder="Ketik untuk mencari..." autocomplete="off">
+        </div>
+      `;
+      const searchInput = searchBox.querySelector('.custom-select-search-input');
+      searchBox.addEventListener('click', (e) => e.stopPropagation());
+      optionsContainer.appendChild(searchBox);
+
+      const optionsList = document.createElement('div');
+      optionsList.className = 'custom-select-options-list';
+      optionsContainer.appendChild(optionsList);
+
       wrapper.appendChild(optionsContainer);
-      
-      // Rebuild options from the native select
+
+      let focusedIndex = -1;
+
+      function isSearchEnabled() {
+        if (select.dataset.searchable === 'false') return false;
+        if (select.dataset.searchable === 'true') return true;
+        if (select.id && SEARCHABLE_SELECT_IDS.has(select.id)) return true;
+        return select.options.length >= 6;
+      }
+
+      function getVisibleOptionElements() {
+        return Array.from(optionsList.querySelectorAll('.custom-select-option')).filter(el => el.style.display !== 'none');
+      }
+
+      function setFocusedOption(idx) {
+        const visible = getVisibleOptionElements();
+        visible.forEach(el => el.classList.remove('focused'));
+        if (!visible.length) {
+          focusedIndex = -1;
+          return;
+        }
+        if (idx < 0) idx = visible.length - 1;
+        if (idx >= visible.length) idx = 0;
+        focusedIndex = idx;
+        const target = visible[focusedIndex];
+        if (target) {
+          target.classList.add('focused');
+          target.scrollIntoView({ block: 'nearest' });
+        }
+      }
+
+      function filterOptions(query) {
+        const q = (query || '').toLowerCase().trim();
+        const allItems = Array.from(optionsList.querySelectorAll('.custom-select-option'));
+        let matchCount = 0;
+
+        allItems.forEach(item => {
+          const searchStr = (item.dataset.searchText || item.textContent || '').toLowerCase();
+          const isPlaceholder = item.classList.contains('is-placeholder');
+          if (!q || (isPlaceholder && !q) || searchStr.includes(q)) {
+            if (q && isPlaceholder && allItems.length > 1) {
+              item.style.display = 'none';
+            } else {
+              item.style.display = 'flex';
+              matchCount++;
+            }
+          } else {
+            item.style.display = 'none';
+          }
+        });
+
+        let emptyEl = optionsList.querySelector('.custom-select-empty');
+        if (matchCount === 0) {
+          if (!emptyEl) {
+            emptyEl = document.createElement('div');
+            emptyEl.className = 'custom-select-empty';
+            emptyEl.textContent = 'Tidak ditemukan pilihan yang cocok.';
+            optionsList.appendChild(emptyEl);
+          }
+          emptyEl.style.display = 'block';
+        } else if (emptyEl) {
+          emptyEl.style.display = 'none';
+        }
+
+        setFocusedOption(0);
+      }
+
+      function selectOptionValue(val) {
+        const changed = select.value !== val;
+        select.value = val;
+        updateTriggerText();
+        if (changed) {
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        closeDropdown();
+      }
+
       function rebuildOptions() {
-        optionsContainer.innerHTML = '';
+        optionsList.innerHTML = '';
+        const showSearch = isSearchEnabled();
+        searchBox.style.display = showSearch ? 'block' : 'none';
+        if (searchInput) {
+          if (select.id === 'discInUser') {
+            searchInput.placeholder = 'Cari nama karyawan atau posisi...';
+          } else if (select.id && select.id.toLowerCase().includes('kategori')) {
+            searchInput.placeholder = 'Cari kategori / pelanggaran...';
+          } else {
+            searchInput.placeholder = 'Ketik untuk mencari...';
+          }
+          searchInput.value = '';
+        }
+
         const options = select.options;
         for (let i = 0; i < options.length; i++) {
           const opt = options[i];
+          const parsed = parseSelectOptionDisplay(opt);
           const customOpt = document.createElement('div');
           customOpt.className = 'custom-select-option';
-          customOpt.textContent = opt.textContent;
+          customOpt.setAttribute('role', 'option');
+          if ((i === 0 && !opt.value) || (opt.textContent || '').trim().startsWith('—')) {
+            customOpt.classList.add('is-placeholder');
+          }
           customOpt.dataset.value = opt.value;
+          customOpt.dataset.searchText = `${opt.textContent || ''} ${opt.dataset?.posisi || ''} ${opt.dataset?.nik || ''}`;
+
+          const mainSpan = document.createElement('div');
+          mainSpan.className = 'custom-select-option-main';
+          const labelSpan = document.createElement('span');
+          labelSpan.className = 'custom-select-option-label';
+          labelSpan.textContent = parsed.label;
+          mainSpan.appendChild(labelSpan);
+          customOpt.appendChild(mainSpan);
+
+          const rightSpan = document.createElement('div');
+          rightSpan.className = 'custom-select-option-right';
+          if (parsed.badge) {
+            const badgeSpan = document.createElement('span');
+            badgeSpan.className = `custom-select-option-badge ${parsed.badgeClass || ''}`.trim();
+            badgeSpan.textContent = parsed.badge;
+            rightSpan.appendChild(badgeSpan);
+          }
+
+          const checkSpan = document.createElement('span');
+          checkSpan.className = 'custom-select-option-check';
+          checkSpan.innerHTML = `<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 5 8 14 4 10"/></svg>`;
+          rightSpan.appendChild(checkSpan);
+
+          customOpt.appendChild(rightSpan);
+
           if (opt.value === select.value) {
             customOpt.classList.add('selected');
+            customOpt.setAttribute('aria-selected', 'true');
+          } else {
+            customOpt.setAttribute('aria-selected', 'false');
           }
-          
+
           customOpt.addEventListener('click', (e) => {
             e.stopPropagation();
-            select.value = opt.value;
-            select.dispatchEvent(new Event('change'));
-            closeDropdown();
+            selectOptionValue(opt.value);
           });
-          
-          optionsContainer.appendChild(customOpt);
+
+          optionsList.appendChild(customOpt);
         }
         updateTriggerText();
       }
-      
-      // Update trigger text based on selected option
+
       function updateTriggerText() {
         const selectedOption = select.options[select.selectedIndex];
         if (selectedOption) {
-          triggerText.textContent = selectedOption.textContent;
-          if (select.selectedIndex === 0 || !select.value) {
+          const parsed = parseSelectOptionDisplay(selectedOption);
+          triggerText.textContent = parsed.label;
+          const isPlaceholder = (!selectedOption.value && select.selectedIndex === 0) || (selectedOption.textContent || '').trim().startsWith('—');
+          if (isPlaceholder) {
             triggerText.classList.add('placeholder-text');
+            triggerBadge.style.display = 'none';
           } else {
             triggerText.classList.remove('placeholder-text');
+            if (parsed.badge) {
+              triggerBadge.textContent = parsed.badge;
+              triggerBadge.style.display = 'inline-flex';
+            } else {
+              triggerBadge.style.display = 'none';
+            }
           }
         } else {
           triggerText.textContent = '';
+          triggerBadge.style.display = 'none';
         }
-        
-        const items = optionsContainer.querySelectorAll('.custom-select-option');
+
+        const items = optionsList.querySelectorAll('.custom-select-option');
         items.forEach(item => {
-          if (item.dataset.value === select.value) {
-            item.classList.add('selected');
-          } else {
-            item.classList.remove('selected');
-          }
+          const isSel = item.dataset.value === select.value;
+          item.classList.toggle('selected', isSel);
+          item.setAttribute('aria-selected', isSel ? 'true' : 'false');
         });
       }
-      
-      // Toggle dropdown
-      function toggleDropdown(e) {
-        e.stopPropagation();
-        const isOpen = wrapper.classList.contains('open');
-        closeAllCustomDropdowns();
-        
-        if (!isOpen) {
-          wrapper.classList.add('open');
-          trigger.setAttribute('aria-expanded', 'true');
-          setTimeout(() => {
-            optionsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          }, 50);
+
+      function updateDropdownPosition() {
+        const rect = trigger.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        if (spaceBelow < 260 && spaceAbove > 260) {
+          wrapper.classList.add('drop-up');
+        } else {
+          wrapper.classList.remove('drop-up');
         }
       }
-      
+
+      function openDropdown() {
+        closeAllCustomDropdowns(wrapper);
+        updateDropdownPosition();
+        wrapper.classList.add('open');
+        trigger.setAttribute('aria-expanded', 'true');
+
+        if (searchInput && searchBox.style.display !== 'none') {
+          searchInput.value = '';
+          filterOptions('');
+          setTimeout(() => {
+            try { searchInput.focus({ preventScroll: true }); } catch (_) { searchInput.focus(); }
+          }, 20);
+        } else {
+          const visible = getVisibleOptionElements();
+          const selIdx = visible.findIndex(el => el.dataset.value === select.value);
+          setFocusedOption(selIdx >= 0 ? selIdx : 0);
+        }
+
+        const selItem = optionsList.querySelector('.custom-select-option.selected');
+        if (selItem) {
+          setTimeout(() => selItem.scrollIntoView({ block: 'nearest' }), 30);
+        }
+      }
+
+      function toggleDropdown(e) {
+        if (e) e.stopPropagation();
+        if (select.disabled) return;
+        const isOpen = wrapper.classList.contains('open');
+        if (isOpen) {
+          closeDropdown();
+        } else {
+          openDropdown();
+        }
+      }
+
       function closeDropdown() {
         wrapper.classList.remove('open');
         trigger.setAttribute('aria-expanded', 'false');
+        focusedIndex = -1;
       }
-      
+
       trigger.addEventListener('click', toggleDropdown);
-      select.addEventListener('change', updateTriggerText);
-      
-      if (select.form) {
-        select.form.addEventListener('reset', () => {
-          setTimeout(updateTriggerText, 10);
+
+      trigger.addEventListener('keydown', (e) => {
+        if (select.disabled) return;
+        const isOpen = wrapper.classList.contains('open');
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (!isOpen) openDropdown();
+          else setFocusedOption(focusedIndex + 1);
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (!isOpen) openDropdown();
+          else setFocusedOption(focusedIndex - 1);
+        } else if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (!isOpen) {
+            openDropdown();
+          } else {
+            const visible = getVisibleOptionElements();
+            if (focusedIndex >= 0 && visible[focusedIndex]) {
+              selectOptionValue(visible[focusedIndex].dataset.value);
+            } else {
+              closeDropdown();
+            }
+          }
+        } else if (e.key === 'Escape' && isOpen) {
+          e.preventDefault();
+          e.stopPropagation();
+          closeDropdown();
+        }
+      });
+
+      if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+          filterOptions(e.target.value);
+        });
+        searchInput.addEventListener('keydown', (e) => {
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setFocusedOption(focusedIndex + 1);
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setFocusedOption(focusedIndex - 1);
+          } else if (e.key === 'Enter') {
+            e.preventDefault();
+            const visible = getVisibleOptionElements();
+            if (focusedIndex >= 0 && visible[focusedIndex]) {
+              selectOptionValue(visible[focusedIndex].dataset.value);
+            }
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            closeDropdown();
+            trigger.focus();
+          }
         });
       }
-      
-      // MutationObserver to watch for dynamic option changes in native select
+
+      select.addEventListener('change', updateTriggerText);
+
+      if (select.form) {
+        select.form.addEventListener('reset', () => {
+          setTimeout(updateTriggerText, 15);
+        });
+      }
+
       const observer = new MutationObserver(() => {
         rebuildOptions();
       });
-      observer.observe(select, { childList: true });
-      
-      // Intercept property changes to value and selectedIndex on this select element
+      observer.observe(select, { childList: true, subtree: true });
+
       const originalValueDescriptor = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
       const originalSelectedIndexDescriptor = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'selectedIndex');
-      
+
       Object.defineProperty(select, 'value', {
         get() {
           return originalValueDescriptor.get.call(this);
@@ -3770,7 +4141,7 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
         },
         configurable: true
       });
-  
+
       Object.defineProperty(select, 'selectedIndex', {
         get() {
           return originalSelectedIndexDescriptor.get.call(this);
@@ -3781,20 +4152,28 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
         },
         configurable: true
       });
-      
+
+      select._refreshCustomSelect = rebuildOptions;
       rebuildOptions();
     });
   }
-  
-  function closeAllCustomDropdowns() {
+
+  function closeAllCustomDropdowns(exceptWrapper = null) {
     document.querySelectorAll('.custom-select-wrapper.open').forEach(el => {
+      if (exceptWrapper && el === exceptWrapper) return;
       el.classList.remove('open');
       const trigger = el.querySelector('.custom-select-trigger');
       if (trigger) trigger.setAttribute('aria-expanded', 'false');
     });
   }
-  
-  document.addEventListener('click', closeAllCustomDropdowns);
+
+  document.addEventListener('click', () => closeAllCustomDropdowns());
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeAllCustomDropdowns();
+  });
+
+  window.initCustomSelects = initCustomSelects;
+  window.closeAllCustomDropdowns = closeAllCustomDropdowns;
 
   // Expose to global scope
   window.loadRekapToko    = loadRekapToko;

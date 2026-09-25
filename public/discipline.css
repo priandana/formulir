@@ -986,3 +986,77 @@ body.dark-mode .disc-coaching-item {
   font-size: 12.5px;
 }
 
+/* ============================================================================
+   Custom Dropdown Container Overflow & Page-Level Skeleton Loading States
+============================================================================ */
+.disc-filter-card,
+.disc-card {
+  overflow: visible;
+}
+
+.disc-modal {
+  overflow: visible;
+}
+
+.disc-modal-body {
+  overflow-y: auto;
+  overflow-x: visible;
+}
+
+.disc-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(90deg, rgba(203, 213, 225, 0.35) 25%, rgba(226, 232, 240, 0.7) 50%, rgba(203, 213, 225, 0.35) 75%);
+  background-size: 200% 100%;
+  animation: discShimmer 1.35s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+body.dark-mode .disc-skeleton {
+  background: linear-gradient(90deg, rgba(30, 41, 59, 0.55) 25%, rgba(51, 65, 85, 0.8) 50%, rgba(30, 41, 59, 0.55) 75%);
+  background-size: 200% 100%;
+}
+
+@keyframes discShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.disc-skeleton-line {
+  height: 12px;
+  border-radius: 6px;
+}
+
+.disc-skeleton-value {
+  height: 28px;
+  width: 64px;
+  border-radius: 8px;
+}
+
+.disc-page-loader-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 99px;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  color: #2563EB;
+  font-size: 12.5px;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+.disc-page-loader-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2.2px solid rgba(37, 99, 235, 0.25);
+  border-top-color: #2563EB;
+  animation: ss08DiscSpin 0.75s linear infinite;
+}
+
+@keyframes ss08DiscSpin {
+  to { transform: rotate(360deg); }
+}
+
