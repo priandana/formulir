@@ -1060,3 +1060,602 @@ body.dark-mode .disc-skeleton {
   to { transform: rotate(360deg); }
 }
 
+/* ============================================================================
+   Redesigned Portal User — "Kinerja Saya" (Modern, Transparent, Non-Punitive)
+============================================================================ */
+
+.disc-user-page-wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding-bottom: 36px;
+}
+
+.disc-user-header-card {
+  background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 60%, #3B82F6 100%);
+  border-radius: 20px;
+  padding: 24px 28px;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 20px;
+  box-shadow: 0 12px 30px -6px rgba(37, 99, 235, 0.25);
+  position: relative;
+  overflow: hidden;
+  flex-wrap: wrap;
+}
+
+.disc-user-header-card::after {
+  content: '';
+  position: absolute;
+  right: -36px;
+  top: -36px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.16) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.disc-user-header-title {
+  font-size: 21px;
+  font-weight: 800;
+  margin: 0 0 5px 0;
+  color: #FFFFFF;
+  letter-spacing: -0.01em;
+}
+
+.disc-user-header-sub {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.88);
+  margin: 0;
+  max-width: 660px;
+  line-height: 1.55;
+}
+
+.disc-user-refresh-btn {
+  background: rgba(255, 255, 255, 0.16);
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(8px);
+  padding: 9px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.18s ease;
+  z-index: 1;
+}
+
+.disc-user-refresh-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+/* 4 Top Summary Cards */
+.disc-user-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.disc-user-kpi-card {
+  background: var(--card-bg, #FFFFFF);
+  border: 1px solid var(--card-border, #E2E8F0);
+  border-radius: 18px;
+  padding: 18px 20px;
+  box-shadow: 0 4px 18px -2px rgba(15, 23, 42, 0.05);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.disc-user-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px -4px rgba(15, 23, 42, 0.08);
+}
+
+.disc-user-kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.disc-user-kpi-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted, #64748B);
+  letter-spacing: 0.02em;
+}
+
+.disc-user-kpi-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.disc-user-kpi-icon.blue { background: rgba(37, 99, 235, 0.10); color: #2563EB; }
+.disc-user-kpi-icon.emerald { background: rgba(16, 185, 129, 0.12); color: #059669; }
+.disc-user-kpi-icon.amber { background: rgba(245, 158, 11, 0.12); color: #D97706; }
+.disc-user-kpi-icon.purple { background: rgba(124, 58, 237, 0.12); color: #7C3AED; }
+.disc-user-kpi-icon.rose { background: rgba(225, 29, 72, 0.10); color: #E11D48; }
+
+.disc-user-kpi-val {
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--text, #0F172A);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.disc-user-kpi-sub {
+  font-size: 12px;
+  color: var(--text-muted, #64748B);
+  line-height: 1.4;
+}
+
+/* Status Kinerja Saat Ini Card */
+.disc-status-hero-card {
+  border-radius: 20px;
+  padding: 22px 24px;
+  margin-bottom: 22px;
+  border: 1.5px solid #E2E8F0;
+  background: var(--card-bg, #FFFFFF);
+  box-shadow: 0 6px 24px -4px rgba(15, 23, 42, 0.06);
+  transition: all 0.2s ease;
+}
+
+.disc-status-hero-card.status-theme-normal {
+  background: linear-gradient(135deg, rgba(236, 253, 245, 0.85) 0%, rgba(255, 255, 255, 0.98) 100%);
+  border-color: rgba(16, 185, 129, 0.30);
+}
+
+.disc-status-hero-card.status-theme-attention {
+  background: linear-gradient(135deg, rgba(239, 246, 255, 0.9) 0%, rgba(255, 255, 255, 0.98) 100%);
+  border-color: rgba(59, 130, 246, 0.32);
+}
+
+.disc-status-hero-card.status-theme-warning {
+  background: linear-gradient(135deg, rgba(255, 251, 235, 0.92) 0%, rgba(255, 255, 255, 0.98) 100%);
+  border-color: rgba(245, 158, 11, 0.38);
+}
+
+.disc-status-hero-card.status-theme-review {
+  background: linear-gradient(135deg, rgba(254, 242, 242, 0.92) 0%, rgba(255, 255, 255, 0.98) 100%);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+body.dark-mode .disc-status-hero-card.status-theme-normal {
+  background: linear-gradient(135deg, rgba(6, 78, 59, 0.28) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border-color: rgba(16, 185, 129, 0.35);
+}
+body.dark-mode .disc-status-hero-card.status-theme-attention {
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.30) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border-color: rgba(59, 130, 246, 0.35);
+}
+body.dark-mode .disc-status-hero-card.status-theme-warning {
+  background: linear-gradient(135deg, rgba(120, 53, 15, 0.30) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border-color: rgba(245, 158, 11, 0.38);
+}
+body.dark-mode .disc-status-hero-card.status-theme-review {
+  background: linear-gradient(135deg, rgba(127, 29, 29, 0.32) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border-color: rgba(239, 68, 68, 0.38);
+}
+
+.disc-status-hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.disc-status-hero-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex: 1;
+  min-width: 240px;
+}
+
+.disc-status-icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.status-theme-normal .disc-status-icon-box {
+  background: rgba(16, 185, 129, 0.14);
+  color: #059669;
+}
+.status-theme-attention .disc-status-icon-box {
+  background: rgba(37, 99, 235, 0.14);
+  color: #2563EB;
+}
+.status-theme-warning .disc-status-icon-box {
+  background: rgba(245, 158, 11, 0.16);
+  color: #D97706;
+}
+.status-theme-review .disc-status-icon-box {
+  background: rgba(239, 68, 68, 0.14);
+  color: #DC2626;
+}
+
+.disc-status-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted, #64748B);
+  margin-bottom: 4px;
+}
+
+.disc-status-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.disc-status-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text, #0F172A);
+  margin: 0;
+}
+
+.disc-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.disc-status-pill.pill-normal {
+  background: rgba(16, 185, 129, 0.14);
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.28);
+}
+.disc-status-pill.pill-attention {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1D4ED8;
+  border: 1px solid rgba(37, 99, 235, 0.25);
+}
+.disc-status-pill.pill-warning {
+  background: rgba(245, 158, 11, 0.16);
+  color: #B45309;
+  border: 1px solid rgba(245, 158, 11, 0.32);
+}
+.disc-status-pill.pill-review {
+  background: rgba(239, 68, 68, 0.14);
+  color: #B91C1C;
+  border: 1px solid rgba(239, 68, 68, 0.28);
+}
+
+.disc-status-desc {
+  font-size: 13.5px;
+  color: var(--text-secondary, #334155);
+  line-height: 1.55;
+  margin: 0;
+}
+
+body.dark-mode .disc-status-desc {
+  color: #CBD5E1;
+}
+
+/* Progress Poin Box inside Status Card */
+.disc-status-progress-box {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.disc-status-progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.disc-status-progress-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text, #0F172A);
+}
+
+.disc-status-progress-text {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-muted, #475569);
+}
+
+.disc-status-progress-track {
+  width: 100%;
+  height: 10px;
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.disc-status-progress-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.status-theme-normal .disc-status-progress-fill {
+  background: linear-gradient(90deg, #10B981, #34D399);
+}
+.status-theme-attention .disc-status-progress-fill {
+  background: linear-gradient(90deg, #2563EB, #60A5FA);
+}
+.status-theme-warning .disc-status-progress-fill {
+  background: linear-gradient(90deg, #F59E0B, #FBBF24);
+}
+.status-theme-review .disc-status-progress-fill {
+  background: linear-gradient(90deg, #EF4444, #F87171);
+}
+
+.disc-status-no-threshold-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+body.dark-mode .disc-status-no-threshold-row {
+  background: rgba(15, 23, 42, 0.55);
+}
+
+/* Repeat Incident Indicator */
+.disc-repeat-indicator {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.30);
+  color: #92400E;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+body.dark-mode .disc-repeat-indicator {
+  color: #FDE68A;
+  background: rgba(245, 158, 11, 0.15);
+}
+
+/* Redesigned Timeline Item Cards */
+.disc-user-timeline-card {
+  position: relative;
+  background: var(--card-bg, #FFFFFF);
+  border: 1px solid var(--card-border, #E2E8F0);
+  border-radius: 16px;
+  padding: 18px 20px;
+  box-shadow: 0 3px 14px -2px rgba(15, 23, 42, 0.05);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  cursor: pointer;
+}
+
+.disc-user-timeline-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px -4px rgba(37, 99, 235, 0.10);
+  border-color: rgba(37, 99, 235, 0.28);
+}
+
+.disc-user-timeline-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.disc-user-timeline-cat {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #2563EB;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+
+.disc-user-timeline-subcat {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text, #0F172A);
+  line-height: 1.3;
+}
+
+.disc-user-timeline-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.disc-point-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.disc-point-chip.pts-active {
+  background: rgba(239, 68, 68, 0.10);
+  color: #B91C1C;
+  border: 1px solid rgba(239, 68, 68, 0.24);
+}
+.disc-point-chip.pts-expired {
+  background: rgba(100, 116, 139, 0.12);
+  color: #475569;
+  border: 1px solid rgba(100, 116, 139, 0.24);
+}
+.disc-point-chip.pts-cancelled {
+  background: rgba(16, 185, 129, 0.10);
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.24);
+  text-decoration: line-through;
+}
+
+.disc-user-timeline-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--card-border, #E2E8F0);
+  flex-wrap: wrap;
+}
+
+.disc-user-timeline-meta-list {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text-muted, #64748B);
+}
+
+.disc-user-timeline-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Error & Empty State Cards */
+.disc-user-state-card {
+  text-align: center;
+  padding: 44px 24px;
+  background: var(--card-bg, #FFFFFF);
+  border: 1.5px dashed var(--card-border, #CBD5E1);
+  border-radius: 18px;
+}
+
+.disc-user-state-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  margin: 0 auto 14px auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563EB;
+}
+
+.disc-user-state-icon.error {
+  background: rgba(239, 68, 68, 0.10);
+  color: #DC2626;
+}
+
+.disc-user-state-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text, #0F172A);
+  margin: 0 0 6px 0;
+}
+
+.disc-user-state-sub {
+  font-size: 13px;
+  color: var(--text-muted, #64748B);
+  max-width: 420px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+
+@media (max-width: 900px) {
+  .disc-user-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .disc-user-header-card {
+    padding: 18px 18px;
+    border-radius: 16px;
+  }
+  .disc-user-header-title {
+    font-size: 18px;
+  }
+  .disc-user-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .disc-user-kpi-card {
+    padding: 14px;
+    border-radius: 14px;
+  }
+  .disc-user-kpi-val {
+    font-size: 24px;
+  }
+  .disc-status-hero-card {
+    padding: 16px;
+    border-radius: 16px;
+  }
+  .disc-status-title {
+    font-size: 17px;
+  }
+  .disc-timeline {
+    padding-left: 18px;
+  }
+  .disc-timeline::before {
+    left: 5px;
+  }
+  .disc-timeline-dot {
+    left: -18px;
+    width: 12px;
+    height: 12px;
+  }
+  .disc-user-timeline-card {
+    padding: 14px 15px;
+  }
+  .disc-user-timeline-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .disc-user-timeline-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+
