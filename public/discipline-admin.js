@@ -80,12 +80,15 @@
 
     renderPageSkeleton(container, badgeText, title, subtitle) {
       if (!container) return;
+      const finalBadge = title ? badgeText : '🛡️ Sistem Pembinaan &amp; Evaluasi Operasional SS08';
+      const finalTitle = title || badgeText || 'Menyiapkan Data Poin &amp; Disiplin…';
+      const finalSub = subtitle || 'Mohon tunggu sebentar, sedang memuat konfigurasi dan data operasional terkini.';
       container.innerHTML = `
         <div class="disc-hero">
           <div>
-            <div class="disc-hero-badge">${badgeText}</div>
-            <h1 class="disc-hero-title">${title}</h1>
-            <p class="disc-hero-sub">${subtitle}</p>
+            <div class="disc-hero-badge">${finalBadge}</div>
+            <h1 class="disc-hero-title">${finalTitle}</h1>
+            <p class="disc-hero-sub">${finalSub}</p>
           </div>
         </div>
         <div style="text-align:left;margin-bottom:14px;">
