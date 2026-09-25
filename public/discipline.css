@@ -1658,4 +1658,309 @@ body.dark-mode .disc-repeat-indicator {
   }
 }
 
+/* ============================================================================
+   Modern Toggle Switches & Custom Checkbox Cards (Admin Poin & Disiplin)
+============================================================================ */
+
+.disc-toggle-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(241, 245, 249, 0.7);
+  border: 1px solid var(--card-border, #E2E8F0);
+}
+
+body.dark-mode .disc-toggle-group {
+  background: rgba(15, 23, 42, 0.55);
+  border-color: rgba(51, 65, 85, 0.8);
+}
+
+.disc-toggle-group-header {
+  font-size: 11.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #64748B);
+  margin-bottom: 2px;
+  padding: 0 2px;
+}
+
+.disc-toggle-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--card-bg, #FFFFFF);
+  border: 1.5px solid var(--card-border, #E2E8F0);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease, transform 0.15s ease;
+}
+
+.disc-toggle-card:hover {
+  border-color: rgba(37, 99, 235, 0.45);
+  box-shadow: 0 4px 14px -4px rgba(37, 99, 235, 0.10);
+}
+
+.disc-toggle-card:has(.disc-toggle-input:checked) {
+  border-color: rgba(37, 99, 235, 0.38);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.04) 0%, var(--card-bg, #FFFFFF) 100%);
+}
+
+body.dark-mode .disc-toggle-card {
+  background: rgba(30, 41, 59, 0.75);
+  border-color: rgba(71, 85, 105, 0.65);
+}
+
+body.dark-mode .disc-toggle-card:has(.disc-toggle-input:checked) {
+  border-color: rgba(59, 130, 246, 0.55);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.16) 0%, rgba(30, 41, 59, 0.85) 100%);
+}
+
+.disc-toggle-card:has(.disc-toggle-input:focus-visible) {
+  border-color: #2563EB;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.22);
+}
+
+.disc-toggle-card-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.disc-toggle-card-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text, #0F172A);
+  line-height: 1.4;
+}
+
+.disc-toggle-card-desc {
+  font-size: 12px;
+  color: var(--text-muted, #64748B);
+  line-height: 1.45;
+}
+
+.disc-toggle-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.disc-toggle-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.disc-toggle-track {
+  width: 46px;
+  height: 26px;
+  border-radius: 999px;
+  background: #CBD5E1;
+  border: 1.5px solid rgba(148, 163, 184, 0.5);
+  position: relative;
+  transition: background-color 0.22s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.22s ease, box-shadow 0.2s ease;
+  display: inline-block;
+}
+
+body.dark-mode .disc-toggle-track {
+  background: #334155;
+  border-color: #475569;
+}
+
+.disc-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.22);
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s ease;
+}
+
+.disc-toggle-input:checked + .disc-toggle-track {
+  background: linear-gradient(135deg, #2563EB, #1D4ED8);
+  border-color: #1D4ED8;
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.28);
+}
+
+.disc-toggle-input:checked + .disc-toggle-track .disc-toggle-thumb {
+  transform: translateX(20px);
+}
+
+.disc-toggle-input:focus-visible + .disc-toggle-track {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.28);
+}
+
+/* Custom Checkbox Card (Master Pelanggaran, Input & Edit Kejadian) */
+.disc-check-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.9);
+  border: 1.5px solid var(--card-border, #CBD5E1);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.disc-check-card-compact {
+  padding: 11px 14px;
+  border-radius: 12px;
+  gap: 11px;
+}
+
+.disc-check-card:hover {
+  border-color: rgba(37, 99, 235, 0.5);
+  background: rgba(239, 246, 255, 0.55);
+}
+
+.disc-check-card:has(.disc-check-input:checked) {
+  border-color: #2563EB;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.07) 0%, rgba(239, 246, 255, 0.45) 100%);
+  box-shadow: 0 4px 14px -4px rgba(37, 99, 235, 0.14);
+}
+
+body.dark-mode .disc-check-card {
+  background: rgba(30, 41, 59, 0.65);
+  border-color: rgba(71, 85, 105, 0.7);
+}
+
+body.dark-mode .disc-check-card:hover {
+  border-color: rgba(59, 130, 246, 0.6);
+  background: rgba(30, 41, 59, 0.9);
+}
+
+body.dark-mode .disc-check-card:has(.disc-check-input:checked) {
+  border-color: #3B82F6;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.20) 0%, rgba(30, 41, 59, 0.85) 100%);
+}
+
+.disc-check-card:has(.disc-check-input:focus-visible) {
+  border-color: #2563EB;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.24);
+}
+
+.disc-check-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.disc-check-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.disc-check-box {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: #FFFFFF;
+  border: 2px solid #94A3B8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF;
+  transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.15s ease, box-shadow 0.18s ease;
+}
+
+body.dark-mode .disc-check-box {
+  background: #0F172A;
+  border-color: #64748B;
+}
+
+.disc-check-svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.16s ease, transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.disc-check-card:hover .disc-check-box {
+  border-color: #2563EB;
+}
+
+.disc-check-input:checked + .disc-check-box {
+  background: linear-gradient(135deg, #2563EB, #1D4ED8);
+  border-color: #1D4ED8;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.30);
+}
+
+.disc-check-input:checked + .disc-check-box .disc-check-svg {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.disc-check-input:focus-visible + .disc-check-box {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.28);
+}
+
+.disc-check-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.disc-check-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text, #0F172A);
+  line-height: 1.4;
+}
+
+.disc-check-desc {
+  font-size: 11.5px;
+  color: var(--text-muted, #64748B);
+  line-height: 1.45;
+}
+
+@media (max-width: 640px) {
+  .disc-toggle-group {
+    padding: 12px;
+  }
+  .disc-toggle-card {
+    padding: 12px 13px;
+    gap: 12px;
+  }
+  .disc-toggle-card-title {
+    font-size: 13px;
+  }
+  .disc-check-card {
+    padding: 12px 13px;
+    gap: 10px;
+  }
+}
+
 

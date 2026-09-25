@@ -168,8 +168,11 @@
       ? Number(hrThresholdRaw)
       : null;
     const enableThreshold = Boolean(
-      (cards.enable_hr_review_threshold !== undefined ? cards.enable_hr_review_threshold : settings.enable_hr_review_threshold) &&
-      hrThreshold !== null
+      (cards.enable_hr_review_threshold !== undefined
+        ? cards.enable_hr_review_threshold === true
+        : settings.enable_hr_review_threshold === true) &&
+      hrThreshold !== null &&
+      hrThreshold > 0
     );
 
     const repeatDays = Number(cards.repeat_incident_days || settings.repeat_incident_days) || 30;
@@ -178,41 +181,62 @@
     const recentIncidentCount = Number(cards.recent_incident_count) || 0;
 
     const hasCritOrHrActive = activeIncidents.some(
-      i => i.requires_hr_review || String(i.severity || '').toUpperCase() === 'CRITICAL' || i.status_kasus === 'NEED_HR_REVIEW'
-    );
-    const hasHighSeverityActive = activeIncidents.some(
-      i => String(i.severity || '').toUpperCase() === 'HIGH'
-    );
-
-    const needsHrReview = Boolean(
-      cards.needs_hr_review ||
-      hasCritOrHrActive ||
-      (enableThreshold && poinAktif >= hrThreshold)
+      i =>
+        Boolean(i.requires_hr_review) ||
+        String(i.severity || '').toUpperCase() === 'CRITICAL' ||
+        String(i.status_kasus || '').toUpperCase() === 'NEED_HR_REVIEW'
     );
 
-    const warningPointCutoff = enableThreshold
-      ? Math.max(1, Math.ceil(hrThreshold * 0.6))
-      : 6;
+    let level = 'NORMAL';
+    let description = 'Tidak ada catatan yang memerlukan perhatian khusus saat ini.';
 
-    const isWarning = !needsHrReview && (
-      cards.status_level === 'WARNING' ||
-      poinAktif >= warningPointCutoff ||
-      (hasRepeatIncident && poinAktif > 0) ||
-      hasHighSeverityActive
-    );
+    if (!enableThreshold) {
+      // A. Threshold OFF: Never use stored hr_review_point_threshold or 60% rule
+      // Priority: REVIEW_HR > WARNING > ATTENTION > NORMAL
+      if (hasCritOrHrActive || cards.status_level === 'REVIEW_HR') {
+        level = 'REVIEW_HR';
+        description = 'Catatan Anda memerlukan review lebih lanjut oleh Atasan / HR.';
+      } else if (hasRepeatIncident || cards.status_level === 'WARNING') {
+        level = 'WARNING';
+        description = 'Terdapat kejadian berulang dalam rentang pemantauan. Perhatikan catatan pembinaan dan hindari pengulangan kejadian.';
+      } else if (poinAktif > 0 || cards.status_level === 'ATTENTION') {
+        level = 'ATTENTION';
+        description = 'Terdapat catatan aktif yang perlu diperhatikan. Silakan lihat detail pembinaan pada riwayat kejadian.';
+      } else {
+        level = 'NORMAL';
+        description = 'Tidak ada catatan yang memerlukan perhatian khusus saat ini.';
+      }
+    } else {
+      // B. Threshold ON: Use hrThreshold (>= 100% -> REVIEW_HR, >= 60% -> WARNING, > 0 -> ATTENTION, 0 -> NORMAL)
+      // Priority: REVIEW_HR > WARNING > ATTENTION > NORMAL
+      const warningPointCutoff = hrThreshold * 0.6;
+      if (hasCritOrHrActive || poinAktif >= hrThreshold || cards.status_level === 'REVIEW_HR') {
+        level = 'REVIEW_HR';
+        description = 'Catatan Anda memerlukan review lebih lanjut oleh Atasan / HR.';
+      } else if (hasRepeatIncident || poinAktif >= warningPointCutoff || cards.status_level === 'WARNING') {
+        level = 'WARNING';
+        description = 'Poin aktif Anda cukup tinggi. Perhatikan catatan pembinaan dan hindari pengulangan kejadian.';
+      } else if (poinAktif > 0 || cards.status_level === 'ATTENTION') {
+        level = 'ATTENTION';
+        description = 'Terdapat catatan aktif yang perlu diperhatikan. Silakan lihat detail pembinaan pada riwayat kejadian.';
+      } else {
+        level = 'NORMAL';
+        description = 'Tidak ada catatan yang memerlukan perhatian khusus saat ini.';
+      }
+    }
 
-    if (needsHrReview || cards.status_level === 'REVIEW_HR') {
+    if (level === 'REVIEW_HR') {
       return {
         level: 'REVIEW_HR',
         themeClass: 'status-theme-review',
         pillClass: 'pill-review',
         label: 'Perlu Review Atasan / HR',
-        description: 'Catatan Anda memerlukan review lebih lanjut oleh Atasan / HR.',
+        description: cards.status_description || description,
         iconSvg: `<svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`,
         poinAktif,
         kejadianAktif,
         enableThreshold,
-        hrThreshold,
+        hrThreshold: enableThreshold ? hrThreshold : null,
         hasRepeatIncident,
         recentIncidentCount,
         repeatDays,
@@ -220,18 +244,18 @@
       };
     }
 
-    if (isWarning) {
+    if (level === 'WARNING') {
       return {
         level: 'WARNING',
         themeClass: 'status-theme-warning',
         pillClass: 'pill-warning',
         label: 'Warning',
-        description: 'Poin aktif Anda cukup tinggi. Perhatikan catatan pembinaan dan hindari pengulangan kejadian.',
+        description: cards.status_description || description,
         iconSvg: `<svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`,
         poinAktif,
         kejadianAktif,
         enableThreshold,
-        hrThreshold,
+        hrThreshold: enableThreshold ? hrThreshold : null,
         hasRepeatIncident,
         recentIncidentCount,
         repeatDays,
@@ -239,18 +263,18 @@
       };
     }
 
-    if (poinAktif > 0 || kejadianAktif > 0 || cards.status_level === 'ATTENTION') {
+    if (level === 'ATTENTION') {
       return {
         level: 'ATTENTION',
         themeClass: 'status-theme-attention',
         pillClass: 'pill-attention',
         label: 'Perlu Perhatian',
-        description: 'Terdapat catatan aktif yang perlu diperhatikan. Silakan lihat detail pembinaan pada riwayat kejadian.',
+        description: cards.status_description || description,
         iconSvg: `<svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`,
         poinAktif,
         kejadianAktif,
         enableThreshold,
-        hrThreshold,
+        hrThreshold: enableThreshold ? hrThreshold : null,
         hasRepeatIncident,
         recentIncidentCount,
         repeatDays,
@@ -263,12 +287,12 @@
       themeClass: 'status-theme-normal',
       pillClass: 'pill-normal',
       label: 'Normal',
-      description: 'Tidak ada catatan yang memerlukan perhatian khusus saat ini.',
+      description: cards.status_description || description,
       iconSvg: `<svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>`,
       poinAktif,
       kejadianAktif,
       enableThreshold,
-      hrThreshold,
+      hrThreshold: enableThreshold ? hrThreshold : null,
       hasRepeatIncident,
       recentIncidentCount,
       repeatDays,
@@ -282,7 +306,7 @@
       const link = document.createElement('link');
       link.id = 'disc-user-css';
       link.rel = 'stylesheet';
-      link.href = '/css/discipline.css?v=2.0';
+      link.href = '/css/discipline.css?v=2.3';
       document.head.appendChild(link);
     }
 
@@ -780,7 +804,7 @@
       : (inc.status_poin === 'CANCELLED' ? 'pts-cancelled' : 'pts-active');
 
     const latestAppeal = inc.latest_appeal || (inc.appeals && inc.appeals[0]) || null;
-    const canSubmitAppeal = appealsAllowed && inc.status_poin !== 'CANCELLED' && !latestAppeal;
+    const canSubmitAppeal = appealsAllowed && inc.status_poin !== 'CANCELLED' && inc.status_kasus !== 'CANCELLED' && !latestAppeal;
 
     const initialPoin = inc.default_poin !== undefined ? Number(inc.default_poin) : Number(inc.poin);
     const currentPoin = Number(inc.poin) || 0;
@@ -886,7 +910,7 @@
       const settings = (state.summary && state.summary.settings) || {};
       const appealsAllowed = settings.enable_user_appeals !== false;
       const latestAppeal = inc.latest_appeal || (inc.appeals && inc.appeals[0]) || null;
-      const canAppeal = appealsAllowed && inc.status_poin !== 'CANCELLED' && !latestAppeal;
+      const canAppeal = appealsAllowed && inc.status_poin !== 'CANCELLED' && inc.status_kasus !== 'CANCELLED' && !latestAppeal;
 
       const poinAwal = inc.default_poin !== undefined ? Number(inc.default_poin) : Number(inc.poin) || 0;
       const poinTerbaru = Number(inc.poin) || 0;

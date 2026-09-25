@@ -15,7 +15,7 @@ const DEFAULT_DISCIPLINE_SETTINGS = {
 };
 
 function getEffectiveHrThreshold(settings) {
-  if (!settings || settings.enable_hr_review_threshold === false) return null;
+  if (!settings || settings.enable_hr_review_threshold !== true) return null;
   const raw = settings.hr_review_point_threshold;
   if (raw === null || raw === undefined || String(raw).trim() === '') return null;
   const num = parseInt(raw, 10);
@@ -276,14 +276,19 @@ module.exports = function createDisciplineDb(dbContext) {
       ? parseInt(rawHrVal, 10)
       : NaN;
     const isPositiveNumber = !isNaN(parsedHrNum) && parsedHrNum > 0;
+    const storedHrNum = isPositiveNumber
+      ? parsedHrNum
+      : ((before.hr_review_point_threshold && Number(before.hr_review_point_threshold) > 0)
+          ? parseInt(before.hr_review_point_threshold, 10)
+          : DEFAULT_DISCIPLINE_SETTINGS.hr_review_point_threshold);
 
     let enableHrThreshold;
     if (Object.prototype.hasOwnProperty.call(newSettings, 'enable_hr_review_threshold')) {
-      enableHrThreshold = Boolean(newSettings.enable_hr_review_threshold) && isPositiveNumber;
+      enableHrThreshold = Boolean(newSettings.enable_hr_review_threshold) && storedHrNum > 0;
     } else if (hasExplicitThresholdKey) {
       enableHrThreshold = isPositiveNumber;
     } else {
-      enableHrThreshold = before.enable_hr_review_threshold !== false && isPositiveNumber;
+      enableHrThreshold = Boolean(before.enable_hr_review_threshold) && storedHrNum > 0;
     }
 
     const merged = {
@@ -294,7 +299,7 @@ module.exports = function createDisciplineDb(dbContext) {
       repeat_incident_days: Math.max(1, parseInt(newSettings.repeat_incident_days ?? before.repeat_incident_days, 10) || 30),
       repeat_incident_threshold: Math.max(2, parseInt(newSettings.repeat_incident_threshold ?? before.repeat_incident_threshold, 10) || 2),
       enable_hr_review_threshold: enableHrThreshold,
-      hr_review_point_threshold: enableHrThreshold ? parsedHrNum : null,
+      hr_review_point_threshold: storedHrNum,
       allow_admin_override_points: Boolean(newSettings.allow_admin_override_points ?? before.allow_admin_override_points),
       show_evidence_to_user_default: Boolean(newSettings.show_evidence_to_user_default ?? before.show_evidence_to_user_default),
       enable_user_appeals: Boolean(newSettings.enable_user_appeals ?? before.enable_user_appeals),
@@ -584,15 +589,19 @@ module.exports = function createDisciplineDb(dbContext) {
       }
     }
 
-    const severity = payload.severity || matchedCat?.severity || 'LOW';
-    const requires_hr_review = severity === 'CRITICAL' || Boolean(matchedCat?.requires_hr_review) || Boolean(payload.requires_hr_review);
+    const severity = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(String(payload.severity || '').toUpperCase())
+      ? String(payload.severity).toUpperCase()
+      : (matchedCat?.severity || 'LOW');
+    const requires_hr_review = payload.requires_hr_review !== undefined
+      ? Boolean(payload.requires_hr_review)
+      : (severity === 'CRITICAL' || Boolean(matchedCat?.requires_hr_review));
     const masa_berlaku_bulan = Math.max(1, parseInt(payload.masa_berlaku_bulan || matchedCat?.masa_berlaku_bulan || settings.default_expiry_months || 3, 10));
     const expired_at = computeExpiryDate(incident_date, masa_berlaku_bulan);
     const todayStr = getJakartaDateStr();
     const status_poin = expired_at < todayStr ? 'EXPIRED' : 'ACTIVE';
-    const status_kasus = requires_hr_review
-      ? 'NEED_HR_REVIEW'
-      : (['OPEN', 'IN_REVIEW', 'RESOLVED', 'NEED_HR_REVIEW'].includes(payload.status_kasus) ? payload.status_kasus : 'OPEN');
+    const status_kasus = ['OPEN', 'IN_REVIEW', 'RESOLVED', 'NEED_HR_REVIEW'].includes(payload.status_kasus)
+      ? payload.status_kasus
+      : ((requires_hr_review || severity === 'CRITICAL') ? 'NEED_HR_REVIEW' : 'OPEN');
 
     const now = new Date().toISOString();
     const incident_code = await generateIncidentCode(incident_date);
@@ -1189,15 +1198,19 @@ module.exports = function createDisciplineDb(dbContext) {
       throw err;
     }
 
-    if (inc.status_poin === 'CANCELLED') {
+    if (inc.status_poin === 'CANCELLED' || inc.status_kasus === 'CANCELLED') {
       const err = new Error('Kejadian ini sudah dibatalkan sehingga tidak memerlukan klarifikasi.');
       err.statusCode = 400;
       throw err;
     }
 
-    const existingPending = appeals.find(a => a.incident_id === incidentId && a.status === 'PENDING');
-    if (existingPending) {
-      const err = new Error('Klarifikasi untuk kejadian ini sudah diajukan dan sedang menunggu review Admin.');
+    const existingAppeal = appeals.find(a => a.incident_id === incidentId);
+    if (existingAppeal) {
+      const err = new Error(
+        existingAppeal.status === 'PENDING'
+          ? 'Klarifikasi untuk kejadian ini sudah diajukan dan sedang menunggu review Admin.'
+          : 'Kejadian ini sudah pernah diajukan klarifikasi dan telah selesai direview.'
+      );
       err.statusCode = 409;
       throw err;
     }
@@ -1244,7 +1257,7 @@ module.exports = function createDisciplineDb(dbContext) {
       const store = await loadCloudStore();
       store.appeals.push(appealRecord);
       const incIdx = store.incidents.findIndex(i => i.id === incidentId);
-      if (incIdx !== -1 && store.incidents[incIdx].status_kasus === 'OPEN') {
+      if (incIdx !== -1 && store.incidents[incIdx].status_kasus !== 'CANCELLED') {
         store.incidents[incIdx].status_kasus = 'IN_REVIEW';
         store.incidents[incIdx].updated_at = now;
       }
@@ -1706,15 +1719,15 @@ module.exports = function createDisciplineDb(dbContext) {
 
     const klarifikasi_menunggu_review = myAppeals.filter(a => a.status === 'PENDING').length;
 
-    // Repeat incident detection within repeat_incident_days
+    // Repeat incident detection within repeat_incident_days (only ACTIVE incidents count toward active repeat status)
     const repeatWindowDays = Math.max(1, Number(settings.repeat_incident_days) || 30);
     const repeatThreshold = Math.max(2, Number(settings.repeat_incident_threshold) || 2);
     const cutoffDateObj = new Date(todayStr + 'T00:00:00Z');
     cutoffDateObj.setUTCDate(cutoffDateObj.getUTCDate() - repeatWindowDays);
     const cutoffStr = cutoffDateObj.toISOString().slice(0, 10);
 
-    const recentValidIncidents = myIncidents.filter(
-      i => i.status_poin !== 'CANCELLED' && String(i.incident_date || '') >= cutoffStr
+    const recentValidIncidents = activeIncidents.filter(
+      i => String(i.incident_date || '') >= cutoffStr
     );
     const recent_incident_count = recentValidIncidents.length;
     const has_repeat_incident = recent_incident_count >= repeatThreshold;
@@ -1746,10 +1759,6 @@ module.exports = function createDisciplineDb(dbContext) {
 
     // Sanitize timeline items (NEVER expose catatan_internal)
     const timeline = myIncidents.map(inc => {
-      const isCategoryHrReview = Boolean(inc.requires_hr_review || inc.severity === 'CRITICAL');
-      const effectiveStatusKasus = (!isCategoryHrReview && hrPointThreshold === null && inc.status_kasus === 'NEED_HR_REVIEW')
-        ? 'OPEN'
-        : inc.status_kasus;
       const item = {
         id: inc.id,
         incident_code: inc.incident_code,
@@ -1762,8 +1771,8 @@ module.exports = function createDisciplineDb(dbContext) {
         poin: inc.poin,
         effective_active_points: inc.effective_active_points !== undefined ? inc.effective_active_points : (inc.status_poin === 'ACTIVE' ? inc.poin : 0),
         severity: inc.severity,
-        requires_hr_review: isCategoryHrReview,
-        status_kasus: effectiveStatusKasus,
+        requires_hr_review: Boolean(inc.requires_hr_review),
+        status_kasus: inc.status_kasus || 'OPEN',
         catatan_pembinaan: inc.catatan_pembinaan,
         masa_berlaku_bulan: inc.masa_berlaku_bulan,
         expired_at: inc.expired_at,
@@ -1781,39 +1790,67 @@ module.exports = function createDisciplineDb(dbContext) {
       return item;
     });
 
-    const needsHrReviewByThreshold = hrPointThreshold !== null && poin_aktif >= hrPointThreshold;
-    const needsHrReviewByCategory = activeIncidents.some(
-      i => i.requires_hr_review || i.severity === 'CRITICAL' || (hrPointThreshold !== null && i.status_kasus === 'NEED_HR_REVIEW')
+    const enableHrThreshold = Boolean(
+      settings.enable_hr_review_threshold === true &&
+      hrPointThreshold !== null &&
+      hrPointThreshold > 0
     );
-    const needs_hr_review = needsHrReviewByCategory || needsHrReviewByThreshold;
 
-    const hasHighSeverityActive = activeIncidents.some(i => i.severity === 'HIGH');
-    const warningThreshold = hrPointThreshold !== null
-      ? Math.max(1, Math.ceil(hrPointThreshold * 0.6))
-      : 6;
-    const isWarningLevel = !needs_hr_review && (
-      poin_aktif >= warningThreshold ||
-      (has_repeat_incident && poin_aktif > 0) ||
-      hasHighSeverityActive
+    const hasActiveHrReviewIncident = activeIncidents.some(
+      i =>
+        Boolean(i.requires_hr_review) ||
+        String(i.severity || '').toUpperCase() === 'CRITICAL' ||
+        String(i.status_kasus || '').toUpperCase() === 'NEED_HR_REVIEW'
     );
 
     let status_level = 'NORMAL';
     let status_label = 'Normal';
     let status_description = 'Tidak ada catatan yang memerlukan perhatian khusus saat ini.';
 
-    if (needs_hr_review) {
-      status_level = 'REVIEW_HR';
-      status_label = 'Perlu Review Atasan / HR';
-      status_description = 'Catatan Anda memerlukan review lebih lanjut oleh Atasan / HR.';
-    } else if (isWarningLevel) {
-      status_level = 'WARNING';
-      status_label = 'Warning';
-      status_description = 'Poin aktif Anda cukup tinggi. Perhatikan catatan pembinaan dan hindari pengulangan kejadian.';
-    } else if (poin_aktif > 0 || kejadian_aktif > 0) {
-      status_level = 'ATTENTION';
-      status_label = 'Perlu Perhatian';
-      status_description = 'Terdapat catatan aktif yang perlu diperhatikan. Silakan lihat detail pembinaan pada riwayat kejadian.';
+    if (!enableHrThreshold) {
+      // A. Threshold OFF: Never use stored hr_review_point_threshold or 60% rule
+      // Priority: REVIEW_HR > WARNING > ATTENTION > NORMAL
+      if (hasActiveHrReviewIncident) {
+        status_level = 'REVIEW_HR';
+        status_label = 'Perlu Review Atasan / HR';
+        status_description = 'Catatan Anda memerlukan review lebih lanjut oleh Atasan / HR.';
+      } else if (has_repeat_incident) {
+        status_level = 'WARNING';
+        status_label = 'Warning';
+        status_description = 'Terdapat kejadian berulang dalam rentang pemantauan. Perhatikan catatan pembinaan dan hindari pengulangan kejadian.';
+      } else if (poin_aktif > 0) {
+        status_level = 'ATTENTION';
+        status_label = 'Perlu Perhatian';
+        status_description = 'Terdapat catatan aktif yang perlu diperhatikan. Silakan lihat detail pembinaan pada riwayat kejadian.';
+      } else {
+        status_level = 'NORMAL';
+        status_label = 'Normal';
+        status_description = 'Tidak ada catatan yang memerlukan perhatian khusus saat ini.';
+      }
+    } else {
+      // B. Threshold ON: Use hrPointThreshold (>= 100% -> REVIEW_HR, >= 60% -> WARNING, > 0 -> ATTENTION, 0 -> NORMAL)
+      // Priority: REVIEW_HR > WARNING > ATTENTION > NORMAL
+      const warningThreshold = hrPointThreshold * 0.6;
+      if (hasActiveHrReviewIncident || poin_aktif >= hrPointThreshold) {
+        status_level = 'REVIEW_HR';
+        status_label = 'Perlu Review Atasan / HR';
+        status_description = 'Catatan Anda memerlukan review lebih lanjut oleh Atasan / HR.';
+      } else if (has_repeat_incident || poin_aktif >= warningThreshold) {
+        status_level = 'WARNING';
+        status_label = 'Warning';
+        status_description = 'Poin aktif Anda cukup tinggi. Perhatikan catatan pembinaan dan hindari pengulangan kejadian.';
+      } else if (poin_aktif > 0) {
+        status_level = 'ATTENTION';
+        status_label = 'Perlu Perhatian';
+        status_description = 'Terdapat catatan aktif yang perlu diperhatikan. Silakan lihat detail pembinaan pada riwayat kejadian.';
+      } else {
+        status_level = 'NORMAL';
+        status_label = 'Normal';
+        status_description = 'Tidak ada catatan yang memerlukan perhatian khusus saat ini.';
+      }
     }
+
+    const needs_hr_review = status_level === 'REVIEW_HR';
 
     return {
       cards: {
@@ -1823,8 +1860,8 @@ module.exports = function createDisciplineDb(dbContext) {
         total_kejadian_periode_ini,
         total_poin_periode_ini,
         klarifikasi_menunggu_review,
-        hr_review_point_threshold: hrPointThreshold,
-        enable_hr_review_threshold: Boolean(settings.enable_hr_review_threshold && hrPointThreshold !== null),
+        hr_review_point_threshold: enableHrThreshold ? hrPointThreshold : null,
+        enable_hr_review_threshold: enableHrThreshold,
         needs_hr_review,
         status_pembinaan: status_label,
         status_level,
@@ -1837,11 +1874,11 @@ module.exports = function createDisciplineDb(dbContext) {
       },
       settings: {
         enable_user_appeals: settings.enable_user_appeals !== false,
-        enable_hr_review_threshold: Boolean(settings.enable_hr_review_threshold && hrPointThreshold !== null),
-        hr_review_point_threshold: hrPointThreshold,
+        enable_hr_review_threshold: enableHrThreshold,
+        hr_review_point_threshold: enableHrThreshold ? hrPointThreshold : null,
         repeat_incident_days: repeatWindowDays,
         repeat_incident_threshold: repeatThreshold,
-        default_validity_months: Number(settings.default_validity_months) || 3
+        default_validity_months: Number(settings.default_expiry_months || settings.default_validity_months) || 3
       },
       notifications,
       unread_count: notifications.length,

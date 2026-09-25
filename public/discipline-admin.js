@@ -657,9 +657,19 @@
               <div class="disc-field-group">
                 <label class="disc-field-label">Upload Bukti Foto / Dokumen PDF (Opsional, Maks 5 File)</label>
                 <input type="file" id="discInFiles" class="disc-input" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.pdf">
-                <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;cursor:pointer;">
-                  <input type="checkbox" id="discInShowEvidence" ${this.settings.show_evidence_to_user_default !== false ? 'checked' : ''}>
-                  <span>Izinkan karyawan melihat lampiran bukti kejadian ini di halaman Kinerja Saya</span>
+                <label class="disc-check-card disc-check-card-compact" for="discInShowEvidence" style="margin-top:10px;">
+                  <span class="disc-check-control">
+                    <input type="checkbox" class="disc-check-input" id="discInShowEvidence" ${this.settings.show_evidence_to_user_default !== false ? 'checked' : ''}>
+                    <span class="disc-check-box" aria-hidden="true">
+                      <svg class="disc-check-svg" viewBox="0 0 16 16" fill="none">
+                        <path d="M3.5 8.2L6.6 11.3L12.6 4.8" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </span>
+                  </span>
+                  <span class="disc-check-content">
+                    <span class="disc-check-title">Tampilkan lampiran bukti ke karyawan</span>
+                    <span class="disc-check-desc">Izinkan karyawan melihat lampiran bukti kejadian ini di halaman Kinerja Saya.</span>
+                  </span>
                 </label>
               </div>
               <div class="disc-field-group">
@@ -1217,9 +1227,19 @@
                 <label class="disc-field-label">Catatan Internal Admin</label>
                 <textarea id="discEditInternal" class="disc-textarea" rows="2">${escHtml(inc.catatan_internal || '')}</textarea>
               </div>
-              <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;">
-                <input type="checkbox" id="discEditShowEvidence" ${inc.show_evidence_to_user ? 'checked' : ''}>
-                <span>Tampilkan bukti lampiran ke karyawan</span>
+              <label class="disc-check-card disc-check-card-compact" for="discEditShowEvidence">
+                <span class="disc-check-control">
+                  <input type="checkbox" class="disc-check-input" id="discEditShowEvidence" ${inc.show_evidence_to_user ? 'checked' : ''}>
+                  <span class="disc-check-box" aria-hidden="true">
+                    <svg class="disc-check-svg" viewBox="0 0 16 16" fill="none">
+                      <path d="M3.5 8.2L6.6 11.3L12.6 4.8" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                </span>
+                <span class="disc-check-content">
+                  <span class="disc-check-title">Tampilkan bukti lampiran ke karyawan</span>
+                  <span class="disc-check-desc">Karyawan dapat melihat lampiran bukti kejadian ini pada halaman Kinerja Saya.</span>
+                </span>
               </label>
             </div>
           `,
@@ -1475,9 +1495,19 @@
                 <option value="CRITICAL" ${cat?.severity === 'CRITICAL' ? 'selected' : ''}>Berat / Kritis (Tampilkan: Perlu Review Atasan / HR)</option>
               </select>
             </div>
-            <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;">
-              <input type="checkbox" id="discCatHrReview" ${cat?.requires_hr_review ? 'checked' : ''}>
-              <span>Tandai sebagai <strong>Perlu Review Atasan / HR</strong> (untuk kejadian berat seperti manipulasi data, fraud, integritas, kecelakaan berat)</span>
+            <label class="disc-check-card" for="discCatHrReview">
+              <span class="disc-check-control">
+                <input type="checkbox" class="disc-check-input" id="discCatHrReview" ${cat?.requires_hr_review ? 'checked' : ''}>
+                <span class="disc-check-box" aria-hidden="true">
+                  <svg class="disc-check-svg" viewBox="0 0 16 16" fill="none">
+                    <path d="M3.5 8.2L6.6 11.3L12.6 4.8" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+              </span>
+              <span class="disc-check-content">
+                <span class="disc-check-title">Tandai sebagai <strong>Perlu Review Atasan / HR</strong></span>
+                <span class="disc-check-desc">Gunakan untuk kejadian berat seperti manipulasi data, fraud, integritas, atau kecelakaan berat agar otomatis masuk ke evaluasi Atasan / HR.</span>
+              </span>
             </label>
           </div>
         `,
@@ -1761,9 +1791,9 @@
       await this.ensureBaseData();
       const s = this.settings || {};
       const hrThresholdVal = (s.hr_review_point_threshold === null || s.hr_review_point_threshold === undefined || s.hr_review_point_threshold === '')
-        ? ''
+        ? 6
         : s.hr_review_point_threshold;
-      const isHrThresholdEnabled = s.enable_hr_review_threshold !== false && hrThresholdVal !== '' && Number(hrThresholdVal) > 0;
+      const isHrThresholdEnabled = s.enable_hr_review_threshold === true && Number(hrThresholdVal) > 0;
 
       container.innerHTML = `
         <div class="disc-hero">
@@ -1774,47 +1804,84 @@
           </div>
         </div>
 
-        <div class="disc-card" style="max-width:760px;margin:0 auto;">
-          <form onsubmit="DisciplineAdminModule.saveSettings(event)" style="display:flex;flex-direction:column;gap:16px;">
+        <div class="disc-card" style="max-width:780px;margin:0 auto;">
+          <form onsubmit="DisciplineAdminModule.saveSettings(event)" style="display:flex;flex-direction:column;gap:18px;">
             <div class="disc-analytics-grid" style="margin-bottom:0;">
               <div class="disc-field-group">
-                <label class="disc-field-label">Default Masa Berlaku Poin (Bulan)</label>
+                <label class="disc-field-label" for="discSetExpiryMonths">Default Masa Berlaku Poin (Bulan)</label>
                 <input type="number" id="discSetExpiryMonths" class="disc-input" min="1" max="36" value="${s.default_expiry_months || 3}">
               </div>
               <div class="disc-field-group">
-                <label class="disc-field-label">Ambang Poin Aktif "Perlu Review Atasan / HR" (Opsional)</label>
-                <input type="number" id="discSetHrThreshold" class="disc-input" min="1" max="100" placeholder="Kosongkan jika belum digunakan" value="${escHtml(String(hrThresholdVal))}" ${!isHrThresholdEnabled ? 'disabled' : ''}>
-                <span style="font-size:11px;color:var(--text-muted);margin-top:4px;">Kosongkan atau nonaktifkan checkbox di bawah jika hanya ingin menandai kategori berat (Critical / Requires HR Review).</span>
+                <label class="disc-field-label" for="discSetHrThreshold">Ambang Poin Aktif "Perlu Review Atasan / HR" (Opsional)</label>
+                <input type="number" id="discSetHrThreshold" class="disc-input" min="1" max="100" placeholder="Contoh: 6" value="${escHtml(String(hrThresholdVal))}" ${!isHrThresholdEnabled ? 'disabled' : ''}>
+                <span style="font-size:11.5px;color:var(--text-muted);margin-top:4px;line-height:1.45;">Nilai ini hanya digunakan apabila toggle ambang poin otomatis di bawah diaktifkan.</span>
               </div>
             </div>
 
             <div class="disc-analytics-grid" style="margin-bottom:0;">
               <div class="disc-field-group">
-                <label class="disc-field-label">Rentang Deteksi Kejadian Berulang (Hari)</label>
+                <label class="disc-field-label" for="discSetRepeatDays">Rentang Deteksi Kejadian Berulang (Hari)</label>
                 <input type="number" id="discSetRepeatDays" class="disc-input" min="7" max="365" value="${s.repeat_incident_days || 30}">
               </div>
               <div class="disc-field-group">
-                <label class="disc-field-label">Frekuensi Minimal Kejadian Berulang</label>
+                <label class="disc-field-label" for="discSetRepeatCount">Frekuensi Minimal Kejadian Berulang</label>
                 <input type="number" id="discSetRepeatCount" class="disc-input" min="2" max="20" value="${s.repeat_incident_threshold || 2}">
               </div>
             </div>
 
-            <div style="display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:12px;background:rgba(100,116,139,0.06);">
-              <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
-                <input type="checkbox" id="discSetEnableHrThreshold" ${isHrThresholdEnabled ? 'checked' : ''} onchange="DisciplineAdminModule.onToggleHrThresholdSetting()">
-                <span>Aktifkan ambang poin otomatis untuk status <strong>"Perlu Review Atasan / HR"</strong></span>
+            <div class="disc-toggle-group" role="group" aria-label="Pengaturan Fitur Poin & Disiplin">
+              <div class="disc-toggle-group-header">Kebijakan &amp; Fitur Operasional</div>
+
+              <label class="disc-toggle-card" for="discSetEnableHrThreshold">
+                <div class="disc-toggle-card-info">
+                  <div class="disc-toggle-card-title">Aktifkan ambang poin otomatis untuk status <strong>"Perlu Review Atasan / HR"</strong></div>
+                  <div class="disc-toggle-card-desc">Jika aktif, ambang poin digunakan untuk menentukan status Warning (≥60%), Review HR (≥100%), dan progress bar poin. Jika nonaktif, angka ambang poin diabaikan sepenuhnya.</div>
+                </div>
+                <div class="disc-toggle-switch">
+                  <input type="checkbox" class="disc-toggle-input" id="discSetEnableHrThreshold" ${isHrThresholdEnabled ? 'checked' : ''} onchange="DisciplineAdminModule.onToggleHrThresholdSetting()">
+                  <span class="disc-toggle-track" aria-hidden="true">
+                    <span class="disc-toggle-thumb"></span>
+                  </span>
+                </div>
               </label>
-              <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
-                <input type="checkbox" id="discSetAllowOverride" ${s.allow_admin_override_points !== false ? 'checked' : ''}>
-                <span>Izinkan Admin melakukan override nilai poin default saat input kejadian</span>
+
+              <label class="disc-toggle-card" for="discSetAllowOverride">
+                <div class="disc-toggle-card-info">
+                  <div class="disc-toggle-card-title">Izinkan Admin melakukan override nilai poin default saat input kejadian</div>
+                  <div class="disc-toggle-card-desc">Memungkinkan Admin menyesuaikan bobot poin secara spesifik saat mencatat kejadian baru.</div>
+                </div>
+                <div class="disc-toggle-switch">
+                  <input type="checkbox" class="disc-toggle-input" id="discSetAllowOverride" ${s.allow_admin_override_points !== false ? 'checked' : ''}>
+                  <span class="disc-toggle-track" aria-hidden="true">
+                    <span class="disc-toggle-thumb"></span>
+                  </span>
+                </div>
               </label>
-              <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
-                <input type="checkbox" id="discSetShowEvidence" ${s.show_evidence_to_user_default !== false ? 'checked' : ''}>
-                <span>Tampilkan bukti lampiran ke karyawan secara default</span>
+
+              <label class="disc-toggle-card" for="discSetShowEvidence">
+                <div class="disc-toggle-card-info">
+                  <div class="disc-toggle-card-title">Tampilkan bukti lampiran ke karyawan secara default</div>
+                  <div class="disc-toggle-card-desc">Menjadikan opsi izin lihat lampiran bukti otomatis dicentang saat Admin menginput kejadian baru.</div>
+                </div>
+                <div class="disc-toggle-switch">
+                  <input type="checkbox" class="disc-toggle-input" id="discSetShowEvidence" ${s.show_evidence_to_user_default !== false ? 'checked' : ''}>
+                  <span class="disc-toggle-track" aria-hidden="true">
+                    <span class="disc-toggle-thumb"></span>
+                  </span>
+                </div>
               </label>
-              <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
-                <input type="checkbox" id="discSetEnableAppeals" ${s.enable_user_appeals !== false ? 'checked' : ''}>
-                <span>Aktifkan fitur "Ajukan Klarifikasi" pada halaman Kinerja Saya</span>
+
+              <label class="disc-toggle-card" for="discSetEnableAppeals">
+                <div class="disc-toggle-card-info">
+                  <div class="disc-toggle-card-title">Aktifkan fitur "Ajukan Klarifikasi" pada halaman Kinerja Saya</div>
+                  <div class="disc-toggle-card-desc">Memberikan hak jawab bagi karyawan operasional untuk mengajukan klarifikasi atas catatan kejadian yang aktif.</div>
+                </div>
+                <div class="disc-toggle-switch">
+                  <input type="checkbox" class="disc-toggle-input" id="discSetEnableAppeals" ${s.enable_user_appeals !== false ? 'checked' : ''}>
+                  <span class="disc-toggle-track" aria-hidden="true">
+                    <span class="disc-toggle-thumb"></span>
+                  </span>
+                </div>
               </label>
             </div>
 
@@ -1827,12 +1894,14 @@
     },
 
     onToggleHrThresholdSetting() {
-      const enabled = document.getElementById('discSetEnableHrThreshold')?.checked;
+      const enabled = Boolean(document.getElementById('discSetEnableHrThreshold')?.checked);
       const inp = document.getElementById('discSetHrThreshold');
       if (!inp) return;
       inp.disabled = !enabled;
-      if (!enabled) {
-        inp.value = '';
+      if (enabled && (!inp.value || Number(inp.value) <= 0)) {
+        inp.value = (this.settings?.hr_review_point_threshold && Number(this.settings.hr_review_point_threshold) > 0)
+          ? this.settings.hr_review_point_threshold
+          : 6;
       }
     },
 
@@ -1840,18 +1909,22 @@
       e.preventDefault();
       const rawHrStr = (document.getElementById('discSetHrThreshold')?.value ?? '').trim();
       const parsedHr = rawHrStr === '' ? null : parseInt(rawHrStr, 10);
-      const enableCheckbox = document.getElementById('discSetEnableHrThreshold')?.checked !== false;
-      const effectiveHrThreshold = (enableCheckbox && parsedHr !== null && !isNaN(parsedHr) && parsedHr > 0) ? parsedHr : null;
+      const enableCheckbox = Boolean(document.getElementById('discSetEnableHrThreshold')?.checked);
+      const validHrNum = (parsedHr !== null && !isNaN(parsedHr) && parsedHr > 0)
+        ? parsedHr
+        : ((this.settings?.hr_review_point_threshold && Number(this.settings.hr_review_point_threshold) > 0)
+            ? parseInt(this.settings.hr_review_point_threshold, 10)
+            : 6);
 
       const payload = {
         default_expiry_months: parseInt(document.getElementById('discSetExpiryMonths')?.value, 10) || 3,
-        enable_hr_review_threshold: effectiveHrThreshold !== null,
-        hr_review_point_threshold: effectiveHrThreshold,
+        enable_hr_review_threshold: enableCheckbox,
+        hr_review_point_threshold: validHrNum,
         repeat_incident_days: parseInt(document.getElementById('discSetRepeatDays')?.value, 10) || 30,
         repeat_incident_threshold: parseInt(document.getElementById('discSetRepeatCount')?.value, 10) || 2,
-        allow_admin_override_points: document.getElementById('discSetAllowOverride')?.checked || false,
-        show_evidence_to_user_default: document.getElementById('discSetShowEvidence')?.checked || false,
-        enable_user_appeals: document.getElementById('discSetEnableAppeals')?.checked || false
+        allow_admin_override_points: Boolean(document.getElementById('discSetAllowOverride')?.checked),
+        show_evidence_to_user_default: Boolean(document.getElementById('discSetShowEvidence')?.checked),
+        enable_user_appeals: Boolean(document.getElementById('discSetEnableAppeals')?.checked)
       };
 
       try {
