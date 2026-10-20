@@ -6479,3 +6479,247 @@ function exportReturnExcel() {
   window.open(url, '_blank');
 }
 window.exportReturnExcel = exportReturnExcel;
+
+// ==========================================================================
+// SS08 ADMIN COMMAND PALETTE (CTRL+K) — SPOTLIGHT ENGINE
+// ==========================================================================
+(function initCommandPalette() {
+  let isCmdOpen = false;
+  let activeIndex = 0;
+  let currentFilteredItems = [];
+  let cachedUsers = null;
+
+  const STATIC_COMMANDS = [
+    // Halaman Utama
+    { id: 'page-dashboard', title: 'Dashboard MPP', sub: 'Monitoring kehadiran & MPP real-time', category: 'Halaman', icon: '📊', action: () => showPage('dashboard'), keywords: ['mpp', 'hadir', 'home', 'monitoring'] },
+    { id: 'page-submissions', title: 'Data Submissions', sub: 'Verifikasi & approval input karyawan', category: 'Halaman', icon: '📝', action: () => showPage('submissions'), keywords: ['approval', 'verifikasi', 'input', 'pending'] },
+    { id: 'page-loader', title: 'Entry Loader', sub: 'Pencatatan armada & kontainer', category: 'Halaman', icon: '🚚', action: () => showPage('loader'), keywords: ['truk', 'armada', 'kontainer'] },
+    { id: 'page-return', title: 'Validasi Return', sub: 'Pemeriksaan kontainer return', category: 'Halaman', icon: '🔁', action: () => showPage('return-validation'), keywords: ['kembali', 'selisih', 'verifikasi'] },
+    { id: 'page-carian', title: 'Carian Harian', sub: 'Ringkasan output picker harian', category: 'Halaman', icon: '📦', action: () => showPage('data-carian'), keywords: ['picker', 'output', 'pcs'] },
+    { id: 'page-rekap', title: 'Rekap Harian Toko', sub: 'Performa carian per toko', category: 'Halaman', icon: '🏬', action: () => showPage('rekap-toko'), keywords: ['toko', 'cluster'] },
+    { id: 'page-absensi', title: 'Rekap Absensi', sub: 'Kehadiran, sakit, izin, alpha', category: 'Halaman', icon: '📅', action: () => showPage('absensi'), keywords: ['absen', 'kehadiran', 'cuti'] },
+    
+    // Master & Manajemen
+    { id: 'page-users', title: 'Master Karyawan', sub: 'Kelola akun, posisi, NIK, dan tipe kerja', category: 'Halaman', icon: '👥', action: () => showPage('users'), keywords: ['pegawai', 'user', 'phl', 'picker', 'sorter', 'loader'] },
+    { id: 'page-stores', title: 'Master Toko', sub: 'Daftar kode & nama toko tujuan', category: 'Halaman', icon: '🏪', action: () => showPage('stores'), keywords: ['toko', 'branch'] },
+    { id: 'page-announcements', title: 'Pengumuman', sub: 'Siaran info ke portal karyawan', category: 'Halaman', icon: '📢', action: () => showPage('announcements'), keywords: ['broadcast', 'banner', 'notif'] },
+    { id: 'page-audit', title: 'Log Aktivitas', sub: 'Audit trail tindakan admin & sistem', category: 'Halaman', icon: '🛡️', action: () => showPage('audit-logs'), keywords: ['history', 'keamanan', 'audit'] },
+
+    // Poin & Disiplin
+    { id: 'disc-dash', title: 'Poin & Disiplin — Dashboard', sub: 'Statistik kejadian & ambang review HR', category: 'Disiplin', icon: '⚖️', action: () => showPage('discipline-dashboard'), keywords: ['poin', 'pelanggaran', 'sp', 'hr'] },
+    { id: 'disc-incidents', title: 'Poin & Disiplin — Riwayat Kejadian', sub: 'Daftar insiden & pengajuan klarifikasi', category: 'Disiplin', icon: '⚠️', action: () => showPage('discipline-incidents'), keywords: ['kasus', 'klarifikasi', 'appeal'] },
+    { id: 'disc-violations', title: 'Poin & Disiplin — Master Pelanggaran', sub: 'Konfigurasi jenis pelanggaran & bobot poin', category: 'Disiplin', icon: '📋', action: () => showPage('discipline-violations'), keywords: ['kategori', 'bobot'] },
+    { id: 'disc-settings', title: 'Poin & Disiplin — Pengaturan Poin', sub: 'Ambang HR review & toggle fitur', category: 'Disiplin', icon: '⚙️', action: () => showPage('discipline-settings'), keywords: ['threshold', 'expired'] },
+
+    // Komunikasi & Pengaturan
+    { id: 'page-chat', title: 'Live Chat', sub: 'Pusat obrolan langsung operasional', category: 'Komunikasi', icon: '💬', action: () => showPage('live-chat'), keywords: ['pesan', 'dm', 'grup', 'obrolan'] },
+    { id: 'page-chat-settings', title: 'Pengaturan Live Chat', sub: 'Izin akses, ukuran file, & status chat', category: 'Komunikasi', icon: '🛠️', action: () => showPage('chat-settings'), keywords: ['chat config'] },
+    { id: 'page-settings', title: 'Pengaturan Situs', sub: 'Branding, maintenance mode, & konfigurasi', category: 'Pengaturan', icon: '🔧', action: () => showPage('login-settings'), keywords: ['maintenance', 'logo'] },
+    { id: 'page-periode', title: 'Periode Aktif', sub: 'Konfigurasi tanggal & cutoff operasional', category: 'Pengaturan', icon: '🗓️', action: () => showPage('periode-aktif'), keywords: ['cutoff', 'tanggal'] },
+    { id: 'page-phl', title: 'Pengaturan PHL', sub: 'Target & parameter gaji harian lepas', category: 'Pengaturan', icon: '💵', action: () => showPage('phl-settings'), keywords: ['upah', 'insentif'] },
+    { id: 'page-admin-acc', title: 'Akun Administrator', sub: 'Manajemen hak akses admin', category: 'Pengaturan', icon: '🔐', action: () => showPage('admin-accounts'), keywords: ['superadmin', 'role'] },
+
+    // Aksi Cepat
+    { id: 'act-refresh', title: 'Refresh Data', sub: 'Muat ulang data tabel & monitoring', category: 'Aksi Cepat', icon: '🔄', action: () => { if (typeof loadData === 'function') loadData(); showToast('Data diperbarui ✅', 'success'); }, keywords: ['reload', 'update'] },
+    { id: 'act-export', title: 'Ekspor Excel Submissions', sub: 'Unduh laporan data submissions', category: 'Aksi Cepat', icon: '📥', action: () => { if (typeof exportExcel === 'function') exportExcel(); }, keywords: ['download', 'unduh', 'spreadsheet'] },
+    { id: 'act-theme', title: 'Ganti Tema Gelap / Terang', sub: 'Toggle mode tampilan dark mode', category: 'Aksi Cepat', icon: '🌓', action: () => { if (typeof toggleDarkMode === 'function') toggleDarkMode(); }, keywords: ['dark', 'light', 'warna'] },
+    { id: 'act-open-portal', title: 'Buka Portal Input Karyawan', sub: 'Buka form input operasional di tab baru', category: 'Aksi Cepat', icon: '↗️', action: () => window.open('/', '_blank'), keywords: ['karyawan', 'input', 'new tab'] },
+    { id: 'act-logout', title: 'Keluar / Logout', sub: 'Akhiri sesi administrator ini', category: 'Aksi Cepat', icon: '🚪', action: () => { if (typeof logout === 'function') logout(); }, keywords: ['exit', 'sign out'] }
+  ];
+
+  function openCmdPalette() {
+    isCmdOpen = true;
+    const overlay = document.getElementById('cmdPaletteOverlay');
+    const modal = document.getElementById('cmdPaletteModal');
+    const input = document.getElementById('cmdSearchInput');
+    if (overlay) overlay.style.display = 'block';
+    if (modal) modal.style.display = 'flex';
+    if (input) {
+      input.value = '';
+      setTimeout(() => input.focus(), 30);
+    }
+    activeIndex = 0;
+    renderResults('');
+    prefetchUsers();
+  }
+
+  function closeCmdPalette() {
+    isCmdOpen = false;
+    const overlay = document.getElementById('cmdPaletteOverlay');
+    const modal = document.getElementById('cmdPaletteModal');
+    if (overlay) overlay.style.display = 'none';
+    if (modal) modal.style.display = 'none';
+  }
+
+  function toggleCmdPalette() {
+    if (isCmdOpen) closeCmdPalette();
+    else openCmdPalette();
+  }
+
+  async function prefetchUsers() {
+    if (cachedUsers) return;
+    try {
+      const res = await fetch('/api/users').then(r => r.json());
+      if (Array.isArray(res)) cachedUsers = res;
+    } catch (_) {}
+  }
+
+  function renderResults(query) {
+    const q = (query || '').trim().toLowerCase();
+    const container = document.getElementById('cmdResults');
+    if (!container) return;
+
+    let items = [];
+    if (!q) {
+      items = STATIC_COMMANDS;
+    } else {
+      // Filter static commands
+      items = STATIC_COMMANDS.filter(item => {
+        const matchTitle = item.title.toLowerCase().includes(q);
+        const matchSub = item.sub.toLowerCase().includes(q);
+        const matchCat = item.category.toLowerCase().includes(q);
+        const matchKeys = (item.keywords || []).some(k => k.toLowerCase().includes(q));
+        return matchTitle || matchSub || matchCat || matchKeys;
+      });
+
+      // Also search users if available and query is >= 2 chars
+      if (cachedUsers && q.length >= 2) {
+        const matchedUsers = cachedUsers
+          .filter(u =>
+            (u.nama_lengkap || '').toLowerCase().includes(q) ||
+            (u.username || '').toLowerCase().includes(q) ||
+            (u.nik || '').toLowerCase().includes(q)
+          )
+          .slice(0, 5)
+          .map(u => ({
+            id: 'user-' + u.id,
+            title: u.nama_lengkap || u.username,
+            sub: `@${u.username} • Posisi: ${u.posisi || '-'} • NIK: ${u.nik || '-'}`,
+            category: 'Karyawan',
+            icon: '👤',
+            action: () => {
+              showPage('users');
+              const sInput = document.getElementById('userSearchInput');
+              if (sInput) {
+                sInput.value = u.nama_lengkap || u.username;
+                sInput.dispatchEvent(new Event('input'));
+              }
+            }
+          }));
+        items = [...items, ...matchedUsers];
+      }
+    }
+
+    currentFilteredItems = items;
+    if (activeIndex >= items.length) activeIndex = 0;
+
+    if (items.length === 0) {
+      container.innerHTML = `
+        <div class="cmd-empty-state">
+          <svg width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+          <div>Tidak ada hasil untuk "<strong>${escapeHtml(q)}</strong>"</div>
+        </div>`;
+      return;
+    }
+
+    // Group items by category
+    const groups = {};
+    items.forEach((item, idx) => {
+      if (!groups[item.category]) groups[item.category] = [];
+      groups[item.category].push({ item, globalIdx: idx });
+    });
+
+    let html = '';
+    for (const [cat, grpItems] of Object.entries(groups)) {
+      html += `<div class="cmd-group-title">${escapeHtml(cat)}</div>`;
+      grpItems.forEach(({ item, globalIdx }) => {
+        const isSelected = globalIdx === activeIndex;
+        html += `
+          <div class="cmd-item ${isSelected ? 'selected' : ''}" data-idx="${globalIdx}" onclick="window.__execCmd(${globalIdx})">
+            <div class="cmd-item-icon">${item.icon}</div>
+            <div class="cmd-item-info">
+              <div class="cmd-item-title">${escapeHtml(item.title)}</div>
+              <div class="cmd-item-sub">${escapeHtml(item.sub)}</div>
+            </div>
+            <span class="cmd-item-badge">${escapeHtml(item.category)}</span>
+          </div>`;
+      });
+    }
+
+    container.innerHTML = html;
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[m]);
+  }
+
+  window.__execCmd = function(idx) {
+    const item = currentFilteredItems[idx];
+    if (item && typeof item.action === 'function') {
+      closeCmdPalette();
+      item.action();
+    }
+  };
+
+  // Keyboard navigation & Shortcuts
+  document.addEventListener('keydown', (e) => {
+    // Toggle on Ctrl+K or Cmd+K
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+      e.preventDefault();
+      toggleCmdPalette();
+      return;
+    }
+
+    if (!isCmdOpen) return;
+
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeCmdPalette();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (currentFilteredItems.length > 0) {
+        activeIndex = (activeIndex + 1) % currentFilteredItems.length;
+        updateSelectedHighlight();
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (currentFilteredItems.length > 0) {
+        activeIndex = (activeIndex - 1 + currentFilteredItems.length) % currentFilteredItems.length;
+        updateSelectedHighlight();
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      window.__execCmd(activeIndex);
+    }
+  });
+
+  function updateSelectedHighlight() {
+    const items = document.querySelectorAll('.cmd-item');
+    items.forEach(el => {
+      const idx = Number(el.getAttribute('data-idx'));
+      if (idx === activeIndex) {
+        el.classList.add('selected');
+        el.scrollIntoView({ block: 'nearest' });
+      } else {
+        el.classList.remove('selected');
+      }
+    });
+  }
+
+  // Live input filter
+  document.addEventListener('DOMContentLoaded', () => {
+    const searchInput = document.getElementById('cmdSearchInput');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        activeIndex = 0;
+        renderResults(e.target.value);
+      });
+    }
+  });
+
+  // Expose global triggers
+  window.openCmdPalette = openCmdPalette;
+  window.closeCmdPalette = closeCmdPalette;
+  window.toggleCmdPalette = toggleCmdPalette;
+})();

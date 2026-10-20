@@ -338,6 +338,77 @@ body.role-ops .hero-panel {
   line-height: 1.35;
 }
 
+/* Live Ops Ticker */
+.hero-ticker-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 30px;
+  padding: 6px 16px 6px 8px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  max-width: 540px;
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+
+.ticker-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.ticker-label .live-dot {
+  width: 6px;
+  height: 6px;
+  background: #34D399;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #34D399;
+  animation: pulseDot 2s infinite ease-in-out;
+}
+
+.ticker-track {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  mask-image: linear-gradient(90deg, transparent 0%, black 10%, black 90%, transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 10%, black 90%, transparent 100%);
+}
+
+.ticker-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+  animation: tickerSlide 24s linear infinite;
+}
+
+.ticker-sep {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+@keyframes tickerSlide {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.hero-ticker-wrap:hover .ticker-content {
+  animation-play-state: paused;
+}
+
 /* Hero Illustration & Floating Badges */
 .hero-visual-stage {
   position: relative;
@@ -347,6 +418,9 @@ body.role-ops .hero-panel {
   display: flex;
   align-items: center;
   justify-content: center;
+  will-change: transform;
+  transform-style: preserve-3d;
+  transition: transform 0.2s ease-out;
 }
 
 .hero-glow-aura {

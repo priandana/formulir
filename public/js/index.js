@@ -495,6 +495,9 @@ function switchTab(tab) {
     const pdBtn = document.getElementById('tab-pendapatan');
     if (pdBtn) { pdBtn.style.background = ''; pdBtn.style.borderColor = ''; }
   }
+  // Sync mobile bottom navigation pill
+  syncMbnActive(tab);
+
   // Close mobile sidebar
   const sidebar = document.getElementById('sidebar');
   if (sidebar) {
@@ -502,6 +505,56 @@ function switchTab(tab) {
     document.body.classList.remove('sidebar-open');
   }
 }
+
+// Mobile Bottom Nav Helpers
+function triggerHaptic(duration = 15) {
+  if (window.navigator && window.navigator.vibrate) {
+    try { window.navigator.vibrate(duration); } catch (_) {}
+  }
+}
+
+function syncMbnActive(tab) {
+  document.querySelectorAll('.mbn-item').forEach(el => el.classList.remove('active'));
+  if (tab === 'dashboard') {
+    document.getElementById('mbn-dashboard')?.classList.add('active');
+  } else if (tab === 'riwayat') {
+    document.getElementById('mbn-riwayat')?.classList.add('active');
+  } else if (tab === 'kinerja-saya') {
+    document.getElementById('mbn-kinerja')?.classList.add('active');
+  } else if (['picker', 'loader', 'return', 'qc-outbound'].includes(tab)) {
+    document.getElementById('mbn-entry')?.classList.add('active');
+  }
+}
+
+function mbnSwitchTab(tab) {
+  triggerHaptic(15);
+  switchTab(tab);
+}
+
+function mbnOpenEntryForm() {
+  triggerHaptic(15);
+  const pos = currentUser && currentUser.posisi ? currentUser.posisi.toLowerCase() : '';
+  if (pos === 'return') {
+    switchTab('return');
+  } else if (pos === 'qc outbound' || pos === 'qc-outbound') {
+    switchTab('qc-outbound');
+  } else if (pos === 'loader') {
+    switchTab('loader');
+  } else {
+    switchTab('picker');
+  }
+}
+
+function mbnToggleChat() {
+  triggerHaptic(15);
+  if (window.FloatingChat && typeof window.FloatingChat.toggle === 'function') {
+    window.FloatingChat.toggle();
+  }
+}
+
+window.mbnSwitchTab = mbnSwitchTab;
+window.mbnOpenEntryForm = mbnOpenEntryForm;
+window.mbnToggleChat = mbnToggleChat;
 
 function toggleSidebar() {
   const sidebar = document.getElementById('sidebar');

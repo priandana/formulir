@@ -566,13 +566,22 @@
 
   function renderUserNotifications(data) {
     const unread = Number(data.unread_count) || 0;
-    const navBadge = document.getElementById('kinerja-saya-nav-badge');
+    const navBadge = document.getElementById('kinerja-saya-nav-badge') || document.getElementById('kinerjaSayaBadge');
     if (navBadge) {
       if (unread > 0) {
         navBadge.textContent = unread;
-        navBadge.style.display = 'inline-block';
+        navBadge.style.display = 'inline-flex';
       } else {
         navBadge.style.display = 'none';
+      }
+    }
+    const mbnBadge = document.getElementById('mbnKinerjaBadge');
+    if (mbnBadge) {
+      if (unread > 0) {
+        mbnBadge.textContent = unread;
+        mbnBadge.style.display = 'inline-flex';
+      } else {
+        mbnBadge.style.display = 'none';
       }
     }
 

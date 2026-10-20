@@ -3782,3 +3782,156 @@ body.dark-mode .details-work-list {
     padding: 8px 12px;
   }
 }
+
+/* ==========================================================================
+   MOBILE FLOATING BOTTOM NAVIGATION BAR (SS08 Touch Experience)
+   ========================================================================== */
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .mobile-bottom-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    position: fixed;
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    max-width: 480px;
+    margin: 0 auto;
+    height: 64px;
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 24px;
+    box-shadow: 0 16px 36px -4px rgba(15, 23, 42, 0.16), 0 4px 12px rgba(15, 23, 42, 0.05);
+    z-index: 8500;
+    padding: 4px 6px;
+    padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+  }
+
+  /* Extra bottom padding on main content to avoid bottom nav overlap */
+  .main-wrapper {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .mbn-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 6px 4px;
+    color: #64748B;
+    cursor: pointer;
+    border-radius: 16px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  .mbn-item:hover {
+    color: #334155;
+  }
+
+  .mbn-item:active {
+    transform: scale(0.92);
+  }
+
+  .mbn-icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+  }
+
+  .mbn-icon-wrap svg {
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .mbn-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: -0.1px;
+    transition: all 0.2s ease;
+    line-height: 1;
+  }
+
+  /* Active State Pill */
+  .mbn-item.active {
+    color: #059669;
+  }
+
+  .mbn-item.active .mbn-icon-wrap {
+    background: rgba(16, 185, 129, 0.12);
+  }
+
+  .mbn-item.active .mbn-icon-wrap svg {
+    transform: translateY(-1px) scale(1.08);
+  }
+
+  .mbn-item.active .mbn-label {
+    font-weight: 800;
+  }
+
+  /* Notification badges */
+  .mbn-badge {
+    position: absolute;
+    top: -3px;
+    right: -6px;
+    background: #EF4444;
+    color: #FFFFFF;
+    font-size: 9px;
+    font-weight: 800;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+    animation: pulseMbnBadge 2s infinite ease-in-out;
+  }
+
+  @keyframes pulseMbnBadge {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.12); }
+  }
+
+  /* Dark Mode */
+  body.dark-mode .mobile-bottom-nav {
+    background: rgba(17, 24, 39, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  }
+
+  body.dark-mode .mbn-item {
+    color: #94A3B8;
+  }
+
+  body.dark-mode .mbn-item:hover {
+    color: #F1F5F9;
+  }
+
+  body.dark-mode .mbn-item.active {
+    color: #34D399;
+  }
+
+  body.dark-mode .mbn-item.active .mbn-icon-wrap {
+    background: rgba(52, 211, 153, 0.15);
+  }
+}

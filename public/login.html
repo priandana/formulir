@@ -84,6 +84,33 @@
         </div>
       </div>
 
+      <!-- Live Operations Ticker -->
+      <div class="hero-ticker-wrap">
+        <div class="ticker-label">
+          <span class="live-dot"></span>
+          <span>LIVE OPS</span>
+        </div>
+        <div class="ticker-track">
+          <div class="ticker-content">
+            <span>⚡ 1.450+ Carian Terverifikasi</span>
+            <span class="ticker-sep">•</span>
+            <span>🟢 99.2% Akurasi QC</span>
+            <span class="ticker-sep">•</span>
+            <span>📦 38 Armada Terjadwal</span>
+            <span class="ticker-sep">•</span>
+            <span>🛡️ Zero Incident Shift Pagi</span>
+            <span class="ticker-sep">•</span>
+            <span>⚡ 1.450+ Carian Terverifikasi</span>
+            <span class="ticker-sep">•</span>
+            <span>🟢 99.2% Akurasi QC</span>
+            <span class="ticker-sep">•</span>
+            <span>📦 38 Armada Terjadwal</span>
+            <span class="ticker-sep">•</span>
+            <span>🛡️ Zero Incident Shift Pagi</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Hero Visual with Ambient Aura & Floating Chips -->
       <div class="hero-visual-stage">
         <div class="hero-glow-aura"></div>
@@ -515,6 +542,51 @@
         icon.innerHTML = '<path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>';
       } else {
         icon.innerHTML = '<path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707.707M12 7a5 5 0 100 10 5 5 0 000-10z"/>';
+      }
+    }
+
+    // Time-Adaptive Ambiance
+    (function applyTimeAmbiance() {
+      const hr = new Date().getHours();
+      if (hr >= 5 && hr < 11) document.body.classList.add('time-morning');
+      else if (hr >= 11 && hr < 15) document.body.classList.add('time-afternoon');
+      else if (hr >= 15 && hr < 18) document.body.classList.add('time-evening');
+      else document.body.classList.add('time-night');
+    })();
+
+    // Mobile Haptic Feedback Helper
+    function triggerHaptic(duration = 20) {
+      if (window.navigator && window.navigator.vibrate) {
+        try { window.navigator.vibrate(duration); } catch (_) {}
+      }
+    }
+
+    // Interactive 3D Parallax Tilt for Desktop
+    if (window.matchMedia('(pointer: fine) and (min-width: 901px)').matches) {
+      const card = document.querySelector('.form-card');
+      const visual = document.querySelector('.hero-visual-stage');
+
+      if (card) {
+        document.addEventListener('mousemove', (e) => {
+          const { clientX, clientY } = e;
+          const { innerWidth, innerHeight } = window;
+
+          const xPct = (clientX / innerWidth) - 0.5;
+          const yPct = (clientY / innerHeight) - 0.5;
+
+          const rotX = -yPct * 8;
+          const rotY = xPct * 10;
+          card.style.transform = `perspective(1000px) rotateX(${rotX.toFixed(2)}deg) rotateY(${rotY.toFixed(2)}deg) translateY(-2px)`;
+
+          if (visual) {
+            visual.style.transform = `perspective(1000px) rotateX(${(-rotX * 0.7).toFixed(2)}deg) rotateY(${(-rotY * 0.7).toFixed(2)}deg) translateY(${(-rotX * 0.8).toFixed(1)}px)`;
+          }
+        });
+
+        document.addEventListener('mouseleave', () => {
+          card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateY(0)';
+          if (visual) visual.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateY(0)';
+        });
       }
     }
   </script>
