@@ -544,6 +544,7 @@ function switchTab(tab) {
   } else {
     document.getElementById('panel-loader').classList.add('active');
     document.getElementById('tab-loader').classList.add('active-blue');
+    ldInitDefaultDates();
   }
   // Reset pendapatan tab style if not active
   if (tab !== 'pendapatan') {
@@ -3077,6 +3078,40 @@ function ldResetForm() {
   document.getElementById('ldCatatanRequiredAsterisk').style.display = 'none';
   ldCatatanRequired = false;
   document.querySelectorAll('#loaderForm .field-error.visible').forEach(el => el.classList.remove('visible'));
+
+  // Re-initialize default dates for the next entry
+  ldInitDefaultDates();
+}
+
+function ldInitDefaultDates() {
+  const tglCarianEl = document.getElementById('ld_tanggal_carian');
+  const tglKirimEl  = document.getElementById('ld_tanggal_kirim');
+  if (!tglCarianEl || !tglKirimEl) return;
+
+  const now = new Date();
+  const currentHour = now.getHours();
+  const todayStr = now.toLocaleDateString('sv-SE');
+  
+  // Tanggal kemarin (H-1)
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const yesterdayStr = yesterday.toLocaleDateString('sv-SE');
+
+  let carianChanged = false;
+  if (!tglCarianEl.value) {
+    // Jika input sebelum jam 14:00 (H+1 pagi/siang), default carian = kemarin (H-1).
+    // Jika input jam 14:00 ke atas (shift sore/malam baru mulai), default carian = hari ini (H).
+    tglCarianEl.value = currentHour < 14 ? yesterdayStr : todayStr;
+    carianChanged = true;
+  }
+
+  if (!tglKirimEl.value) {
+    // Tanggal kirim armada default = hari ini (H)
+    tglKirimEl.value = todayStr;
+  }
+
+  if (carianChanged) {
+    tglCarianEl.dispatchEvent(new Event('change'));
+  }
 }
 
 function ldClearForm() {

@@ -4863,12 +4863,18 @@ app.post('/api/loader-entries', requireAuth, (req, res, next) => {
     const { user_id: submittedUserId } = req.body;
     if (submittedUserId) {
       try {
-        const absensiActive = await db.getSetting('absensi_required');
-        if (absensiActive === 'true') {
-          const isHadir = await db.checkUserAbsensi(submittedUserId, tanggal_carian);
-          if (!isHadir) {
+        const absensiSettings = await db.getAbsensiSettings();
+        if (absensiSettings && absensiSettings.absensi_required) {
+          // Pengecekan toleran untuk shift outbound / loader:
+          // Hadir jika terdaftar di tanggal_carian (hari shift mulai) ATAU di tanggal_kirim (hari pengiriman H+1)
+          const hadirCarian = await db.isUserAbsen(tanggal_carian, submittedUserId);
+          const hadirKirim = (tanggal_kirim && tanggal_kirim !== tanggal_carian)
+            ? await db.isUserAbsen(tanggal_kirim, submittedUserId)
+            : false;
+          
+          if (!hadirCarian && !hadirKirim) {
             return res.status(403).json({
-              error: `Anda belum diabsen hadir untuk tanggal carian ${tanggal_carian}. Silakan hubungi Leader/Admin.`,
+              error: `Anda belum diabsen hadir untuk tanggal carian ${tanggal_carian} maupun tanggal kirim ${tanggal_kirim}. Silakan hubungi Leader/Admin.`,
               code: 'NOT_ABSEN'
             });
           }
