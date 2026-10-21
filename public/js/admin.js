@@ -1991,7 +1991,7 @@ function showOnscreenError(source, err) {
 
     tbody.innerHTML = filteredUsers.map((u, i) => {
       const posBadge = u.posisi === 'Picker' ? 'badge-picker' : u.posisi === 'Sorter' ? 'badge-sorter' : u.posisi === 'Return' ? 'badge-return' : 'badge-loader';
-      const tipeBadge = u.tipe_karyawan === 'PHL' ? 'badge-phl' : u.tipe_karyawan === 'Productivity' ? 'badge-prod' : 'badge-other';
+      const tipeBadge = u.tipe_karyawan === 'PHL' ? 'badge-phl' : u.tipe_karyawan === 'Productivity' ? 'badge-prod' : u.tipe_karyawan === 'PKWT' ? 'badge-pkwt' : 'badge-other';
       // is_active: null/undefined dianggap aktif (data lama)
       const isActive = u.is_active !== false;
       const statusBadge = isActive
@@ -5213,6 +5213,8 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
       const tipe = p.tipe_karyawan || 'Productivity';
       const tipeBadgeHtml = tipe === 'PHL'
         ? `<span style="background:#f3e8ff; color:#7c3aed; border:1px solid rgba(124, 58, 237, 0.2); font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px; margin-left:6px;">PHL</span>`
+        : tipe === 'PKWT'
+        ? `<span style="background:rgba(14, 165, 233, 0.1); color:#0284c7; border:1px solid rgba(14, 165, 233, 0.25); font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px; margin-left:6px;">PKWT</span>`
         : `<span style="background:#e0f2fe; color:#0284c7; border:1px solid rgba(2, 132, 199, 0.2); font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px; margin-left:6px;">Productivity</span>`;
 
       const zonaRows = (p.zona_detail || []).map(z => `
@@ -6194,6 +6196,8 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
       const tipe = p.user.tipe_karyawan || 'Productivity';
       const tipeStyle = tipe === 'PHL' 
         ? { bg: '#f3e8ff', color: '#7c3aed' }
+        : tipe === 'PKWT'
+        ? { bg: '#e0f2fe', color: '#0284c7' }
         : { bg: '#e0f2fe', color: '#0284c7' };
 
       let pctColor = '#10b981';

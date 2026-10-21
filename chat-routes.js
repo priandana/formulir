@@ -63,6 +63,9 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
   const requireChatAccess = async (req, res, next) => {
     try {
       if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+      if (req.user.tipe_karyawan === 'PKWT') {
+        return res.status(403).json({ error: 'Karyawan bertipe PKWT tidak memiliki akses ke fitur chat.' });
+      }
       const settings = await getChatSettings();
       
       // Admin bypasses status check for admin routes, but regular users don't. 
@@ -201,6 +204,10 @@ module.exports = function setupChatRoutes(app, db, jwt, JWT_SECRET) {
   // GET /api/chat/status
   app.get('/api/chat/status', requireAuth, async (req, res) => {
     try {
+      if (req.user && req.user.tipe_karyawan === 'PKWT') {
+        res.set('Cache-Control', 'no-store');
+        return res.json({ status: 'DISABLED' });
+      }
       const settings = await getChatSettings();
       res.set('Cache-Control', 'no-store');
       res.json({

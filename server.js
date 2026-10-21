@@ -173,6 +173,9 @@ app.post('/api/submit', requireAuth, (req, res, next) => {
   });
 }, async (req, res) => {
   try {
+    if (req.user && req.user.tipe_karyawan === 'PKWT') {
+      return res.status(403).json({ error: 'Karyawan bertipe PKWT hanya memiliki hak akses untuk Kalender Kerja.' });
+    }
     const { tanggal_carian, tanggal_pengerjaan, nama, posisi, tipe_lokasi, zona, catatan_tambahan } = req.body;
 
     // Validate required fields
@@ -4213,8 +4216,8 @@ app.post('/api/users', requirePermission('users'), async (req, res) => {
     if (!['Picker', 'Sorter', 'Loader', 'Return', 'QC Outbound'].includes(posisi)) {
       return res.status(400).json({ error: 'Posisi harus Picker, Sorter, Loader, Return, atau QC Outbound.' });
     }
-    if (tipe_karyawan && !['Productivity', 'PHL'].includes(tipe_karyawan)) {
-      return res.status(400).json({ error: 'Tipe Karyawan harus Productivity atau PHL.' });
+    if (tipe_karyawan && !['Productivity', 'PHL', 'PKWT'].includes(tipe_karyawan)) {
+      return res.status(400).json({ error: 'Tipe Karyawan harus Productivity, PHL, atau PKWT.' });
     }
     const user = await db.createOperationalUser({
       username: username.trim(),
@@ -4288,8 +4291,8 @@ app.put('/api/users/:id', requirePermission('users'), async (req, res) => {
     if (!['Picker', 'Sorter', 'Loader', 'Return', 'QC Outbound'].includes(posisi)) {
       return res.status(400).json({ error: 'Posisi harus Picker, Sorter, Loader, Return, atau QC Outbound.' });
     }
-    if (tipe_karyawan && !['Productivity', 'PHL'].includes(tipe_karyawan)) {
-      return res.status(400).json({ error: 'Tipe Karyawan harus Productivity atau PHL.' });
+    if (tipe_karyawan && !['Productivity', 'PHL', 'PKWT'].includes(tipe_karyawan)) {
+      return res.status(400).json({ error: 'Tipe Karyawan harus Productivity, PHL, atau PKWT.' });
     }
     const user = await db.updateOperationalUser(req.params.id, {
       username: username.trim(),
@@ -4848,6 +4851,9 @@ app.post('/api/loader-entries', requireAuth, (req, res, next) => {
   });
 }, async (req, res) => {
   try {
+    if (req.user && req.user.tipe_karyawan === 'PKWT') {
+      return res.status(403).json({ error: 'Karyawan bertipe PKWT hanya memiliki hak akses untuk Kalender Kerja.' });
+    }
     const { tanggal_carian, tanggal_kirim, nama, zona, no_polisi, catatan } = req.body;
     if (!tanggal_carian || !tanggal_kirim || !nama || !no_polisi) {
       return res.status(400).json({ error: 'Tanggal carian, tanggal kirim, nama, dan no. polisi wajib diisi.' });
@@ -5624,6 +5630,9 @@ app.get('/api/return-entries', requireAuth, async (req, res) => {
 // POST /api/return-entries â€” Submit entry return baru
 app.post('/api/return-entries', requireAuth, async (req, res) => {
   try {
+    if (req.user && req.user.tipe_karyawan === 'PKWT') {
+      return res.status(403).json({ error: 'Karyawan bertipe PKWT hanya memiliki hak akses untuk Kalender Kerja.' });
+    }
     const decoded = jwt.verify(req.cookies.token, JWT_SECRET);
     const {
       tanggal_return, tanggal_referensi, loader_entry_id, no_polisi,
@@ -5931,6 +5940,9 @@ app.post('/api/qc-outbound', requireQcOutbound, (req, res, next) => {
   });
 }, async (req, res) => {
   try {
+    if (req.user && req.user.tipe_karyawan === 'PKWT') {
+      return res.status(403).json({ error: 'Karyawan bertipe PKWT hanya memiliki hak akses untuk Kalender Kerja.' });
+    }
     const { tanggal, tanggal_carian, tanggal_kirim, no_polisi, nama_qc, zona, kontainer, styrofoam, dus, catatan } = req.body;
     const finalTglCarian = tanggal_carian || tanggal;
     const finalTglKirim = tanggal_kirim || tanggal;

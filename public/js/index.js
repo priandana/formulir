@@ -210,7 +210,47 @@ function populateUserUI() {
     const tabPendapatan = document.getElementById('tab-pendapatan');
     const tabQcOutbound = document.getElementById('tab-qc-outbound');
 
-    if (pos === 'return') {
+    const isPkwt = (u.tipe_karyawan || '').toUpperCase() === 'PKWT';
+
+    if (isPkwt) {
+      if (tabPicker) tabPicker.style.display = 'none';
+      if (tabLoader) tabLoader.style.display = 'none';
+      if (tabPendapatan) tabPendapatan.style.display = 'none';
+      if (tabReturn) tabReturn.style.display = 'none';
+      if (tabQcOutbound) tabQcOutbound.style.display = 'none';
+
+      const tabDash = document.getElementById('tab-dashboard');
+      if (tabDash) tabDash.style.display = 'none';
+      const tabRiw = document.getElementById('tab-riwayat');
+      if (tabRiw) tabRiw.style.display = 'none';
+      const tabKin = document.getElementById('tab-kinerja-saya');
+      if (tabKin) tabKin.style.display = 'none';
+
+      const secFormulir = document.getElementById('sidebarSectionFormulir');
+      if (secFormulir) secFormulir.style.display = 'none';
+      const navFormulir = document.getElementById('sidebarNavFormulir');
+      if (navFormulir) navFormulir.style.display = 'none';
+
+      // Mobile Bottom Nav adjustments for PKWT
+      const mbnDash = document.getElementById('mbn-dashboard');
+      if (mbnDash) mbnDash.style.display = 'none';
+      const mbnEntry = document.getElementById('mbn-entry');
+      if (mbnEntry) mbnEntry.style.display = 'none';
+      const mbnKin = document.getElementById('mbn-kinerja');
+      if (mbnKin) mbnKin.style.display = 'none';
+      const mbnRiw = document.getElementById('mbn-riwayat');
+      if (mbnRiw) mbnRiw.style.display = 'none';
+      const mbnChat = document.getElementById('mbn-chat');
+      if (mbnChat) mbnChat.style.display = 'none';
+
+      const mbnCal = document.getElementById('mbn-calendar');
+      if (mbnCal) mbnCal.style.display = 'flex';
+      const mbnLog = document.getElementById('mbn-logout');
+      if (mbnLog) mbnLog.style.display = 'flex';
+
+      const chatFloat = document.getElementById('chat-float-btn');
+      if (chatFloat) chatFloat.style.display = 'none';
+    } else if (pos === 'return') {
       if (tabPicker) tabPicker.style.display = 'none';
       if (tabLoader) tabLoader.style.display = 'none';
       if (tabPendapatan) tabPendapatan.style.display = 'none';
@@ -247,6 +287,10 @@ function populateUserUI() {
         tipeBadge.style.background = 'rgba(124, 58, 237, 0.15)';
         tipeBadge.style.color = '#a78bfa';
         tipeBadge.style.border = '1px solid rgba(124, 58, 237, 0.3)';
+      } else if (tipe === 'PKWT') {
+        tipeBadge.style.background = 'rgba(14, 165, 233, 0.15)';
+        tipeBadge.style.color = '#38bdf8';
+        tipeBadge.style.border = '1px solid rgba(14, 165, 233, 0.3)';
       } else {
         tipeBadge.style.background = 'rgba(16, 185, 129, 0.15)';
         tipeBadge.style.color = '#10b981';
@@ -289,7 +333,11 @@ function populateUserUI() {
       }
     }
 
-    switchTab('dashboard');
+    if (isPkwt) {
+      switchTab('calendar');
+    } else {
+      switchTab('dashboard');
+    }
   } catch(err) {
     console.error('populateUserUI error:', err);
   }
@@ -428,13 +476,20 @@ document.addEventListener('keydown', (e) => {
 
 // ===================== TABS =====================
 function switchTab(tab) {
+  const isPkwt = (currentUser?.tipe_karyawan || '').toUpperCase() === 'PKWT';
+  if (isPkwt) {
+    tab = 'calendar';
+  }
+
   const pos = currentUser && currentUser.posisi ? currentUser.posisi.toLowerCase() : '';
 
   // Block forbidden tabs per role
-  if (pos === 'return' && ['pendapatan', 'picker', 'loader'].includes(tab)) {
-    tab = 'return';
-  } else if (pos !== 'return' && tab === 'return') {
-    tab = 'picker';
+  if (!isPkwt) {
+    if (pos === 'return' && ['pendapatan', 'picker', 'loader'].includes(tab)) {
+      tab = 'return';
+    } else if (pos !== 'return' && tab === 'return') {
+      tab = 'picker';
+    }
   }
 
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -515,7 +570,9 @@ function triggerHaptic(duration = 15) {
 
 function syncMbnActive(tab) {
   document.querySelectorAll('.mbn-item').forEach(el => el.classList.remove('active'));
-  if (tab === 'dashboard') {
+  if (tab === 'calendar') {
+    document.getElementById('mbn-calendar')?.classList.add('active');
+  } else if (tab === 'dashboard') {
     document.getElementById('mbn-dashboard')?.classList.add('active');
   } else if (tab === 'riwayat') {
     document.getElementById('mbn-riwayat')?.classList.add('active');

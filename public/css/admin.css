@@ -868,6 +868,7 @@
     .badge-return { background: rgba(20,184,166,0.08); color: #0f766e; border: 1px solid rgba(20,184,166,0.2); }
     .badge-prod { background: rgba(96, 165, 250,0.06); color: #6D28D9; border: 1px solid rgba(96, 165, 250,0.15); }
     .badge-phl { background: rgba(236,72,153,0.06); color: #BE185D; border: 1px solid rgba(236,72,153,0.15); }
+    .badge-pkwt { background: rgba(14, 165, 233, 0.08); color: #0284C7; border: 1px solid rgba(14, 165, 233, 0.25); }
     .badge-other { background: rgba(107,114,128,0.06); color: #4B5563; border: 1px solid rgba(107,114,128,0.15); }
 
     .action-btns { display: flex; gap: 6px; }
@@ -2083,6 +2084,7 @@ body.dark-mode .badge-loader { background: rgba(251,191,36,0.12); color: #FBBF24
 body.dark-mode .badge-return { background: rgba(45,212,191,0.12); color: #2dd4bf; border-color: rgba(45,212,191,0.2); }
 body.dark-mode .badge-prod { background: rgba(167,139,250,0.12); color: #A78BFA; border-color: rgba(167,139,250,0.2); }
 body.dark-mode .badge-phl { background: rgba(244,114,182,0.12); color: #F472B6; border-color: rgba(244,114,182,0.2); }
+body.dark-mode .badge-pkwt { background: rgba(56, 189, 248, 0.12); color: #38BDF8; border-color: rgba(56, 189, 248, 0.25); }
 body.dark-mode .badge-other { background: rgba(156,163,175,0.12); color: #9CA3AF; border-color: rgba(156,163,175,0.2); }
 
 /* Dark mode — status badges */

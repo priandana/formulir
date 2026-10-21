@@ -561,6 +561,9 @@ module.exports = function setupDisciplineRoutes(app, db, jwt, JWT_SECRET, storeN
     }
   }, async (req, res) => {
     try {
+      if (req.user && req.user.tipe_karyawan === 'PKWT') {
+        return res.status(403).json({ error: 'Karyawan bertipe PKWT tidak memiliki akses ke pengajuan klarifikasi.' });
+      }
       const appeal = await db.createDisciplineAppeal(
         req.params.id,
         {
