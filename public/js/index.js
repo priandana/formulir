@@ -3931,7 +3931,7 @@ async function loadCalendarData() {
     }
     if (ach.loader && ach.loader.all_entries) {
       ach.loader.all_entries.forEach(e => {
-        const d = e.tanggal_kirim || e.tanggal_carian;
+        const d = e.tanggal_carian || e.tanggal_kirim;
         if (d) datesWithSubmissions.add(d.slice(0, 10));
       });
     }
@@ -4010,10 +4010,13 @@ function renderCalendar(year, month, officialHadir, datesWithSubmissions, ach) {
         totalHadirCount++;
       } else if (hasForm) {
         cell.classList.add('status-isi-form');
-        totalFormCount++;
       } else {
         cell.classList.add('status-off');
         totalOffCount++;
+      }
+
+      if (hasForm) {
+        totalFormCount++;
       }
     }
 
@@ -4153,8 +4156,9 @@ function showDayDetails(dateStr, hasOfficial, hasForm, dayNum, month, year, ach)
     
     // Check Loader Entries
     const loaderEntries = (ach.loader?.all_entries || []).filter(e => {
-      const d = e.tanggal_kirim || e.tanggal_carian;
-      return d && d.slice(0, 10) === dateStr;
+      const carian = (e.tanggal_carian || '').slice(0, 10);
+      const kirim = (e.tanggal_kirim || '').slice(0, 10);
+      return carian === dateStr || (!carian && kirim === dateStr);
     });
     
     if (pickerSubs.length > 0) {
