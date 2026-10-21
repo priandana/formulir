@@ -3030,6 +3030,10 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
       </td></tr>`;
       document.getElementById('rekapSummaryBar').style.display = 'none';
       document.getElementById('rekapPageInfo').textContent = '-';
+      const lBar = document.getElementById('rekapLegendBar');
+      if (lBar) lBar.style.display = 'none';
+      const bWrap = document.getElementById('rekapBatchWrap');
+      if (bWrap) bWrap.style.display = 'none';
       return;
     }
 
@@ -3052,6 +3056,10 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
         document.getElementById('rekapPageInfo').textContent = '0 data';
         const pControls = document.getElementById('rekapPaginationControls');
         if (pControls) pControls.innerHTML = '';
+        const lBar = document.getElementById('rekapLegendBar');
+        if (lBar) lBar.style.display = 'none';
+        const bWrap = document.getElementById('rekapBatchWrap');
+        if (bWrap) bWrap.style.display = 'none';
         return;
       }
 
@@ -3070,8 +3078,13 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
       const dateLabel = new Date(tanggal + 'T00:00:00').toLocaleDateString('id-ID', { weekday:'long', day:'2-digit', month:'long', year:'numeric' });
       document.getElementById('rekapTabelTitle').textContent = `SEMUA TOKO NASIONAL — ${dateLabel}`;
 
+      const lBar = document.getElementById('rekapLegendBar');
+      if (lBar) lBar.style.display = 'flex';
+
       updateRekapSummary();
       renderRekapTable();
+      calculateBatchData();
+      renderRekapBatchTable();
 
     } catch(err) {
       console.error('loadRekapToko error:', err);
@@ -3188,9 +3201,9 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
       row1 += `<th class="grp-header ${g.cls}" colspan="${colspan}">${g.label}</th>`;
       zones.forEach(z => {
         row2 += `<th class="zona-header ${g.zonaCls}" colspan="3">${z}</th>`;
-        row3 += `<th class="sub-header">Batch</th>`;
-        row3 += `<th class="sub-header">ACT / TGT</th>`;
-        row3 += `<th class="sub-header col-kont">ACT / TGT</th>`;
+        row3 += `<th class="sub-header" style="color:#64748b;">Batch</th>`;
+        row3 += `<th class="sub-header" title="Actual Output Picker Batch / Target Pesanan Toko (Pcs)">📦 Pcs (Act/Tgt)</th>`;
+        row3 += `<th class="sub-header col-kont" title="Actual Output Sorter Batch / Target Pesanan Toko (Kontainer)">🧺 Kont (Act/Tgt)</th>`;
       });
     });
 
@@ -3383,6 +3396,185 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
           document.querySelector('.rekap-toko-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
         }
       };
+    }
+  }
+
+  // ===== REKAP PROGRESS PER BATCH (Apel-ke-Apel) =====
+  let batchDataList = [];
+
+  function calculateBatchData() {
+    const batchMap = {};
+    allRekapData.forEach(r => {
+      const key = `${r.zona}|||${r.batch}`;
+      if (!batchMap[key]) {
+        batchMap[key] = {
+          zona: r.zona,
+          tipe_lokasi: r.tipe_lokasi || ZONA_TIPE(r.zona),
+          batch: r.batch,
+          tokoSet: new Set(),
+          target_qty: 0,
+          target_kont: 0,
+          actual_qty: r.actual_qty || 0,
+          actual_kont: r.actual_kont || 0
+        };
+      }
+      batchMap[key].tokoSet.add(r.nama_toko);
+      batchMap[key].target_qty += (r.qty_target || 0);
+      batchMap[key].target_kont += (r.kont_target || 0);
+    });
+
+    batchDataList = Object.values(batchMap).sort((a, b) => {
+      const zSort = sortZona(a.zona, b.zona);
+      if (zSort !== 0) return zSort;
+      return (parseInt(a.batch) || 0) - (parseInt(b.batch) || 0);
+    });
+  }
+
+  function renderRekapBatchTable() {
+    const wrap = document.getElementById('rekapBatchWrap');
+    if (!wrap) return;
+
+    if (!batchDataList || batchDataList.length === 0) {
+      wrap.style.display = 'none';
+      return;
+    }
+    wrap.style.display = 'block';
+
+    const zonaSel = document.getElementById('rekapBatchZonaFilter');
+    if (zonaSel) {
+      const curZona = zonaSel.value;
+      const uniqueZones = [...new Set(batchDataList.map(b => b.zona))].sort(sortZona);
+      const existingOptions = Array.from(zonaSel.options).map(o => o.value).filter(Boolean);
+      const isSame = existingOptions.length === uniqueZones.length && existingOptions.every((v, i) => v === uniqueZones[i]);
+      if (!isSame) {
+        zonaSel.innerHTML = '<option value="">Semua Zona</option>' +
+          uniqueZones.map(z => `<option value="${z}" ${z === curZona ? 'selected' : ''}>${z}</option>`).join('');
+      }
+    }
+
+    const filterZona = zonaSel ? zonaSel.value : '';
+    const statusSel = document.getElementById('rekapBatchStatusFilter');
+    const filterStatus = statusSel ? statusSel.value : '';
+
+    const filteredBatches = batchDataList.filter(b => {
+      if (filterZona && b.zona !== filterZona) return false;
+      const isSelesai = b.actual_qty >= b.target_qty && b.actual_kont >= b.target_kont;
+      const isProses = !isSelesai && (b.actual_qty > 0 || b.actual_kont > 0);
+      const isBelum = b.actual_qty === 0 && b.actual_kont === 0;
+
+      if (filterStatus === 'selesai' && !isSelesai) return false;
+      if (filterStatus === 'proses' && !isProses) return false;
+      if (filterStatus === 'belum' && !isBelum) return false;
+      return true;
+    });
+
+    const badgeCount = document.getElementById('rekapBatchCountBadge');
+    if (badgeCount) badgeCount.textContent = `${filteredBatches.length} batch`;
+
+    const tbody = document.getElementById('rekapBatchTbody');
+    const tfoot = document.getElementById('rekapBatchTfoot');
+    if (!tbody) return;
+
+    if (filteredBatches.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:30px; color:#64748b;">Tidak ada batch yang sesuai filter.</td></tr>`;
+      if (tfoot) tfoot.innerHTML = '';
+      return;
+    }
+
+    let totToko = 0;
+    let totTgtQty = 0;
+    let totActQty = 0;
+    let totTgtKont = 0;
+    let totActKont = 0;
+
+    const rowsHtml = filteredBatches.map(b => {
+      totToko += b.tokoSet.size;
+      totTgtQty += b.target_qty;
+      totActQty += b.actual_qty;
+      totTgtKont += b.target_kont;
+      totActKont += b.actual_kont;
+
+      const pctQty = b.target_qty > 0 ? Math.min(100, Math.round((b.actual_qty / b.target_qty) * 100)) : 0;
+      const pctKont = b.target_kont > 0 ? Math.min(100, Math.round((b.actual_kont / b.target_kont) * 100)) : 0;
+
+      const isSelesai = b.actual_qty >= b.target_qty && b.actual_kont >= b.target_kont;
+      const isProses = !isSelesai && (b.actual_qty > 0 || b.actual_kont > 0);
+
+      // Zona badge colors
+      let zonaBadgeBg = 'rgba(59,130,246,0.15)';
+      let zonaBadgeColor = '#60a5fa';
+      if (b.zona.startsWith('R')) {
+        zonaBadgeBg = 'rgba(16,185,129,0.15)';
+        zonaBadgeColor = '#34d399';
+      } else if (b.zona.startsWith('T')) {
+        zonaBadgeBg = 'rgba(251,146,60,0.15)';
+        zonaBadgeColor = '#fb923c';
+      }
+
+      const barColorQty = pctQty >= 100 ? '#34d399' : (pctQty > 0 ? '#fbbf24' : '#475569');
+      const barColorKont = pctKont >= 100 ? '#a855f7' : (pctKont > 0 ? '#fbbf24' : '#475569');
+
+      let statusHtml = '';
+      if (isSelesai) {
+        statusHtml = `<span style="background:rgba(16,185,129,0.2); color:#34d399; font-weight:700; padding:3px 8px; border-radius:12px; font-size:11px; display:inline-flex; align-items:center; gap:3px;">✓ Selesai</span>`;
+      } else if (isProses) {
+        statusHtml = `<span style="background:rgba(245,158,11,0.2); color:#fbbf24; font-weight:700; padding:3px 8px; border-radius:12px; font-size:11px; display:inline-flex; align-items:center; gap:3px;">⏳ Proses</span>`;
+      } else {
+        statusHtml = `<span style="background:rgba(148,163,184,0.15); color:#94a3b8; font-weight:600; padding:3px 8px; border-radius:12px; font-size:11px; display:inline-flex; align-items:center; gap:3px;">— Belum</span>`;
+      }
+
+      return `<tr>
+        <td style="padding:8px 12px; font-weight:700;">
+          <span style="background:${zonaBadgeBg}; color:${zonaBadgeColor}; padding:2px 8px; border-radius:6px; font-size:11px;">${b.zona}</span>
+        </td>
+        <td style="text-align:center; font-weight:700; color:#e2e8f0;">Batch ${b.batch}</td>
+        <td style="text-align:center; color:#94a3b8;">${b.tokoSet.size} toko</td>
+        <td style="text-align:right; font-weight:600; color:#94a3b8;">${b.target_qty.toLocaleString('id-ID')}</td>
+        <td style="text-align:right; font-weight:700; color:${b.actual_qty >= b.target_qty ? '#34d399' : (b.actual_qty > 0 ? '#fbbf24' : '#64748b')};">
+          ${b.actual_qty.toLocaleString('id-ID')}
+        </td>
+        <td style="text-align:center;">
+          <div style="display:flex; align-items:center; gap:6px; justify-content:center;">
+            <div style="width:50px; height:6px; background:#1e293b; border-radius:3px; overflow:hidden;">
+              <div style="width:${pctQty}%; height:100%; background:${barColorQty}; border-radius:3px;"></div>
+            </div>
+            <span style="font-size:11px; font-weight:700; color:${barColorQty}; width:32px; text-align:right;">${pctQty}%</span>
+          </div>
+        </td>
+        <td style="text-align:right; font-weight:600; color:#94a3b8;">${b.target_kont.toLocaleString('id-ID')}</td>
+        <td style="text-align:right; font-weight:700; color:${b.actual_kont >= b.target_kont ? '#a855f7' : (b.actual_kont > 0 ? '#fbbf24' : '#64748b')};">
+          ${b.actual_kont.toLocaleString('id-ID')}
+        </td>
+        <td style="text-align:center;">
+          <div style="display:flex; align-items:center; gap:6px; justify-content:center;">
+            <div style="width:50px; height:6px; background:#1e293b; border-radius:3px; overflow:hidden;">
+              <div style="width:${pctKont}%; height:100%; background:${barColorKont}; border-radius:3px;"></div>
+            </div>
+            <span style="font-size:11px; font-weight:700; color:${barColorKont}; width:32px; text-align:right;">${pctKont}%</span>
+          </div>
+        </td>
+        <td style="text-align:center;">${statusHtml}</td>
+      </tr>`;
+    }).join('');
+
+    tbody.innerHTML = rowsHtml;
+
+    if (tfoot) {
+      const totalPctQty = totTgtQty > 0 ? Math.round((totActQty / totTgtQty) * 100) : 0;
+      const totalPctKont = totTgtKont > 0 ? Math.round((totActKont / totTgtKont) * 100) : 0;
+
+      tfoot.innerHTML = `<tr style="background:#0d1526; font-weight:700; border-top:2px solid #334155;">
+        <td style="padding:10px 12px; color:#e2e8f0;">TOTAL</td>
+        <td style="text-align:center; color:#94a3b8;">${filteredBatches.length} batch</td>
+        <td style="text-align:center; color:#94a3b8;">—</td>
+        <td style="text-align:right; color:#94a3b8;">${totTgtQty.toLocaleString('id-ID')}</td>
+        <td style="text-align:right; color:#34d399;">${totActQty.toLocaleString('id-ID')}</td>
+        <td style="text-align:center; color:${totalPctQty >= 100 ? '#34d399' : '#fbbf24'};">${totalPctQty}%</td>
+        <td style="text-align:right; color:#94a3b8;">${totTgtKont.toLocaleString('id-ID')}</td>
+        <td style="text-align:right; color:#a855f7;">${totActKont.toLocaleString('id-ID')}</td>
+        <td style="text-align:center; color:${totalPctKont >= 100 ? '#a855f7' : '#fbbf24'};">${totalPctKont}%</td>
+        <td style="text-align:center; color:#e2e8f0;">${totalPctQty >= 100 && totalPctKont >= 100 ? '✅ 100% Selesai' : '⏳ Berjalan'}</td>
+      </tr>`;
     }
   }
 
@@ -4178,6 +4370,7 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
   // Expose to global scope
   window.loadRekapToko    = loadRekapToko;
   window.filterRekapTable = filterRekapTable;
+  window.renderRekapBatchTable = renderRekapBatchTable;
   window.toggleDarkMode   = toggleDarkMode;
   window.closeLightbox    = closeLightbox;
   window.loadAuditLogs    = loadAuditLogs;

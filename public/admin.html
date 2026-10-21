@@ -1042,12 +1042,29 @@
       </div>
 
       <!-- Summary chips -->
-      <div id="rekapSummaryBar" style="display:none; gap:12px; flex-wrap:wrap; margin-bottom:16px; display:none;">
+      <!-- Summary chips -->
+      <div id="rekapSummaryBar" style="display:none; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
         <div class="rekap-chip rekap-chip-total"><span id="rekapTotalToko">0</span> toko</div>
         <div class="rekap-chip rekap-chip-freezer"><span id="rekapTotalFreezer">0</span> pcs Freezer</div>
         <div class="rekap-chip rekap-chip-chiller"><span id="rekapTotalChiller">0</span> pcs Chiller</div>
         <div class="rekap-chip rekap-chip-ambient"><span id="rekapTotalAmbient">0</span> pcs Ambient</div>
         <div class="rekap-chip rekap-chip-kont"><span id="rekapTotalKont">0</span> kontainer</div>
+      </div>
+
+      <!-- Legend & Petunjuk Baca -->
+      <div id="rekapLegendBar" class="rekap-legend-bar" style="display:none;">
+        <div class="rekap-legend-left">
+          <span style="font-size:16px;">💡</span>
+          <div>
+            <strong style="color:#e2e8f0;">Panduan Membaca Tabel Toko:</strong>
+            <span> Angka kiri (<strong>Act</strong>) = Total progress pengerjaan Batch oleh Picker/Sorter. Angka kanan (<strong>Tgt</strong>) = Target kebutuhan pesanan toko tersebut.</span>
+          </div>
+        </div>
+        <div class="rekap-legend-right">
+          <span class="legend-item"><strong style="color:#60a5fa;">📦 Pcs</strong>: Output Picker</span>
+          <span class="legend-item"><strong style="color:#c084fc;">🧺 Kont</strong>: Output Sorter</span>
+          <span class="legend-item"><strong style="color:#34d399;">✓</strong>: Target Toko Terpenuhi</span>
+        </div>
       </div>
 
       <!-- Table container dark -->
@@ -1071,6 +1088,54 @@
         <div style="padding:10px 16px;display:flex;justify-content:space-between;align-items:center;background:var(--card-bg);border-top:1px solid var(--border);border-bottom-left-radius:12px;border-bottom-right-radius:12px;">
           <div style="font-size:12px;color:#64748b;" id="rekapPageInfo">-</div>
           <div id="rekapPaginationControls" style="display:flex;gap:8px;align-items:center;"></div>
+        </div>
+      </div>
+
+      <!-- Rekap Batch Section (Progress Apel-ke-Apel Per Batch) -->
+      <div class="rekap-toko-wrap rekap-batch-wrap" id="rekapBatchWrap" style="margin-top:20px; display:none;">
+        <div class="rekap-toko-header-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+          <div>
+            <div class="rekap-toko-title" style="display:flex; align-items:center; gap:8px;">
+              <span>📊 REKAP PROGRESS PER BATCH</span>
+              <span style="font-size:11px; font-weight:normal; color:#94a3b8; background:rgba(255,255,255,0.08); padding:2px 8px; border-radius:12px;" id="rekapBatchCountBadge">0 batch</span>
+            </div>
+            <div style="font-size:12px; color:#64748b; margin-top:3px;">Perbandingan target batch vs output riil tim Picker & Sorter (Apel-ke-Apel)</div>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <select id="rekapBatchZonaFilter" class="form-control" style="width:130px; font-size:12px; height:34px; padding:4px 8px; background:#1e293b; color:#f8fafc; border-color:#334155;" onchange="renderRekapBatchTable()">
+              <option value="">Semua Zona</option>
+            </select>
+            <select id="rekapBatchStatusFilter" class="form-control" style="width:130px; font-size:12px; height:34px; padding:4px 8px; background:#1e293b; color:#f8fafc; border-color:#334155;" onchange="renderRekapBatchTable()">
+              <option value="">Semua Status</option>
+              <option value="selesai">✅ Selesai (100%)</option>
+              <option value="proses">⏳ Sedang Proses</option>
+              <option value="belum">❌ Belum Mulai</option>
+            </select>
+          </div>
+        </div>
+        <div class="rekap-toko-scroll" style="max-height: 480px;">
+          <table class="rekap-toko-table" id="rekapBatchTable">
+            <thead>
+              <tr>
+                <th style="padding:10px 12px; text-align:left; color:#94a3b8; width:90px;">Zona</th>
+                <th style="padding:10px 12px; text-align:center; color:#94a3b8; width:80px;">Batch</th>
+                <th style="padding:10px 12px; text-align:center; color:#94a3b8; width:90px;">Total Toko</th>
+                <th style="padding:10px 12px; text-align:right; color:#60a5fa; width:130px;">Tgt Pcs (Picker)</th>
+                <th style="padding:10px 12px; text-align:right; color:#60a5fa; width:130px;">Act Pcs (Picker)</th>
+                <th style="padding:10px 12px; text-align:center; color:#93c5fd; width:120px;">Progress Pcs</th>
+                <th style="padding:10px 12px; text-align:right; color:#c084fc; width:130px;">Tgt Kont (Sorter)</th>
+                <th style="padding:10px 12px; text-align:right; color:#c084fc; width:130px;">Act Kont (Sorter)</th>
+                <th style="padding:10px 12px; text-align:center; color:#d8b4fe; width:120px;">Progress Kont</th>
+                <th style="padding:10px 12px; text-align:center; color:#94a3b8; width:120px;">Status</th>
+              </tr>
+            </thead>
+            <tbody id="rekapBatchTbody">
+              <!-- Rendered via JS -->
+            </tbody>
+            <tfoot id="rekapBatchTfoot">
+              <!-- Total row -->
+            </tfoot>
+          </table>
         </div>
       </div>
     </div>
