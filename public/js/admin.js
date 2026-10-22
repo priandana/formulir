@@ -4442,6 +4442,53 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
 
   // ============= STATUS CARIAN =============
   let statusCarianData = { sudah: [], belum: [] };
+  let scFilterSudahPosisi = 'all';
+  let scFilterBelumPosisi = 'all';
+  let scFilterBelumPhoneOnly = false;
+
+  function setScDateToday() {
+    const picker = document.getElementById('statusCarianDate');
+    if (picker) {
+      picker.value = new Date().toISOString().slice(0, 10);
+      loadStatusCarian();
+    }
+  }
+  window.setScDateToday = setScDateToday;
+
+  function setFilterSudahPosisi(pos) {
+    scFilterSudahPosisi = pos;
+    document.querySelectorAll('#scFilterSudahPosisi .sc-pill-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-pos') === pos);
+    });
+    filterSudahBelum();
+  }
+  window.setFilterSudahPosisi = setFilterSudahPosisi;
+
+  function setFilterBelumPosisi(pos) {
+    scFilterBelumPosisi = pos;
+    document.querySelectorAll('#scFilterBelumPosisi .sc-pill-btn[data-pos]').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-pos') === pos);
+    });
+    filterSudahBelum();
+  }
+  window.setFilterBelumPosisi = setFilterBelumPosisi;
+
+  function toggleFilterBelumPhone() {
+    scFilterBelumPhoneOnly = !scFilterBelumPhoneOnly;
+    const btn = document.getElementById('scBtnFilterPhone');
+    if (btn) btn.classList.toggle('active', scFilterBelumPhoneOnly);
+    filterSudahBelum();
+  }
+  window.toggleFilterBelumPhone = toggleFilterBelumPhone;
+
+  function formatWaLink(phone, nama) {
+    if (!phone) return null;
+    let clean = phone.replace(/\D/g, '');
+    if (clean.startsWith('0')) clean = '62' + clean.slice(1);
+    else if (clean.startsWith('8')) clean = '62' + clean;
+    const msg = `Halo ${nama}, mohon bantuannya untuk segera mengisi Formulir Pencapaian Carian hari ini ya. Terima kasih banyak! 🙏`;
+    return `https://wa.me/${clean}?text=${encodeURIComponent(msg)}`;
+  }
 
   async function loadStatusCarian() {
     const datePicker = document.getElementById('statusCarianDate');
@@ -4457,8 +4504,18 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
     if (searchBelum) searchBelum.value = '';
 
     // Show loading state
-    document.getElementById('sc-sudah-list').innerHTML = '<p style="text-align:center;padding:30px;color:var(--text-muted);font-size:13px;">⏳ Memuat data...</p>';
-    document.getElementById('sc-belum-list').innerHTML = '<p style="text-align:center;padding:30px;color:var(--text-muted);font-size:13px;">⏳ Memuat data...</p>';
+    document.getElementById('sc-sudah-list').innerHTML = `
+      <div class="sc-empty-box">
+        <div class="sc-empty-icon">⏳</div>
+        <div class="sc-empty-title">Memuat Data Status...</div>
+        <div class="sc-empty-desc">Mengambil riwayat absensi dan penginputan formulir carian.</div>
+      </div>`;
+    document.getElementById('sc-belum-list').innerHTML = `
+      <div class="sc-empty-box">
+        <div class="sc-empty-icon">⏳</div>
+        <div class="sc-empty-title">Memuat Data Status...</div>
+        <div class="sc-empty-desc">Menghitung karyawan yang belum menyelesaikan formulir.</div>
+      </div>`;
 
     try {
       const res = await fetch(`/api/status-carian?tanggal=${tanggal}`);
@@ -4467,47 +4524,117 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
 
       statusCarianData = data;
 
-      // Update summary
-      document.getElementById('sc-sudah-count').textContent = data.sudah.length;
-      document.getElementById('sc-belum-count').textContent = data.belum.length;
-      document.getElementById('sc-total-count').textContent = data.total_picker_sorter;
+      const total = data.total_picker_sorter || 0;
+      const countSudah = data.sudah.length;
+      const countBelum = data.belum.length;
+      const pctSudah = total > 0 ? Math.round((countSudah / total) * 100) : 0;
+      const pctBelum = total > 0 ? Math.round((countBelum / total) * 100) : 0;
+
+      // Update Summary Cards
+      document.getElementById('sc-sudah-count').textContent = countSudah;
+      document.getElementById('sc-belum-count').textContent = countBelum;
+      document.getElementById('sc-total-count').textContent = total;
+
+      const pctSudahEl = document.getElementById('sc-sudah-pct');
+      if (pctSudahEl) pctSudahEl.textContent = pctSudah + '%';
+
+      const pctBelumEl = document.getElementById('sc-belum-pct');
+      if (pctBelumEl) pctBelumEl.textContent = pctBelum + '%';
+
+      // Update Progress Track
+      const progFill = document.getElementById('sc-progress-fill');
+      if (progFill) progFill.style.width = pctSudah + '%';
+
+      const progPct = document.getElementById('sc-progress-pct');
+      if (progPct) progPct.textContent = pctSudah + '%';
+
+      const progSub = document.getElementById('sc-progress-subtext');
+      if (progSub) {
+        progSub.textContent = total > 0 
+          ? `${countSudah} dari ${total} karyawan (${pctSudah}%) telah selesai mengisi formulir hari ini`
+          : 'Belum ada data karyawan aktif / absensi hadir pada tanggal ini.';
+      }
+
+      // Column Badge Counters
+      const badgeSudah = document.getElementById('sc-sudah-badge-count');
+      if (badgeSudah) badgeSudah.textContent = countSudah;
+
+      const badgeBelum = document.getElementById('sc-belum-badge-count');
+      if (badgeBelum) badgeBelum.textContent = countBelum;
+
+      // WA Count
+      const belumDenganHP = data.belum.filter(u => u.nomor_hp);
+      const waReadyCount = document.getElementById('sc-wa-ready-count');
+      if (waReadyCount) waReadyCount.textContent = `${belumDenganHP.length} / ${countBelum}`;
+
+      const waReadySub = document.getElementById('sc-wa-ready-sub');
+      if (waReadySub) {
+        waReadySub.textContent = belumDenganHP.length > 0 
+          ? `${belumDenganHP.length} nomor WA aktif terdata`
+          : 'Tidak ada nomor WA';
+      }
+
+      const waBtnBadge = document.getElementById('sc-wa-count-badge');
+      if (waBtnBadge) {
+        if (belumDenganHP.length > 0) {
+          waBtnBadge.textContent = belumDenganHP.length;
+          waBtnBadge.style.display = 'inline-block';
+        } else {
+          waBtnBadge.style.display = 'none';
+        }
+      }
 
       // Update filter badge
       const badge = document.getElementById('sc-filter-badge');
       if (badge) {
         badge.style.display = 'inline-block';
         if (data.is_filtered_by_absensi) {
-          badge.style.background = 'rgba(16,185,129,0.1)';
+          badge.style.background = 'rgba(16,185,129,0.12)';
           badge.style.color = '#10B981';
-          badge.style.border = '1px solid rgba(16,185,129,0.2)';
-          badge.textContent = 'Filtered by Absensi (Hadir)';
+          badge.style.border = '1px solid rgba(16,185,129,0.3)';
+          badge.innerHTML = '✓ Filtered by Absensi (Hadir)';
         } else {
-          badge.style.background = 'rgba(107,114,128,0.1)';
+          badge.style.background = 'rgba(107,114,128,0.12)';
           badge.style.color = '#6B7280';
-          badge.style.border = '1px solid rgba(107,114,128,0.2)';
-          badge.textContent = 'All Active Employees (No Absensi)';
+          badge.style.border = '1px solid rgba(107,114,128,0.25)';
+          badge.innerHTML = 'Semua Karyawan Aktif (Tanpa Data Absensi)';
         }
       }
 
       // Render sudah list
       const sudahEl = document.getElementById('sc-sudah-list');
-      if (data.sudah.length === 0) {
-        sudahEl.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px;"><div style="font-size:32px;margin-bottom:8px;">📭</div>Belum ada karyawan yang menginput hari ini</div>';
+      if (countSudah === 0) {
+        sudahEl.innerHTML = `
+          <div class="sc-empty-box">
+            <div class="sc-empty-icon">📭</div>
+            <div class="sc-empty-title">Belum Ada Penginputan</div>
+            <div class="sc-empty-desc">Formulir hasil kerja yang diinput karyawan hari ini akan otomatis muncul di sini.</div>
+          </div>`;
       } else {
         sudahEl.innerHTML = data.sudah.map(u => {
-          const waktu = u.waktu_submit ? new Date(u.waktu_submit).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '—';
-          return `<div class="user-status-card" data-name="${u.nama}" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:12px;background:var(--card-bg);border:1px solid var(--border);margin-bottom:10px;box-shadow:0 2px 4px rgba(0,0,0,0.015);transition:all 0.2s;">
-            <div style="width:38px;height:38px;border-radius:50%;background:rgba(16,185,129,0.08);color:#10B981;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;border:1px solid rgba(16,185,129,0.15);flex-shrink:0;">
+          const waktu = u.waktu_submit 
+            ? new Date(u.waktu_submit).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) 
+            : '—';
+          const isPicker = u.posisi === 'Picker';
+          const avatarClass = isPicker ? 'picker' : 'sorter';
+          const posClass = isPicker ? 'picker' : 'sorter';
+          const posIcon = isPicker ? '📦' : '🧺';
+
+          return `<div class="sc-user-item user-status-card" data-name="${u.nama}" data-posisi="${u.posisi}">
+            <div class="sc-avatar ${avatarClass}">
               ${(u.nama || '?').charAt(0).toUpperCase()}
             </div>
-            <div style="flex:1;min-width:0;">
-              <div style="font-weight:700;font-size:14px;color:var(--text-primary);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${u.nama}</div>
-              <span class="badge ${u.posisi === 'Picker' ? 'badge-picker' : 'badge-sorter'}">${u.posisi}</span>
+            <div class="sc-user-info">
+              <div class="sc-user-name">${u.nama}</div>
+              <div class="sc-user-meta">
+                <span class="sc-pos-badge ${posClass}">${posIcon} ${u.posisi}</span>
+                ${u.nomor_hp ? `<span class="sc-phone-badge has-phone">📱 ${u.nomor_hp}</span>` : ''}
+              </div>
             </div>
-            <div style="flex-shrink:0;text-align:right;">
-              <span class="badge badge-status-active" style="background:rgba(16,185,129,0.06);color:#047857;border:1px solid rgba(16,185,129,0.15);font-size:11px;padding:3px 8px;">
-                <span class="status-dot" style="background:#10B981;width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:6px;"></span>
-                ${waktu}
+            <div class="sc-user-action">
+              <span class="sc-time-pill" title="Waktu penginputan">
+                <span class="sc-live-dot" style="width:5px;height:5px;"></span>
+                ${waktu} WIB
               </span>
             </div>
           </div>`;
@@ -4516,66 +4643,105 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
 
       // Render belum list
       const belumEl = document.getElementById('sc-belum-list');
-      if (data.belum.length === 0) {
-        belumEl.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--success);font-size:13px;font-weight:600;"><div style="font-size:32px;margin-bottom:8px;">🎉</div>Hebat! Semua karyawan sudah input hari ini!</div>';
+      if (countBelum === 0) {
+        belumEl.innerHTML = `
+          <div class="sc-empty-box">
+            <div class="sc-empty-icon">🎉</div>
+            <div class="sc-empty-title" style="color:#10B981;">Luar Biasa! Semua Sudah Input</div>
+            <div class="sc-empty-desc">Seluruh karyawan yang hadir hari ini telah menyelesaikan penginputan formulir carian.</div>
+          </div>`;
       } else {
         belumEl.innerHTML = data.belum.map(u => {
-          const noHpBadge = u.nomor_hp 
-            ? `<span style="font-size:11px;color:var(--text-secondary);background:var(--bg-secondary);padding:2px 6px;border-radius:4px;border:1px solid var(--border);">📱 ${u.nomor_hp}</span>` 
-            : `<span style="font-size:11px;color:var(--error);background:rgba(239,68,68,0.05);padding:2px 6px;border-radius:4px;border:1px solid rgba(239,68,68,0.15);">⚠️ Belum ada no. HP</span>`;
-          return `<div class="user-status-card" data-name="${u.nama}" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:12px;background:var(--card-bg);border:1px solid var(--border);margin-bottom:10px;box-shadow:0 2px 4px rgba(0,0,0,0.015);transition:all 0.2s;">
-            <div style="width:38px;height:38px;border-radius:50%;background:rgba(239,68,68,0.08);color:#EF4444;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;border:1px solid rgba(239,68,68,0.15);flex-shrink:0;">
+          const isPicker = u.posisi === 'Picker';
+          const avatarClass = isPicker ? 'picker' : 'sorter';
+          const posClass = isPicker ? 'picker' : 'sorter';
+          const posIcon = isPicker ? '📦' : '🧺';
+          const waLink = formatWaLink(u.nomor_hp, u.nama);
+
+          const phoneBadge = u.nomor_hp 
+            ? `<span class="sc-phone-badge has-phone">📱 ${u.nomor_hp}</span>`
+            : `<span class="sc-phone-badge no-phone">⚠️ Belum ada no. HP</span>`;
+
+          const waBtn = waLink 
+            ? `<a href="${waLink}" target="_blank" class="sc-btn-single-wa" title="Kirim reminder WhatsApp langsung ke ${u.nama}">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                Chat WA
+              </a>`
+            : '';
+
+          return `<div class="sc-user-item user-status-card" data-name="${u.nama}" data-posisi="${u.posisi}" data-has-phone="${u.nomor_hp ? '1' : '0'}">
+            <div class="sc-avatar ${avatarClass}">
               ${(u.nama || '?').charAt(0).toUpperCase()}
             </div>
-            <div style="flex:1;min-width:0;">
-              <div style="font-weight:700;font-size:14px;color:var(--text-primary);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${u.nama}</div>
-              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                <span class="badge ${u.posisi === 'Picker' ? 'badge-picker' : 'badge-sorter'}">${u.posisi}</span>
-                ${noHpBadge}
+            <div class="sc-user-info">
+              <div class="sc-user-name">${u.nama}</div>
+              <div class="sc-user-meta">
+                <span class="sc-pos-badge ${posClass}">${posIcon} ${u.posisi}</span>
+                ${phoneBadge}
               </div>
             </div>
-            <div style="flex-shrink:0;text-align:right;">
-              <span class="badge badge-status-inactive" style="background:rgba(107,114,128,0.06);color:#4B5563;border:1px solid rgba(107,114,128,0.15);font-size:11px;padding:3px 8px;">
-                Belum Input
-              </span>
+            <div class="sc-user-action">
+              ${waBtn}
+              <span class="sc-status-pill-gray">Belum Input</span>
             </div>
           </div>`;
         }).join('');
       }
 
-      // Add hover card animation styles dynamically
-      document.querySelectorAll('.user-status-card').forEach(card => {
-        card.onmouseover = () => { card.style.borderColor = 'var(--primary)'; card.style.transform = 'translateY(-1px)'; card.style.boxShadow = '0 4px 8px rgba(0,0,0,0.04)'; };
-        card.onmouseout  = () => { card.style.borderColor = 'var(--border)'; card.style.transform = ''; card.style.boxShadow = '0 2px 4px rgba(0,0,0,0.015)'; };
-      });
-
-      // Update WA button
+      // Update WA reminder button tooltip
       const btnWA = document.getElementById('btnKirimWA');
       if (btnWA) {
-        const punya_hp = data.belum.filter(u => u.nomor_hp).length;
-        btnWA.title = `${punya_hp} dari ${data.belum.length} orang yang belum input punya nomor HP`;
+        btnWA.title = `${belumDenganHP.length} dari ${countBelum} orang yang belum input memiliki nomor WhatsApp`;
       }
+
+      // Reapply active filters
+      filterSudahBelum();
 
     } catch (err) {
       console.error('loadStatusCarian error:', err);
-      document.getElementById('sc-sudah-list').innerHTML = `<p style="text-align:center;padding:20px;color:var(--error);font-size:13px;">Gagal memuat: ${err.message}</p>`;
+      document.getElementById('sc-sudah-list').innerHTML = `
+        <div class="sc-empty-box">
+          <div class="sc-empty-icon">⚠️</div>
+          <div class="sc-empty-title" style="color:var(--error);">Gagal Memuat Data</div>
+          <div class="sc-empty-desc">${err.message}</div>
+        </div>`;
       document.getElementById('sc-belum-list').innerHTML = '';
     }
   }
 
-  // Live filter function for search boxes
+  // Live filter function for search boxes and category pills
   function filterSudahBelum() {
-    const querySudah = document.getElementById('searchSudah')?.value?.toLowerCase() || '';
-    const queryBelum = document.getElementById('searchBelum')?.value?.toLowerCase() || '';
+    const querySudah = (document.getElementById('searchSudah')?.value || '').toLowerCase().trim();
+    const queryBelum = (document.getElementById('searchBelum')?.value || '').toLowerCase().trim();
 
-    document.querySelectorAll('#sc-sudah-list .user-status-card').forEach(card => {
-      const name = card.getAttribute('data-name')?.toLowerCase() || '';
-      card.style.display = name.includes(querySudah) ? 'flex' : 'none';
+    // Filter Sudah list
+    let visibleSudah = 0;
+    document.querySelectorAll('#sc-sudah-list .sc-user-item').forEach(card => {
+      const name = (card.getAttribute('data-name') || '').toLowerCase();
+      const pos = card.getAttribute('data-posisi');
+
+      const matchName = !querySudah || name.includes(querySudah);
+      const matchPos = scFilterSudahPosisi === 'all' || pos === scFilterSudahPosisi;
+
+      const isVisible = matchName && matchPos;
+      card.style.display = isVisible ? 'flex' : 'none';
+      if (isVisible) visibleSudah++;
     });
 
-    document.querySelectorAll('#sc-belum-list .user-status-card').forEach(card => {
-      const name = card.getAttribute('data-name')?.toLowerCase() || '';
-      card.style.display = name.includes(queryBelum) ? 'flex' : 'none';
+    // Filter Belum list
+    let visibleBelum = 0;
+    document.querySelectorAll('#sc-belum-list .sc-user-item').forEach(card => {
+      const name = (card.getAttribute('data-name') || '').toLowerCase();
+      const pos = card.getAttribute('data-posisi');
+      const hasPhone = card.getAttribute('data-has-phone') === '1';
+
+      const matchName = !queryBelum || name.includes(queryBelum);
+      const matchPos = scFilterBelumPosisi === 'all' || pos === scFilterBelumPosisi;
+      const matchPhone = !scFilterBelumPhoneOnly || hasPhone;
+
+      const isVisible = matchName && matchPos && matchPhone;
+      card.style.display = isVisible ? 'flex' : 'none';
+      if (isVisible) visibleBelum++;
     });
   }
   window.filterSudahBelum = filterSudahBelum;
