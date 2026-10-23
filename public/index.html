@@ -127,7 +127,6 @@
             <div class="sidebar-item-label">Pendapatan</div>
             <div class="sidebar-item-sub">Estimasi nilai kerjamu</div>
           </div>
-          <span style="position:absolute; top:8px; right:10px; background:linear-gradient(135deg,#f59e0b,#ef4444); color:#fff; font-size:9px; font-weight:700; padding:2px 6px; border-radius:20px; letter-spacing:0.5px;">SOON</span>
         </button>
       </nav>
 
@@ -260,12 +259,20 @@
               <div class="dash-date" id="dashDate"></div>
             </div>
           </div>
-          <button class="dash-refresh-btn" onclick="loadDashboard()" title="Refresh">
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-            </svg>
-            Refresh
-          </button>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <button type="button" class="dash-quick-input-btn" onclick="quickOpenInputCarian()" title="Input Carian Baru Sekarang">
+              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+              </svg>
+              <span>+ Input Carian Baru</span>
+            </button>
+            <button class="dash-refresh-btn" onclick="loadDashboard()" title="Refresh">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              Refresh
+            </button>
+          </div>
         </div>
 
         <!-- Dashboard Content -->

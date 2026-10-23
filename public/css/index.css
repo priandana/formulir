@@ -3101,24 +3101,103 @@ body.dark-mode .pv-total-row { background: rgba(99,102,241,0.12); border-color: 
 
 body.dark-mode .clear-modal { background: #1e293b; border-color: #334155; }
 
+/* Quick Input Button in Welcome Header */
+.dash-quick-input-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #FFFFFF;
+  background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+.dash-quick-input-btn:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+}
+.dash-quick-input-btn:active {
+  transform: translateY(0);
+}
+
 /* ================================================================
    DASHBOARD SPARKLINE TREN OUTPUT
    ================================================================ */
 .dash-sparkline-wrap {
-  display: flex; align-items: center; gap: 16px;
-  padding: 14px 18px; margin-bottom: 20px;
-  background: linear-gradient(135deg, rgba(99,102,241,0.05), rgba(139,92,246,0.04));
-  border: 1.5px solid rgba(99,102,241,0.12); border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 22px;
+  margin-bottom: 24px;
+  background: linear-gradient(135deg, rgba(99,102,241,0.06), rgba(139,92,246,0.04));
+  border: 1.5px solid rgba(99,102,241,0.15);
+  border-radius: 20px;
+  box-shadow: 0 4px 20px -4px rgba(99, 102, 241, 0.08);
+  flex-wrap: wrap;
 }
-.dash-sparkline-label {
-  font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.5px; color: var(--text-muted);
-  white-space: nowrap;
+.dash-sparkline-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 220px;
+  flex: 1;
+}
+.dash-sparkline-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.2px;
+}
+.dash-sparkline-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.dash-sparkline-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.dash-sparkline-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.08);
+  color: #4f46e5;
+  border: 1px solid rgba(99, 102, 241, 0.18);
+}
+.dash-sparkline-chart-side {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
 }
 .dash-sparkline-wrap svg { color: var(--text); flex-shrink: 0; }
 
 body.dark-mode .dash-sparkline-wrap {
-  background: rgba(99,102,241,0.08); border-color: rgba(99,102,241,0.2);
+  background: rgba(99,102,241,0.08); border-color: rgba(99,102,241,0.22);
+}
+body.dark-mode .dash-sparkline-badge {
+  background: rgba(99, 102, 241, 0.18);
+  color: #a5b4fc;
+  border-color: rgba(99, 102, 241, 0.3);
 }
 body.dark-mode .dash-sparkline-wrap svg rect[fill="#e2e8f0"] {
   fill: #334155;

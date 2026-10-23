@@ -562,6 +562,18 @@ function switchTab(tab) {
   }
 }
 
+// Quick action to open input carian based on user position
+function quickOpenInputCarian() {
+  triggerHaptic(20);
+  const userPos = (currentUser && currentUser.posisi) || '';
+  if (userPos === 'Loader') {
+    switchTab('loader');
+  } else {
+    switchTab('picker');
+  }
+}
+window.quickOpenInputCarian = quickOpenInputCarian;
+
 // Mobile Bottom Nav Helpers
 function triggerHaptic(duration = 15) {
   if (window.navigator && window.navigator.vibrate) {
@@ -622,22 +634,12 @@ function toggleSidebar() {
 }
 window.toggleSidebar = toggleSidebar;
 
-// ===================== PENDAPATAN (PREVIEW MODE) =====================
+// ===================== PENDAPATAN =====================
 async function loadPendapatan() {
-  const isPreview = window.location.search.includes('preview=true') || localStorage.getItem('preview_pendapatan') === 'true';
   const soonView = document.getElementById('pendapatan-soon-view');
   const activeView = document.getElementById('pendapatan-active-view');
   const phlView = document.getElementById('pendapatan-phl-view');
-  if (!soonView || !activeView) return;
-
-  if (!isPreview) {
-    soonView.style.display = 'block';
-    activeView.style.display = 'none';
-    if (phlView) phlView.style.display = 'none';
-    return;
-  }
-
-  soonView.style.display = 'none';
+  if (soonView) soonView.style.display = 'none';
 
   // Get current user type
   const tipeKaryawan = (currentUser && currentUser.tipe_karyawan) || 'Productivity';
@@ -751,31 +753,52 @@ async function loadPendapatan() {
       const hargaRes = await fetch('/api/ketentuan-harga');
       const hargaList = await hargaRes.json();
 
-      // Map harga dengan key "POSISI|KATEGORI_ZONA"
-      const hargaMap = {};
-      if (Array.isArray(hargaList)) {
-        hargaList.forEach(h => {
-          const key = `${h.posisi.toUpperCase()}|${h.zona.toUpperCase()}`;
-          hargaMap[key] = parseFloat(h.harga_satuan) || 0;
-        });
-      }
-
-      // 2. Ambil pencapaian user
-      const achRes = await fetch('/api/my-achievements');
-      const ach = await achRes.json();
-
-      // 3. Helper mapping zona ke kategori ketentuan harga
+      // Helper mapping zona ke kategori ketentuan harga
       const getZoneCategory = (zona) => {
         if (!zona) return 'AMBIENT';
-        const z = zona.trim().toUpperCase();
+        const z = String(zona).trim().toUpperCase();
         if (z.startsWith('F')) return 'FREEZER';
         if (z.startsWith('R')) return 'CHILLER';
         return 'AMBIENT';
       };
 
-      const getLocalDateString = (dateStr) => {
-        return dateStr.slice(0, 10);
+      // Helper lookup harga per tanggal transaksi
+      const getPriceForSub = (subPosisi, subZona, tanggal) => {
+        if (!Array.isArray(hargaList)) return 0;
+        const pos = String(subPosisi || '').toUpperCase();
+        const zCat = getZoneCategory(subZona);
+        const tgl = String(tanggal || '').slice(0, 10);
+
+        const matches = hargaList.filter(h => {
+          const hPos = String(h.posisi || '').toUpperCase();
+          const hZona = String(h.zona || '').toUpperCase();
+          const isPosMatch = hPos === pos;
+          let isZonaMatch = false;
+          if (pos === 'LOADER') {
+            isZonaMatch = hZona.includes('LOADER') || hZona.includes('AMBIENT');
+          } else {
+            isZonaMatch = hZona === zCat || hZona === String(subZona || '').toUpperCase();
+          }
+          const berlaku = h.berlaku_dari ? String(h.berlaku_dari).slice(0, 10) : '1970-01-01';
+          return isPosMatch && isZonaMatch && berlaku <= tgl;
+        });
+
+        if (matches.length > 0) {
+          matches.sort((a, b) => String(b.berlaku_dari || '').localeCompare(String(a.berlaku_dari || '')));
+          return parseFloat(matches[0].harga || matches[0].harga_satuan) || 0;
+        }
+
+        const fallback = hargaList.find(h => {
+          const hPos = String(h.posisi || '').toUpperCase();
+          const hZona = String(h.zona || '').toUpperCase();
+          return hPos === pos && (hZona === zCat || (pos === 'LOADER' && (hZona.includes('LOADER') || hZona.includes('AMBIENT'))));
+        });
+        return fallback ? (parseFloat(fallback.harga || fallback.harga_satuan) || 0) : 0;
       };
+
+      // 2. Ambil pencapaian user
+      const achRes = await fetch('/api/my-achievements');
+      const ach = await achRes.json();
 
       const todayStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jakarta' }).slice(0, 10);
       const thisMonthStr = todayStr.slice(0, 7); // YYYY-MM
@@ -794,13 +817,12 @@ async function loadPendapatan() {
       submissions.forEach(sub => {
         if (sub.status !== 'approved') return;
 
-        const dateOnly = getLocalDateString(sub.tanggal_pengerjaan);
+        const dateOnly = (sub.tanggal_carian || sub.tanggal_pengerjaan || '').slice(0, 10);
         const isToday = dateOnly === todayStr;
         const isThisMonth = dateOnly.startsWith(thisMonthStr);
 
         const zoneCat = getZoneCategory(sub.zona);
-        const priceKey = `${sub.posisi.toUpperCase()}|${zoneCat}`;
-        const price = hargaMap[priceKey] || 0;
+        const price = getPriceForSub(sub.posisi, sub.zona, dateOnly);
         const qty = parseInt(sub.jumlah_output) || 0;
         const val = qty * price;
 
@@ -811,9 +833,9 @@ async function loadPendapatan() {
         rows.push({
           tanggal: dateOnly,
           posisi: sub.posisi,
-          zona: sub.zona + ` (${zoneCat})`,
+          zona: sub.zona + (sub.zona !== zoneCat ? ` (${zoneCat})` : ''),
           qty: qty,
-          satuan: 'pcs',
+          satuan: sub.posisi === 'Picker' ? 'pcs' : 'kontainer',
           price: price,
           val: val
         });
@@ -822,13 +844,11 @@ async function loadPendapatan() {
       // Ambil pencapaian Loader
       const loaderEntries = ach.loader?.all_entries || [];
       loaderEntries.forEach(entry => {
-        const dateOnly = getLocalDateString(entry.tanggal_kirim || entry.tanggal_carian);
+        const dateOnly = (entry.tanggal_kirim || entry.tanggal_carian || '').slice(0, 10);
         const isToday = dateOnly === todayStr;
         const isThisMonth = dateOnly.startsWith(thisMonthStr);
 
-        // Loader menggunakan tarif LOADER|AMBIENT, CHILLER, FREEZER
-        const priceKey = 'LOADER|AMBIENT, CHILLER, FREEZER';
-        const price = hargaMap[priceKey] || 0;
+        const price = getPriceForSub('Loader', 'AMBIENT, CHILLER, FREEZER', dateOnly);
         const qty = parseInt(entry.jumlah_kontainer) || 0;
         const val = qty * price;
 
@@ -839,7 +859,7 @@ async function loadPendapatan() {
         rows.push({
           tanggal: dateOnly,
           posisi: 'Loader',
-          zona: 'F, R, T (Kombinasi)',
+          zona: 'Kombinasi (Dock)',
           qty: qty,
           satuan: 'kontainer',
           price: price,
@@ -3285,6 +3305,36 @@ async function loadDashboard() {
       safeSetDisp('dashSectionLoader', 'none');
     }
 
+    // Sinkronisasi Greeting Posisi agar konsisten dengan kartu yang muncul
+    const dashGreeting = document.getElementById('dashGreeting');
+    if (dashGreeting) {
+      const hour = new Date().getHours();
+      const greet = hour < 11 ? 'Selamat Pagi' : hour < 15 ? 'Selamat Siang' : hour < 18 ? 'Selamat Sore' : 'Selamat Malam';
+      let activeRole = (window.currentUser && window.currentUser.posisi) || '';
+      const hasPickerToday = (p?.today?.total_batch || 0) > 0;
+      const hasSorterToday = (so?.today?.total_batch || 0) > 0;
+      const hasLoaderToday = (lo?.today?.total_trip || 0) > 0;
+
+      if (hasPickerToday && !hasSorterToday && !hasLoaderToday) {
+        activeRole = 'Picker';
+      } else if (hasSorterToday && !hasPickerToday && !hasLoaderToday) {
+        activeRole = 'Sorter';
+      } else if (hasLoaderToday && !hasPickerToday && !hasSorterToday) {
+        activeRole = 'Loader';
+      } else if (hasPickerToday && hasSorterToday) {
+        activeRole = 'Picker & Sorter';
+      } else {
+        // Jika belum ada input hari ini, cek posisi sepanjang waktu / periode aktif
+        const hasPickerAll = (p?.all?.total_batch || 0) > 0;
+        const hasSorterAll = (so?.all?.total_batch || 0) > 0;
+        const hasLoaderAll = (lo?.all?.total_trip || 0) > 0;
+        if (hasPickerAll && !hasSorterAll && !hasLoaderAll) activeRole = 'Picker';
+        else if (hasSorterAll && !hasPickerAll && !hasLoaderAll) activeRole = 'Sorter';
+        else if (hasLoaderAll && !hasPickerAll && !hasSorterAll) activeRole = 'Loader';
+      }
+      dashGreeting.textContent = `${greet}${activeRole ? ', ' + activeRole : ''}!`;
+    }
+
     safeSetDisp('dashEmpty', hasAny ? 'none' : 'block');
 
     try { renderDashboardSparkline(d); } catch(err) {}
@@ -3303,14 +3353,13 @@ async function loadDashboard() {
 
 // ===================== DASHBOARD SPARKLINE =====================
 function renderDashboardSparkline(d) {
-  // Kumpulkan data 14 hari terakhir dari all_submissions + loader entries
   const daily = {};
   const allSubs = [
     ...(d.picker?.all_submissions || []),
     ...(d.sorter?.all_submissions || [])
   ];
   allSubs.forEach(s => {
-    const tgl = (s.tanggal_pengerjaan || s.created_at || '').slice(0, 10);
+    const tgl = (s.tanggal_carian || s.tanggal_pengerjaan || s.created_at || '').slice(0, 10);
     if (!tgl) return;
     daily[tgl] = (daily[tgl] || 0) + (parseInt(s.jumlah_output) || 0);
   });
@@ -3320,55 +3369,83 @@ function renderDashboardSparkline(d) {
     daily[tgl] = (daily[tgl] || 0) + (parseInt(e.jumlah_kontainer) || 0);
   });
 
-  // Ambil 7 hari terakhir (semua menggunakan timezone Asia/Jakarta)
+  // Ambil 7 hari terakhir (WIB)
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jakarta' });
   const days = [];
   for (let i = 6; i >= 0; i--) {
-    // Hitung tanggal dengan offset hari dalam WIB
     const nowWib = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
     nowWib.setDate(nowWib.getDate() - i);
     const k = nowWib.toLocaleDateString('sv-SE');
     days.push({ key: k, val: daily[k] || 0, isToday: k === today });
   }
 
+  const total7Days = days.reduce((acc, d) => acc + d.val, 0);
+  const avgDaily = Math.round(total7Days / 7);
+  let bestDay = days[0];
+  days.forEach(d => { if (d.val > (bestDay ? bestDay.val : 0)) bestDay = d; });
+  const dayNamesFull = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const bestDayName = bestDay && bestDay.val > 0 ? dayNamesFull[new Date(bestDay.key + 'T00:00:00').getDay()] : '-';
+
   const max = Math.max(...days.map(x => x.val), 1);
-  const W = 180, H = 48, pad = 4;
-  const barW = (W - pad * 2) / 7 - 3;
+  const W = 320, H = 64, pad = 8;
+  const barW = (W - pad * 2) / 7 - 6;
 
   const barsHtml = days.map((day, i) => {
-    const bh = Math.max(4, ((day.val / max) * (H - pad * 2)));
+    const bh = Math.max(6, ((day.val / max) * (H - pad * 2)));
     const x = pad + i * ((W - pad * 2) / 7);
     const y = H - pad - bh;
-    const col = day.isToday ? '#6366f1' : (day.val > 0 ? '#a5b4fc' : '#e2e8f0');
-    const label = day.key.slice(5); // MM-DD
-    return `<g>
-      <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="3" fill="${col}" opacity="${day.isToday ? '1' : '0.7'}"/>
-      ${day.val > 0 ? `<text x="${(x + barW/2).toFixed(1)}" y="${(y - 3).toFixed(1)}" text-anchor="middle" font-size="7" fill="currentColor" opacity="0.6">${day.val > 999 ? Math.round(day.val/1000)+'k' : day.val}</text>` : ''}
+    const col = day.isToday ? '#4f46e5' : (day.val > 0 ? '#818cf8' : '#e2e8f0');
+    return `<g class="spark-bar-group">
+      <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="4" fill="${col}" opacity="${day.isToday ? '1' : '0.85'}"/>
+      ${day.val > 0 ? `<text x="${(x + barW/2).toFixed(1)}" y="${(y - 4).toFixed(1)}" text-anchor="middle" font-size="8.5" font-weight="700" fill="currentColor">${day.val > 999 ? Math.round(day.val/1000)+'k' : day.val}</text>` : ''}
     </g>`;
   }).join('');
 
   const dayLabels = days.map((day, i) => {
     const x = pad + i * ((W - pad * 2) / 7) + barW / 2;
     const short = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'][new Date(day.key + 'T00:00:00').getDay()];
-    return `<text x="${x.toFixed(1)}" y="${H + 10}" text-anchor="middle" font-size="7" fill="currentColor" opacity="${day.isToday ? '1' : '0.5'}" font-weight="${day.isToday ? '700' : '400'}">${short}</text>`;
+    return `<text x="${x.toFixed(1)}" y="${H + 14}" text-anchor="middle" font-size="9" fill="currentColor" opacity="${day.isToday ? '1' : '0.6'}" font-weight="${day.isToday ? '800' : '500'}">${short}</text>`;
   }).join('');
 
-  const svgHtml = `<div class="dash-sparkline-wrap">
-    <div class="dash-sparkline-label">Tren Output 7 Hari</div>
-    <svg width="${W}" height="${H + 14}" viewBox="0 0 ${W} ${H + 14}" style="overflow:visible;">
-      ${barsHtml}${dayLabels}
-    </svg>
-  </div>`;
+  const cardHtml = `
+    <div class="dash-sparkline-left">
+      <div class="dash-sparkline-title">
+        <svg width="18" height="18" fill="none" stroke="#4f46e5" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+        </svg>
+        <span>Tren Output (7 Hari Terakhir)</span>
+      </div>
+      <div class="dash-sparkline-sub">Grafik perkembangan pencapaian harian Anda dalam seminggu terakhir</div>
+      <div class="dash-sparkline-badges">
+        <span class="dash-sparkline-badge" title="Total output 7 hari terakhir">
+          📦 Total: <b>${total7Days.toLocaleString('id-ID')}</b>
+        </span>
+        <span class="dash-sparkline-badge" title="Rata-rata output per hari">
+          ⚡ Rata-rata: <b>${avgDaily.toLocaleString('id-ID')} / hari</b>
+        </span>
+        ${bestDay && bestDay.val > 0 ? `
+          <span class="dash-sparkline-badge" style="background:rgba(16,185,129,0.09); color:#059669; border-color:rgba(16,185,129,0.22);" title="Hari dengan pencapaian output tertinggi">
+            🏆 Terbaik: <b>${bestDayName} (${bestDay.val.toLocaleString('id-ID')})</b>
+          </span>
+        ` : ''}
+      </div>
+    </div>
+    <div class="dash-sparkline-chart-side">
+      <svg width="${W}" height="${H + 18}" viewBox="0 0 ${W} ${H + 18}" style="overflow:visible;">
+        ${barsHtml}${dayLabels}
+      </svg>
+    </div>
+  `;
 
-  // Sisipkan setelah welcome header jika belum ada
   let sparkWrap = document.getElementById('dashSparklineWrap');
   if (!sparkWrap) {
     sparkWrap = document.createElement('div');
     sparkWrap.id = 'dashSparklineWrap';
+    sparkWrap.className = 'dash-sparkline-wrap';
     const dashMain = document.getElementById('dashMain');
     if (dashMain) dashMain.insertAdjacentElement('afterbegin', sparkWrap);
   }
-  sparkWrap.innerHTML = svgHtml;
+  sparkWrap.innerHTML = cardHtml;
 }
 
 // ===================== PENDING BADGE NOTIFIKASI =====================
