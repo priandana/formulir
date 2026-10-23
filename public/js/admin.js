@@ -1976,8 +1976,72 @@ function showOnscreenError(source, err) {
 
   function renderUsersTable() {
     const tbody = document.getElementById('usersTableBody');
+    const searchVal = (document.getElementById('userSearchInput')?.value || '').trim().toLowerCase();
     const filterType = document.getElementById('userFilterTipe')?.value || '';
-    const filteredUsers = filterType ? allUsers.filter(u => u.tipe_karyawan === filterType) : allUsers;
+    const filterPosisi = document.getElementById('userFilterPosisi')?.value || '';
+    const filterStatus = document.getElementById('userFilterStatus')?.value || '';
+
+    // Active state highlighting
+    const elSearch = document.getElementById('userSearchInput');
+    const elType = document.getElementById('userFilterTipe');
+    const elPos = document.getElementById('userFilterPosisi');
+    const elStatus = document.getElementById('userFilterStatus');
+    if (elSearch) elSearch.classList.toggle('active', !!searchVal);
+    if (elType) elType.classList.toggle('active', !!filterType);
+    if (elPos) elPos.classList.toggle('active', !!filterPosisi);
+    if (elStatus) elStatus.classList.toggle('active', !!filterStatus);
+
+    let filteredUsers = allUsers;
+
+    if (filterType) {
+      filteredUsers = filteredUsers.filter(u => u.tipe_karyawan === filterType);
+    }
+    if (filterPosisi) {
+      filteredUsers = filteredUsers.filter(u => u.posisi === filterPosisi);
+    }
+    if (filterStatus) {
+      if (filterStatus === 'active') {
+        filteredUsers = filteredUsers.filter(u => u.is_active !== false);
+      } else if (filterStatus === 'inactive') {
+        filteredUsers = filteredUsers.filter(u => u.is_active === false);
+      }
+    }
+    if (searchVal) {
+      filteredUsers = filteredUsers.filter(u => {
+        const nama = (u.nama_lengkap || '').toLowerCase();
+        const user = (u.username || '').toLowerCase();
+        const nik  = String(u.nik || '').toLowerCase();
+        const pos  = (u.posisi || '').toLowerCase();
+        const tipe = (u.tipe_karyawan || '').toLowerCase();
+        const hp   = String(u.nomor_hp || '').toLowerCase();
+        return nama.includes(searchVal) || user.includes(searchVal) || nik.includes(searchVal) || pos.includes(searchVal) || tipe.includes(searchVal) || hp.includes(searchVal);
+      });
+    }
+
+    // Update count badge
+    const countBadge = document.getElementById('userCountBadge');
+    if (countBadge) {
+      if (!allUsers.length) {
+        countBadge.textContent = '0 User';
+      } else if (filteredUsers.length === allUsers.length) {
+        countBadge.textContent = `${allUsers.length} User`;
+      } else {
+        countBadge.textContent = `${filteredUsers.length} dari ${allUsers.length} User`;
+      }
+    }
+
+    // Toggle reset button
+    const btnReset = document.getElementById('btnResetUserFilter');
+    if (btnReset) {
+      const hasFilter = searchVal || filterType || filterPosisi || filterStatus;
+      btnReset.style.display = hasFilter ? 'inline-flex' : 'none';
+    }
+
+    // Toggle search clear button
+    const btnClearSearch = document.getElementById('userSearchClearBtn');
+    if (btnClearSearch) {
+      btnClearSearch.style.display = searchVal ? 'flex' : 'none';
+    }
 
     if (!allUsers.length) {
       tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">👥</div><h3>Belum ada user operasional</h3><p>Gunakan form di atas untuk membuat user baru</p></div></td></tr>`;
@@ -1985,7 +2049,7 @@ function showOnscreenError(source, err) {
     }
 
     if (!filteredUsers.length) {
-      tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state" style="padding: 24px;"><div class="empty-icon" style="font-size:32px;margin-bottom:8px;">🔍</div><h3>Tidak ada data</h3><p style="font-size:12px;color:var(--text-muted);">Tidak ada user operasional dengan tipe karyawan: <b>${filterType}</b></p></div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state" style="padding: 28px 20px;"><div class="empty-icon" style="font-size:32px;margin-bottom:8px;">🔍</div><h3 style="font-size:14px; margin-bottom:4px;">Tidak ada user yang cocok</h3><p style="font-size:12px;color:var(--text-muted); margin-bottom:12px;">Coba ubah kata kunci pencarian atau reset filter</p><button class="btn btn-outline" onclick="resetUserFilter()" style="font-size:12px; padding:6px 14px;">Reset Filter</button></div></td></tr>`;
       return;
     }
 
@@ -2052,6 +2116,26 @@ function showOnscreenError(source, err) {
     }).join('');
   }
   window.filterUsersTable = renderUsersTable;
+  window.renderUsersTable = renderUsersTable;
+
+  function clearUserSearch() {
+    const input = document.getElementById('userSearchInput');
+    if (input) {
+      input.value = '';
+      input.focus();
+    }
+    renderUsersTable();
+  }
+  window.clearUserSearch = clearUserSearch;
+
+  function resetUserFilter() {
+    if (document.getElementById('userSearchInput')) document.getElementById('userSearchInput').value = '';
+    if (document.getElementById('userFilterTipe')) document.getElementById('userFilterTipe').value = '';
+    if (document.getElementById('userFilterPosisi')) document.getElementById('userFilterPosisi').value = '';
+    if (document.getElementById('userFilterStatus')) document.getElementById('userFilterStatus').value = '';
+    renderUsersTable();
+  }
+  window.resetUserFilter = resetUserFilter;
 
   async function impersonateUser(userId, nama) {
     const confirmed = await showConfirmModal({

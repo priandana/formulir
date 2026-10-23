@@ -780,6 +780,11 @@
       padding-right: 30px;
       cursor: pointer;
     }
+    .filter-select option {
+      background: var(--card-bg, #FFFFFF);
+      color: var(--text, #0F172A);
+      padding: 6px 10px;
+    }
     /* Active filter chips */
     .filter-active-chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
     .filter-chip {

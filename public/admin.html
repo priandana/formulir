@@ -1198,16 +1198,57 @@
       </div>
 
       <div class="table-card">
-        <div class="table-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-          <div class="table-title">Daftar User Operasional</div>
-          <div style="display:flex; align-items:center; gap:8px;">
-            <select id="userFilterTipe" onchange="filterUsersTable()" style="height:34px; padding:0 12px; font-size:12px; font-weight:600; border-radius:10px; border:1px solid var(--card-border); background:var(--card-bg); color:var(--text); cursor:pointer; outline:none;">
-              <option value="">-- Semua Tipe Karyawan --</option>
+        <div class="table-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; padding:16px 20px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div class="table-title">Daftar User Operasional</div>
+            <span id="userCountBadge" class="badge" style="background:rgba(37,99,235,0.08); color:var(--primary); border:1px solid rgba(37,99,235,0.2); font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">Memuat...</span>
+          </div>
+
+          <!-- Controls: Search & Filters -->
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <!-- Search Box -->
+            <div class="user-search-wrap" style="position:relative; width:220px;">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--text-muted); pointer-events:none;">
+                <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+              </svg>
+              <input type="text" id="userSearchInput" class="filter-input" placeholder="Cari nama / NIK / user..." oninput="renderUsersTable()" style="padding-left:32px; padding-right:28px; height:36px; border-radius:9px; font-size:12px; width:100%;">
+              <button type="button" id="userSearchClearBtn" onclick="clearUserSearch()" title="Hapus pencarian" style="display:none; position:absolute; right:6px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--text-muted); cursor:pointer; padding:2px; border-radius:50%; align-items:center; justify-content:center;">
+                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+
+            <!-- Filter Posisi -->
+            <select id="userFilterPosisi" class="filter-select" onchange="renderUsersTable()" style="height:36px; width:125px; border-radius:9px; font-size:12px; font-weight:600;">
+              <option value="">Semua Posisi</option>
+              <option value="Picker">Picker</option>
+              <option value="Sorter">Sorter</option>
+              <option value="Loader">Loader</option>
+              <option value="Return">Return</option>
+            </select>
+
+            <!-- Filter Tipe Karyawan -->
+            <select id="userFilterTipe" class="filter-select" onchange="renderUsersTable()" style="height:36px; width:120px; border-radius:9px; font-size:12px; font-weight:600;">
+              <option value="">Semua Tipe</option>
               <option value="Productivity">Productivity</option>
               <option value="PHL">PHL</option>
               <option value="PKWT">PKWT</option>
             </select>
-            <button class="btn btn-outline" onclick="loadUsers()">
+
+            <!-- Filter Status -->
+            <select id="userFilterStatus" class="filter-select" onchange="renderUsersTable()" style="height:36px; width:115px; border-radius:9px; font-size:12px; font-weight:600;">
+              <option value="">Semua Status</option>
+              <option value="active">🟢 Aktif</option>
+              <option value="inactive">⚪ Non-Aktif</option>
+            </select>
+
+            <!-- Reset Filter Button -->
+            <button type="button" id="btnResetUserFilter" class="btn-filter-reset" onclick="resetUserFilter()" style="display:none; height:36px; padding:0 10px; font-size:11.5px;">
+              <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              Reset
+            </button>
+
+            <!-- Refresh Button -->
+            <button class="btn btn-outline" onclick="loadUsers()" style="height:36px; padding:0 12px; font-size:12px;">
               <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
               Refresh
             </button>
