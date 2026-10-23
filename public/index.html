@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="dns-prefetch" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/index.css?v=2.1">
+  <link rel="stylesheet" href="/css/index.css?v=2.2">
   <link rel="stylesheet" href="/css/discipline.css?v=2.3">
   <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -859,100 +859,150 @@
 
       <!-- ===== TAB PENDAPATAN ===== -->
       <div class="tab-panel" id="panel-pendapatan">
-        <!-- Tampilan Coming Soon (Default) -->
-        <div id="pendapatan-soon-view" style="display: block; text-align: center; padding: 40px 20px;">
-          <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh;">
-            <div style="width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(135deg, #f59e0b, #ef4444); display: flex; align-items: center; justify-content: center; margin-bottom: 28px; box-shadow: 0 20px 60px rgba(245, 158, 11, 0.35); animation: pendapatanPulse 2.5s ease-in-out infinite;">
-              <svg width="48" height="48" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-            </div>
-            <div style="background: linear-gradient(135deg, #f59e0b, #ef4444); color: #fff; font-size: 11px; font-weight: 800; padding: 4px 14px; border-radius: 20px; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 20px;">Segera Hadir</div>
-            <h2 style="font-size: 26px; font-weight: 800; color: var(--text-primary); margin-bottom: 12px; line-height: 1.3;">Fitur Pendapatan<br>Sedang Disiapkan 🚀</h2>
-            <p style="font-size: 14px; color: var(--text-secondary); max-width: 380px; line-height: 1.8; margin-bottom: 32px;">
-              Segera kamu bisa melihat <b>estimasi pendapatan harian</b> berdasarkan pencapaian kerjamu dikalikan harga satuan yang ditetapkan.
-            </p>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; max-width: 480px; width: 100%; margin-bottom: 32px;">
-              <div style="padding: 16px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; text-align: center;">
-                <div style="font-size: 24px; margin-bottom: 6px;">📊</div>
-                <div style="font-size: 12px; font-weight: 700; color: var(--text-primary); margin-bottom: 3px;">Total Pencapaian</div>
-                <div style="font-size: 11px; color: var(--text-secondary);">Output kerjamu hari ini</div>
-              </div>
-              <div style="padding: 16px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; text-align: center;">
-                <div style="font-size: 24px; margin-bottom: 6px;">💰</div>
-                <div style="font-size: 12px; font-weight: 700; color: var(--text-primary); margin-bottom: 3px;">Estimasi Nilai</div>
-                <div style="font-size: 11px; color: var(--text-secondary);">Output × harga satuan</div>
-              </div>
-              <div style="padding: 16px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; text-align: center;">
-                <div style="font-size: 24px; margin-bottom: 6px;">📅</div>
-                <div style="font-size: 12px; font-weight: 700; color: var(--text-primary); margin-bottom: 3px;">Riwayat Harian</div>
-                <div style="font-size: 11px; color: var(--text-secondary);">Rekap per tanggal</div>
-              </div>
-            </div>
-            <div style="font-size: 12px; color: var(--text-secondary); opacity: 0.6;">
-              Fitur ini akan aktif setelah admin mengatur Ketentuan Harga
-            </div>
+        <!-- 1. Tampilan Dinonaktifkan oleh Admin (Feature Toggle = OFF) -->
+        <div id="pd-disabled-view" class="pd-disabled-container" style="display: none; padding: 60px 20px;">
+          <div class="pd-disabled-icon-wrap">
+            <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0110 0v4"/>
+            </svg>
           </div>
+          <div class="pd-disabled-title">Fitur Pendapatan Dinonaktifkan</div>
+          <div class="pd-disabled-desc">
+            Fitur estimasi pendapatan saat ini sedang ditutup atau dalam penyesuaian oleh Admin. Kamu akan dapat mengaksesnya kembali setelah diaktifkan.
+          </div>
+          <button class="btn btn-secondary" onclick="switchTab('dashboard')" style="display:inline-flex; align-items:center; gap:8px; border-radius:12px; padding:10px 20px; font-weight:700; margin-top: 10px;">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            Kembali ke Dashboard
+          </button>
         </div>
 
-        <!-- Tampilan Preview Aktif -->
-        <div id="pendapatan-active-view" style="display: none; padding: 20px 0;">
-          <!-- Summary Cards -->
-          <div class="dash-stats-grid" style="margin-bottom: 24px;">
-            <div class="dash-stat-card blue">
-              <div class="stat-icon">💰</div>
-              <div class="stat-info">
-                <div class="stat-label">Estimasi Hari Ini</div>
-                <div class="stat-value" id="pd-val-today">Rp 0</div>
+        <!-- 2. Tampilan Modern Pendapatan Aktif (Productivity) -->
+        <div id="pendapatan-active-view" class="pd-page-container" style="display: none;">
+          <!-- Hero Banner -->
+          <div class="pd-hero-banner">
+            <div class="pd-hero-left">
+              <div class="pd-hero-icon">💰</div>
+              <div>
+                <div class="pd-hero-title">
+                  Estimasi Pendapatan
+                  <span class="pd-hero-badge">⚡ Real-time</span>
+                </div>
+                <div class="pd-hero-subtitle">Perhitungan otomatis akumulasi pencapaian kerja berdasarkan tarif resmi</div>
               </div>
             </div>
-            <div class="dash-stat-card blue">
-              <div class="stat-icon">📅</div>
-              <div class="stat-info">
-                <div class="stat-label">Pendapatan Bulan Ini</div>
-                <div class="stat-value" id="pd-val-month">Rp 0</div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <button class="pd-refresh-btn" onclick="loadPendapatan()" title="Perbarui Data">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                <span>Refresh</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 3 Modern Stat Cards -->
+          <div class="pd-stats-grid">
+            <div class="pd-stat-card card-today">
+              <div class="pd-stat-icon-wrap">
+                <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+              </div>
+              <div class="pd-stat-meta">
+                <div class="pd-stat-label">Estimasi Hari Ini</div>
+                <div class="pd-stat-value" id="pd-val-today">Rp 0</div>
+                <div class="pd-stat-sub" id="pd-sub-today">0 output disetujui</div>
               </div>
             </div>
-            <div class="dash-stat-card blue">
-              <div class="stat-icon">🏆</div>
-              <div class="stat-info">
-                <div class="stat-label">Total Akumulasi</div>
-                <div class="stat-value" id="pd-val-total">Rp 0</div>
+
+            <div class="pd-stat-card card-month">
+              <div class="pd-stat-icon-wrap">
+                <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+              </div>
+              <div class="pd-stat-meta">
+                <div class="pd-stat-label">Bulan Ini</div>
+                <div class="pd-stat-value" id="pd-val-month">Rp 0</div>
+                <div class="pd-stat-sub" id="pd-sub-month">Total berjalan bulan ini</div>
+              </div>
+            </div>
+
+            <div class="pd-stat-card card-total">
+              <div class="pd-stat-icon-wrap">
+                <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+                </svg>
+              </div>
+              <div class="pd-stat-meta">
+                <div class="pd-stat-label">Total Akumulasi</div>
+                <div class="pd-stat-value" id="pd-val-total">Rp 0</div>
+                <div class="pd-stat-sub" id="pd-sub-total">Seluruh periode data</div>
               </div>
             </div>
           </div>
 
-          <!-- Rincian Table -->
-          <div class="table-card">
-            <div class="table-header" style="padding: 16px 20px; border-bottom: 1px solid var(--border);">
-              <div class="table-title">💵 Rincian Pendapatan Kerja Anda</div>
+          <!-- Controls: Filter Pills & Search -->
+          <div class="pd-controls-bar">
+            <div class="pd-filter-group">
+              <button class="pd-filter-pill active" data-pos="all" onclick="filterPendapatanPosisi('all', this)">Semua Posisi</button>
+              <button class="pd-filter-pill" data-pos="Picker" onclick="filterPendapatanPosisi('Picker', this)">Picker</button>
+              <button class="pd-filter-pill" data-pos="Sorter" onclick="filterPendapatanPosisi('Sorter', this)">Sorter</button>
+              <button class="pd-filter-pill" data-pos="Loader" onclick="filterPendapatanPosisi('Loader', this)">Loader</button>
             </div>
-            <div class="table-wrap">
-              <table style="width: 100%; border-collapse: collapse;">
+            <div class="pd-search-input-wrap">
+              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input type="text" class="pd-search-input" id="pdSearchInput" placeholder="Cari tanggal, zona, atau posisi..." oninput="filterPendapatanSearch(this.value)">
+            </div>
+          </div>
+
+          <!-- Modern Table Card -->
+          <div class="pd-table-card">
+            <div class="pd-table-header">
+              <div class="pd-table-title">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <span>Rincian Pendapatan Kerja</span>
+                <span class="pd-table-count-badge" id="pd-record-count">0 Transaksi</span>
+              </div>
+            </div>
+            <div style="overflow-x: auto;">
+              <table class="pd-table">
                 <thead>
-                  <tr style="border-bottom: 1px solid var(--border); text-align: left;">
-                    <th style="padding: 12px 16px; font-size: 12px;">Tanggal</th>
-                    <th style="padding: 12px 16px; font-size: 12px;">Posisi</th>
-                    <th style="padding: 12px 16px; font-size: 12px;">Zona</th>
-                    <th style="padding: 12px 16px; font-size: 12px;">Pencapaian</th>
-                    <th style="padding: 12px 16px; font-size: 12px;">Harga Satuan</th>
-                    <th style="padding: 12px 16px; font-size: 12px;">Total Nilai</th>
+                  <tr>
+                    <th>TANGGAL</th>
+                    <th>POSISI</th>
+                    <th>ZONA / AREA</th>
+                    <th style="text-align: right;">OUTPUT</th>
+                    <th style="text-align: right;">TARIF SATUAN</th>
+                    <th style="text-align: right;">ESTIMASI NILAI</th>
                   </tr>
                 </thead>
                 <tbody id="pd-table-body">
-                  <tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-secondary);">Memuat data...</td></tr>
+                  <tr><td colspan="6" style="text-align: center; padding: 32px; color: var(--text-muted);"><div class="loading-spinner"><div class="spin"></div></div></td></tr>
                 </tbody>
+                <tfoot id="pd-table-foot" style="display: none;">
+                  <tr>
+                    <td colspan="3" style="text-align: right; color: var(--text-muted);">TOTAL:</td>
+                    <td id="pd-foot-qty" style="text-align: right; font-weight: 800;">-</td>
+                    <td style="text-align: right; color: var(--text-muted);">-</td>
+                    <td id="pd-foot-val" style="text-align: right; font-weight: 800; color: #059669;">-</td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </div>
-        </div>
 
-        <style>
-          @keyframes pendapatanPulse {
-            0%, 100% { transform: scale(1); box-shadow: 0 20px 60px rgba(245,158,11,0.35); }
-            50% { transform: scale(1.06); box-shadow: 0 28px 70px rgba(245,158,11,0.5); }
-          }
-        </style>
+          <!-- Modern Disclaimer Box -->
+          <div class="pd-info-disclaimer">
+            <div class="pd-info-disclaimer-icon">💡</div>
+            <div class="pd-info-disclaimer-text">
+              <strong>Catatan Estimasi:</strong> Nilai di atas merupakan estimasi berdasarkan output formulir yang berstatus <em>Disetujui (Approved)</em> dikalikan tarif per unit pada tanggal pengerjaan. Nilai resmi dan final tetap mengacu pada slip gaji resmi / pengesahan dari Manajemen Keuangan.
+            </div>
+          </div>
+        </div>
         <!-- Tampilan PHL Aktif -->
         <div id="pendapatan-phl-view" style="display: none; padding: 20px 0;">
           <!-- Header badge status -->
@@ -1815,7 +1865,7 @@
   </div>
 </div>
 
-<script src="/js/index.js?v=3.3" defer></script>
+<script src="/js/index.js?v=3.4" defer></script>
 <script src="/discipline-user.js?v=2.4" defer></script>
 
 <!-- Print styles -->

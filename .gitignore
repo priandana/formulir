@@ -5,3 +5,4 @@ scratch/
 node_modules/
 .env
 *.xlsx
+.env*

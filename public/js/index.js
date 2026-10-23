@@ -635,17 +635,136 @@ function toggleSidebar() {
 window.toggleSidebar = toggleSidebar;
 
 // ===================== PENDAPATAN =====================
+window.pdAllRows = [];
+window.pdFilterPosisi = 'all';
+window.pdSearchQuery = '';
+
+function renderPendapatanTable() {
+  const tbody = document.getElementById('pd-table-body');
+  const tfoot = document.getElementById('pd-table-foot');
+  const countBadge = document.getElementById('pd-record-count');
+  if (!tbody) return;
+
+  const allRows = window.pdAllRows || [];
+  const posFilter = window.pdFilterPosisi || 'all';
+  const query = (window.pdSearchQuery || '').toLowerCase().trim();
+
+  const filtered = allRows.filter(r => {
+    if (posFilter !== 'all' && r.posisi !== posFilter) return false;
+    if (query) {
+      const matchTgl = (r.tanggal || '').toLowerCase().includes(query);
+      const matchPos = (r.posisi || '').toLowerCase().includes(query);
+      const matchZona = (r.zona || '').toLowerCase().includes(query);
+      if (!matchTgl && !matchPos && !matchZona) return false;
+    }
+    return true;
+  });
+
+  if (countBadge) {
+    countBadge.textContent = `${filtered.length} Transaksi`;
+  }
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 36px 20px; color: var(--text-muted, #64748b); font-size:13px;">
+      <div style="font-size: 28px; margin-bottom: 8px;">🔍</div>
+      ${allRows.length === 0 ? 'Belum ada estimasi pendapatan disetujui (Approved) untuk saat ini.' : 'Tidak ada transaksi yang cocok dengan filter / pencarian.'}
+    </td></tr>`;
+    if (tfoot) tfoot.style.display = 'none';
+    return;
+  }
+
+  let sumQty = 0;
+  let sumVal = 0;
+
+  const posClassMap = {
+    'Picker': 'pd-pos-picker',
+    'Sorter': 'pd-pos-sorter',
+    'Loader': 'pd-pos-loader'
+  };
+
+  tbody.innerHTML = filtered.map(r => {
+    sumQty += (r.qty || 0);
+    sumVal += (r.val || 0);
+
+    const posCls = posClassMap[r.posisi] || '';
+    const formattedPrice = Number(r.price).toLocaleString('id-ID', {
+      minimumFractionDigits: r.price % 1 !== 0 ? 2 : 0,
+      maximumFractionDigits: 2
+    });
+    const formattedVal = Math.round(r.val).toLocaleString('id-ID');
+
+    return `
+      <tr>
+        <td style="font-weight: 700; font-size: 13px; color: var(--text, #0f172a); white-space: nowrap;">${r.tanggal}</td>
+        <td><span class="pd-pos-badge ${posCls}">${r.posisi}</span></td>
+        <td><span class="pd-zona-pill">${r.zona}</span></td>
+        <td style="text-align: right; font-weight: 700; white-space: nowrap;">
+          ${r.qty.toLocaleString('id-ID')} <span style="font-size: 11px; font-weight: 500; color: var(--text-muted, #64748b);">${r.satuan}</span>
+        </td>
+        <td style="text-align: right; font-size: 12px; color: var(--text-muted, #64748b); white-space: nowrap;">
+          Rp ${formattedPrice} <span style="font-size: 10px;">/${r.satuan}</span>
+        </td>
+        <td style="text-align: right; white-space: nowrap;">
+          <span class="pd-val-bold">Rp ${formattedVal}</span>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  if (tfoot) {
+    tfoot.style.display = 'table-footer-group';
+    const footQty = document.getElementById('pd-foot-qty');
+    const footVal = document.getElementById('pd-foot-val');
+    if (footQty) footQty.textContent = `${sumQty.toLocaleString('id-ID')} output`;
+    if (footVal) footVal.textContent = `Rp ${Math.round(sumVal).toLocaleString('id-ID')}`;
+  }
+}
+window.renderPendapatanTable = renderPendapatanTable;
+
+function filterPendapatanPosisi(pos, el) {
+  window.pdFilterPosisi = pos;
+  document.querySelectorAll('.pd-filter-pill').forEach(btn => btn.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderPendapatanTable();
+}
+window.filterPendapatanPosisi = filterPendapatanPosisi;
+
+function filterPendapatanSearch(query) {
+  window.pdSearchQuery = query;
+  renderPendapatanTable();
+}
+window.filterPendapatanSearch = filterPendapatanSearch;
+
 async function loadPendapatan() {
   const soonView = document.getElementById('pendapatan-soon-view');
   const activeView = document.getElementById('pendapatan-active-view');
   const phlView = document.getElementById('pendapatan-phl-view');
+  const disabledView = document.getElementById('pd-disabled-view');
   if (soonView) soonView.style.display = 'none';
+
+  // Cek Admin Feature Toggle
+  try {
+    const stRes = await fetch('/api/settings/fitur-pendapatan');
+    if (stRes.ok) {
+      const stData = await stRes.json();
+      if (stData && stData.enabled === false) {
+        if (activeView) activeView.style.display = 'none';
+        if (phlView) phlView.style.display = 'none';
+        if (disabledView) disabledView.style.display = 'flex';
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn('Gagal cek status fitur pendapatan:', e);
+  }
+
+  if (disabledView) disabledView.style.display = 'none';
 
   // Get current user type
   const tipeKaryawan = (currentUser && currentUser.tipe_karyawan) || 'Productivity';
 
   if (tipeKaryawan === 'PHL') {
-    activeView.style.display = 'none';
+    if (activeView) activeView.style.display = 'none';
     if (phlView) phlView.style.display = 'block';
 
     const monthlyList = document.getElementById('phl-monthly-list');
@@ -691,9 +810,12 @@ async function loadPendapatan() {
       const totalHadirAll = hadirList.length;
       const valTotalAll = totalHadirAll * upahHarian;
 
-      document.getElementById('phl-val-hadir-bulan').textContent = `${hadirBulanIni} hari`;
-      document.getElementById('phl-val-bulan').textContent = `Rp ${valBulanIni.toLocaleString('id-ID')}`;
-      document.getElementById('phl-val-total').textContent = `Rp ${valTotalAll.toLocaleString('id-ID')}`;
+      const hadBulanEl = document.getElementById('phl-val-hadir-bulan');
+      const valBulanEl = document.getElementById('phl-val-bulan');
+      const valTotalEl = document.getElementById('phl-val-total');
+      if (hadBulanEl) hadBulanEl.textContent = `${hadirBulanIni} hari`;
+      if (valBulanEl) valBulanEl.textContent = `Rp ${valBulanIni.toLocaleString('id-ID')}`;
+      if (valTotalEl) valTotalEl.textContent = `Rp ${valTotalAll.toLocaleString('id-ID')}`;
 
       if (months.length === 0) {
         monthlyList.innerHTML = '<div style="text-align: center; padding: 24px; color: var(--text-secondary); font-size:13px;">Belum ada riwayat kehadiran terdaftar untuk saat ini.</div>';
@@ -743,10 +865,12 @@ async function loadPendapatan() {
   } else {
     // Tampilan Productivity (default)
     if (phlView) phlView.style.display = 'none';
-    activeView.style.display = 'block';
+    if (activeView) activeView.style.display = 'block';
 
     const tbody = document.getElementById('pd-table-body');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-secondary);"><div class="loading-spinner"><div class="spin"></div></div></td></tr>';
+    const tfoot = document.getElementById('pd-table-foot');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 32px; color: var(--text-muted);"><div class="loading-spinner"><div class="spin"></div></div></td></tr>';
+    if (tfoot) tfoot.style.display = 'none';
 
     try {
       // 1. Ambil ketentuan harga
@@ -757,8 +881,8 @@ async function loadPendapatan() {
       const getZoneCategory = (zona) => {
         if (!zona) return 'AMBIENT';
         const z = String(zona).trim().toUpperCase();
-        if (z.startsWith('F')) return 'FREEZER';
-        if (z.startsWith('R')) return 'CHILLER';
+        if (z.includes('FREEZER') || z.startsWith('F')) return 'FREEZER';
+        if (z.includes('CHILLER') || z.startsWith('R') || z.startsWith('C')) return 'CHILLER';
         return 'AMBIENT';
       };
 
@@ -772,12 +896,12 @@ async function loadPendapatan() {
         const matches = hargaList.filter(h => {
           const hPos = String(h.posisi || '').toUpperCase();
           const hZona = String(h.zona || '').toUpperCase();
-          const isPosMatch = hPos === pos;
+          const isPosMatch = (hPos === pos);
           let isZonaMatch = false;
           if (pos === 'LOADER') {
-            isZonaMatch = hZona.includes('LOADER') || hZona.includes('AMBIENT');
+            isZonaMatch = true;
           } else {
-            isZonaMatch = hZona === zCat || hZona === String(subZona || '').toUpperCase();
+            isZonaMatch = (hZona === zCat || hZona.includes(zCat) || zCat.includes(hZona));
           }
           const berlaku = h.berlaku_dari ? String(h.berlaku_dari).slice(0, 10) : '1970-01-01';
           return isPosMatch && isZonaMatch && berlaku <= tgl;
@@ -785,15 +909,17 @@ async function loadPendapatan() {
 
         if (matches.length > 0) {
           matches.sort((a, b) => String(b.berlaku_dari || '').localeCompare(String(a.berlaku_dari || '')));
-          return parseFloat(matches[0].harga || matches[0].harga_satuan) || 0;
+          return parseFloat(matches[0].harga ?? matches[0].harga_satuan) || 0;
         }
 
         const fallback = hargaList.find(h => {
           const hPos = String(h.posisi || '').toUpperCase();
           const hZona = String(h.zona || '').toUpperCase();
-          return hPos === pos && (hZona === zCat || (pos === 'LOADER' && (hZona.includes('LOADER') || hZona.includes('AMBIENT'))));
+          const isPosMatch = (hPos === pos);
+          if (pos === 'LOADER') return isPosMatch;
+          return isPosMatch && (hZona === zCat || hZona.includes(zCat) || zCat.includes(hZona));
         });
-        return fallback ? (parseFloat(fallback.harga || fallback.harga_satuan) || 0) : 0;
+        return fallback ? (parseFloat(fallback.harga ?? fallback.harga_satuan) || 0) : 0;
       };
 
       // 2. Ambil pencapaian user
@@ -806,6 +932,8 @@ async function loadPendapatan() {
       let totalToday = 0;
       let totalMonth = 0;
       let totalAll = 0;
+      let countToday = 0;
+      let countMonth = 0;
       let rows = [];
 
       // Ambil pencapaian Picker / Sorter
@@ -827,13 +955,13 @@ async function loadPendapatan() {
         const val = qty * price;
 
         totalAll += val;
-        if (isToday) totalToday += val;
-        if (isThisMonth) totalMonth += val;
+        if (isToday) { totalToday += val; countToday++; }
+        if (isThisMonth) { totalMonth += val; countMonth++; }
 
         rows.push({
           tanggal: dateOnly,
           posisi: sub.posisi,
-          zona: sub.zona + (sub.zona !== zoneCat ? ` (${zoneCat})` : ''),
+          zona: sub.zona || zoneCat,
           qty: qty,
           satuan: sub.posisi === 'Picker' ? 'pcs' : 'kontainer',
           price: price,
@@ -853,8 +981,8 @@ async function loadPendapatan() {
         const val = qty * price;
 
         totalAll += val;
-        if (isToday) totalToday += val;
-        if (isThisMonth) totalMonth += val;
+        if (isToday) { totalToday += val; countToday++; }
+        if (isThisMonth) { totalMonth += val; countMonth++; }
 
         rows.push({
           tanggal: dateOnly,
@@ -871,36 +999,32 @@ async function loadPendapatan() {
       rows.sort((a, b) => b.tanggal.localeCompare(a.tanggal));
 
       // Update kartu Ringkasan
-      document.getElementById('pd-val-today').textContent = `Rp ${totalToday.toLocaleString('id-ID')}`;
-      document.getElementById('pd-val-month').textContent = `Rp ${totalMonth.toLocaleString('id-ID')}`;
-      document.getElementById('pd-val-total').textContent = `Rp ${totalAll.toLocaleString('id-ID')}`;
+      const valTodayEl = document.getElementById('pd-val-today');
+      const valMonthEl = document.getElementById('pd-val-month');
+      const valTotalEl = document.getElementById('pd-val-total');
+      const subTodayEl = document.getElementById('pd-sub-today');
+      const subMonthEl = document.getElementById('pd-sub-month');
+      const subTotalEl = document.getElementById('pd-sub-total');
 
-      // Tampilkan data ke tabel
-      if (rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--text-secondary); font-size:13px;">Belum ada estimasi pendapatan disetujui (Approved) untuk saat ini.</td></tr>';
-      } else {
-        const posColors = { 'Picker': '#8b5cf6', 'Sorter': '#10b981', 'Loader': '#f59e0b' };
-        tbody.innerHTML = rows.map(r => {
-          const color = posColors[r.posisi] || '#6b7280';
-          return `
-            <tr style="border-bottom: 1px solid var(--border); transition: background 0.2s;">
-              <td style="padding: 12px 16px; font-weight: 600; font-size:13px;">${r.tanggal}</td>
-              <td style="padding: 12px 16px;"><span class="badge" style="background:${color}15; color:${color}; font-size: 11px; padding: 3px 8px; border-radius: 8px; font-weight:700;">${r.posisi}</span></td>
-              <td style="padding: 12px 16px; color: var(--text-secondary); font-size:12px;">${r.zona}</td>
-              <td style="padding: 12px 16px; font-weight: 700; font-size:13px;">${r.qty.toLocaleString('id-ID')} <span style="font-size:11px; font-weight:500; color:var(--text-secondary);">${r.satuan}</span></td>
-              <td style="padding: 12px 16px; color: var(--text-secondary); font-size:12px;">Rp ${r.price.toLocaleString('id-ID')}</td>
-              <td style="padding: 12px 16px;"><b style="color: var(--success, #10b981); font-size:13px;">Rp ${r.val.toLocaleString('id-ID')}</b></td>
-            </tr>
-          `;
-        }).join('');
-      }
+      if (valTodayEl) valTodayEl.textContent = `Rp ${Math.round(totalToday).toLocaleString('id-ID')}`;
+      if (valMonthEl) valMonthEl.textContent = `Rp ${Math.round(totalMonth).toLocaleString('id-ID')}`;
+      if (valTotalEl) valTotalEl.textContent = `Rp ${Math.round(totalAll).toLocaleString('id-ID')}`;
+
+      if (subTodayEl) subTodayEl.textContent = `${countToday} output hari ini`;
+      if (subMonthEl) subMonthEl.textContent = `${countMonth} transaksi bulan ini`;
+      if (subTotalEl) subTotalEl.textContent = `${rows.length} total transaksi disetujui`;
+
+      // Simpan data & render tabel
+      window.pdAllRows = rows;
+      renderPendapatanTable();
 
     } catch (err) {
       console.error('loadPendapatan error:', err);
-      if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--error-color, #ef4444);">Gagal memuat rincian estimasi pendapatan.</td></tr>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--error-color, #ef4444);">Gagal memuat rincian estimasi pendapatan. Silakan refresh kembali.</td></tr>';
     }
   }
 }
+window.loadPendapatan = loadPendapatan;
 
 // ===================== RIWAYAT =====================
 let riwayatLoaded = false;

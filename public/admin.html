@@ -505,6 +505,23 @@
         </div>
       </div>
 
+      <!-- Toggle Akses Fitur Pendapatan Karyawan -->
+      <div style="margin-bottom:24px; padding:18px 24px; background:linear-gradient(135deg,rgba(37,99,235,0.06),rgba(99,102,241,0.04)); border:1.5px solid rgba(37,99,235,0.18); border-radius:16px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; box-shadow:0 4px 16px rgba(37,99,235,0.04);">
+        <div style="flex:1; min-width:260px;">
+          <div style="font-weight:800; font-size:15px; color:var(--text); display:flex; align-items:center; gap:10px;">
+            <svg width="20" height="20" fill="none" stroke="#2563eb" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span>Tampilkan Fitur Pendapatan ke Karyawan</span>
+            <span id="adminPendapatanBadge" style="font-size:11px; padding:3px 9px; border-radius:12px; font-weight:700; background:rgba(16,185,129,0.15); color:#10b981;">🟢 AKTIF</span>
+          </div>
+          <div style="font-size:12.5px; color:var(--text-muted); margin-top:4px; line-height:1.5;">
+            Kontrol akses menu <b>Pendapatan</b> di portal karyawan. Jika dinonaktifkan, karyawan tidak akan melihat angka estimasi rupiah pencapaian kerjanya.
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <button type="button" class="ann-toggle-btn on" id="btnToggleFiturPendapatan" onclick="toggleFiturPendapatan()" title="Klik untuk mengaktifkan / menonaktifkan fitur pendapatan bagi karyawan"></button>
+        </div>
+      </div>
+
       <!-- Info cards posisi -->
       <div class="harga-info-grid">
         <div class="harga-info-card harga-picker">
@@ -3335,7 +3352,7 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
 
 <script src="/chat-admin.js?v=3.2"></script>
 <script src="/discipline-admin.js?v=2.3"></script>
-<script src="/js/admin.js?v=2.7" defer></script>
+<script src="/js/admin.js?v=2.8" defer></script>
 
 <!-- ===== ABSENSI SETTINGS MODAL ===== -->
 <div class="modal-overlay" id="absensiSettingsModal">

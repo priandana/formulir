@@ -5878,9 +5878,63 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
       }).join('');
     } catch (err) {
       tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px; color:var(--error);">Gagal memuat ketentuan harga.</td></tr>';
+    } finally {
+      loadFiturPendapatanStatus();
     }
   }
   window.loadKetentuanHarga = loadKetentuanHarga;
+
+  let currentFiturPendapatanEnabled = true;
+
+  async function loadFiturPendapatanStatus() {
+    try {
+      const res = await fetch('/api/settings/fitur-pendapatan');
+      const data = await res.json();
+      currentFiturPendapatanEnabled = data.enabled !== false;
+      updateFiturPendapatanUI();
+    } catch(err) {
+      console.error('loadFiturPendapatanStatus error:', err);
+    }
+  }
+
+  function updateFiturPendapatanUI() {
+    const btn = document.getElementById('btnToggleFiturPendapatan');
+    const badge = document.getElementById('adminPendapatanBadge');
+    if (btn) {
+      if (currentFiturPendapatanEnabled) btn.classList.add('on');
+      else btn.classList.remove('on');
+    }
+    if (badge) {
+      if (currentFiturPendapatanEnabled) {
+        badge.textContent = '🟢 AKTIF';
+        badge.style.background = 'rgba(16,185,129,0.15)';
+        badge.style.color = '#10b981';
+      } else {
+        badge.textContent = '⚪ NONAKTIF';
+        badge.style.background = 'rgba(239,68,68,0.15)';
+        badge.style.color = '#ef4444';
+      }
+    }
+  }
+
+  async function toggleFiturPendapatan() {
+    const targetState = !currentFiturPendapatanEnabled;
+    try {
+      const res = await fetch('/api/admin/settings/fitur-pendapatan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: targetState })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Gagal menyimpan status');
+      currentFiturPendapatanEnabled = targetState;
+      updateFiturPendapatanUI();
+      showToast(targetState ? 'Fitur Pendapatan Karyawan Diaktifkan!' : 'Fitur Pendapatan Karyawan Dinonaktifkan', targetState ? 'success' : 'info');
+    } catch(err) {
+      showToast(err.message, 'error');
+    }
+  }
+  window.toggleFiturPendapatan = toggleFiturPendapatan;
 
   async function submitHargaForm(e) {
     e.preventDefault();

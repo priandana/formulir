@@ -5203,6 +5203,31 @@ app.get('/api/my-absensi', requireAuth, async (req, res) => {
 // SPA fallback routes
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
+
+// ============= FITUR PENDAPATAN TOGGLE API =============
+// GET /api/settings/fitur-pendapatan — cek status fitur pendapatan
+app.get('/api/settings/fitur-pendapatan', requireAuth, async (req, res) => {
+  try {
+    const settings = await db.getFiturPendapatan();
+    res.json(settings);
+  } catch (err) {
+    console.error('GET fitur-pendapatan error:', err);
+    res.json({ enabled: true });
+  }
+});
+
+// POST /api/admin/settings/fitur-pendapatan — ubah status fitur pendapatan oleh admin
+app.post('/api/admin/settings/fitur-pendapatan', requireAdmin, async (req, res) => {
+  try {
+    const { enabled } = req.body;
+    const result = await db.saveFiturPendapatan({ enabled: !!enabled, updated_at: new Date().toISOString() });
+    res.json({ success: true, settings: result });
+  } catch (err) {
+    console.error('POST fitur-pendapatan error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan pengaturan fitur pendapatan.' });
+  }
+});
+
 // ============= KETENTUAN HARGA API =============
 
 // GET /api/ketentuan-harga â€” ambil semua ketentuan harga

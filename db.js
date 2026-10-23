@@ -2187,6 +2187,43 @@ module.exports = {
   },
 
   /**
+   * Get feature toggle setting for Pendapatan (default: true)
+   */
+  async getFiturPendapatan() {
+    const DEFAULT = { enabled: true };
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'fitur_pendapatan')
+        .maybeSingle();
+      if (error) { console.warn('Supabase getFiturPendapatan error:', error.message); return DEFAULT; }
+      return data && data.value !== undefined ? { ...DEFAULT, ...data.value } : DEFAULT;
+    } else {
+      const db = load();
+      return db.fitur_pendapatan !== undefined ? { ...DEFAULT, ...db.fitur_pendapatan } : DEFAULT;
+    }
+  },
+
+  /**
+   * Save feature toggle setting for Pendapatan
+   */
+  async saveFiturPendapatan(settings) {
+    if (isSupabaseEnabled) {
+      const { error } = await supabase
+        .from('site_settings')
+        .upsert({ key: 'fitur_pendapatan', value: settings }, { onConflict: 'key' });
+      if (error) { console.error('Supabase saveFiturPendapatan error:', error); throw error; }
+      return settings;
+    } else {
+      const db = load();
+      db.fitur_pendapatan = settings;
+      save(db);
+      return settings;
+    }
+  },
+
+  /**
    * Get all attendance records for a given date, joined with user info
    */
   async getAbsensiByTanggal(tanggal) {
@@ -2928,10 +2965,9 @@ module.exports = {
         .from('ketentuan_harga')
         .select('*')
         .order('posisi', { ascending: true })
-        .order('zona', { ascending: true })
-        .order('berlaku_dari', { ascending: false });
+        .order('zona', { ascending: true });
       if (error) { console.error('Supabase getKetentuanHarga error:', error); throw error; }
-      return data || [];
+      return (data || []).sort((a, b) => a.posisi.localeCompare(b.posisi) || a.zona.localeCompare(b.zona) || String(b.berlaku_dari||'').localeCompare(String(a.berlaku_dari||'')));
     } else {
       const db = load();
       return (db.ketentuan_harga || []).sort((a, b) => a.posisi.localeCompare(b.posisi) || a.zona.localeCompare(b.zona) || String(b.berlaku_dari||'').localeCompare(String(a.berlaku_dari||'')));
@@ -2944,12 +2980,11 @@ module.exports = {
         .from('ketentuan_harga')
         .select('*')
         .eq('posisi', posisi)
-        .eq('zona', zona)
-        .order('berlaku_dari', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .eq('zona', zona);
       if (error) { console.error('Supabase getKetentuanHargaByKey error:', error); throw error; }
-      return data || null;
+      if (!data || data.length === 0) return null;
+      data.sort((a, b) => String(b.berlaku_dari || '').localeCompare(String(a.berlaku_dari || '')));
+      return data[0];
     } else {
       const db = load();
       return (db.ketentuan_harga || []).find(h => h.posisi === posisi && h.zona === zona) || null;
