@@ -1,6 +1,9 @@
 /* ==========================================================================
-   SS08 WORKSPACE — CLAYMORPHIC / SOFT 3D PASTEL LOGIN PAGE (V3.1)
-   Dark Mode Default & Full-Screen No-Scroll Optimization (Fit 100vh)
+   SS08 WORKSPACE — CLAYMORPHIC / SOFT 3D PASTEL LOGIN PAGE (V3.2)
+   - Dark Mode Default
+   - Perfect Desktop Layout (No-Scroll 100vh, Balanced & Polished)
+   - Full Mobile Responsiveness (Auto-adapts cleanly to narrow viewports)
+   - Removed Google Sign-In as requested
    ========================================================================== */
 
 *, *::before, *::after {
@@ -11,11 +14,11 @@
 
 :root {
   /* Default: Dark Clay / Deep Velvet Neumorphism */
-  --bg-page: #121520;
-  --bg-canvas: #161a29;
-  --bg-card: #1c2134;
-  --bg-card-elevated: #22283f;
-  --bg-inset: #131724;
+  --bg-page: #0f131f;
+  --bg-canvas: #151928;
+  --bg-card: #1c2135;
+  --bg-card-elevated: #21283f;
+  --bg-inset: #111523;
   
   --primary: #6366f1;
   --primary-light: #818cf8;
@@ -23,32 +26,24 @@
   --primary-gradient: linear-gradient(135deg, #7c73fa 0%, #5849e7 100%);
   --primary-clay-shadow: 0 10px 22px rgba(99, 102, 241, 0.4), inset 2px 2px 4px rgba(255, 255, 255, 0.45), inset -2px -2px 4px rgba(0, 0, 0, 0.25);
   
-  --text-main: #f1f5f9;
+  --text-main: #f8fafc;
   --text-sub: #94a3b8;
   --text-muted: #64748b;
   
   /* Dark Clay Shadows */
-  --clay-enclosure-shadow: 20px 24px 50px rgba(0, 0, 0, 0.7), -12px -12px 35px rgba(255, 255, 255, 0.03), inset 1px 1px 2px rgba(255, 255, 255, 0.08);
-  --clay-card-shadow: 16px 20px 40px rgba(0, 0, 0, 0.6), -10px -10px 30px rgba(255, 255, 255, 0.04), inset 1px 1px 2px rgba(255, 255, 255, 0.1);
-  --clay-mockup-shadow: 12px 16px 32px rgba(0, 0, 0, 0.55), -8px -8px 20px rgba(255, 255, 255, 0.03), inset 1px 1px 2px rgba(255, 255, 255, 0.08);
-  --clay-pill-shadow: 5px 6px 14px rgba(0, 0, 0, 0.5), -4px -4px 10px rgba(255, 255, 255, 0.03), inset 1px 1px 2px rgba(255, 255, 255, 0.08);
-  --clay-inset-shadow: inset 3.5px 3.5px 7px rgba(0, 0, 0, 0.7), inset -3.5px -3.5px 7px rgba(255, 255, 255, 0.04);
-  --clay-inset-deep: inset 5px 5px 10px rgba(0, 0, 0, 0.8), inset -5px -5px 10px rgba(255, 255, 255, 0.03);
-  
-  /* Accent Pastel Colors */
-  --pastel-purple: #c5baff;
-  --pastel-pink: #fbc6d0;
-  --pastel-mint: #9be5ca;
-  --pastel-peach: #f9b7a2;
-  --pastel-lavender: #d6ccfa;
-  --pastel-yellow: #fde68a;
+  --clay-enclosure-shadow: 20px 24px 50px rgba(0, 0, 0, 0.75), -10px -10px 30px rgba(255, 255, 255, 0.03), inset 1px 1px 2px rgba(255, 255, 255, 0.08);
+  --clay-card-shadow: 16px 20px 40px rgba(0, 0, 0, 0.65), -8px -8px 24px rgba(255, 255, 255, 0.04), inset 1px 1px 2px rgba(255, 255, 255, 0.1);
+  --clay-mockup-shadow: 12px 16px 32px rgba(0, 0, 0, 0.6), -6px -6px 18px rgba(255, 255, 255, 0.03), inset 1px 1px 2px rgba(255, 255, 255, 0.08);
+  --clay-pill-shadow: 5px 6px 14px rgba(0, 0, 0, 0.55), -3px -3px 8px rgba(255, 255, 255, 0.03), inset 1px 1px 2px rgba(255, 255, 255, 0.08);
+  --clay-inset-shadow: inset 3.5px 3.5px 7px rgba(0, 0, 0, 0.75), inset -3.5px -3.5px 7px rgba(255, 255, 255, 0.04);
+  --clay-inset-deep: inset 5px 5px 10px rgba(0, 0, 0, 0.85), inset -5px -5px 10px rgba(255, 255, 255, 0.03);
   
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --border-radius-card: 32px;
   --border-radius-pill: 18px;
 }
 
-/* Light Mode Overrides (when explicitly toggled) */
+/* Light Mode Overrides */
 body.light-mode {
   --bg-page: #edf1f8;
   --bg-canvas: #f0f3fa;
@@ -75,26 +70,33 @@ body.light-mode {
 }
 
 html, body {
-  height: 100%;
   width: 100%;
+  height: 100%;
   font-family: var(--font-family);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow: hidden; /* NO SCROLLBAR */
 }
 
 body {
-  height: 100vh;
-  max-height: 100vh;
+  min-height: 100vh;
   background-color: var(--bg-page);
   color: var(--text-main);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 12px 20px;
+  padding: 16px 24px;
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
   transition: background-color 0.35s ease, color 0.3s ease;
+}
+
+/* On Desktop: No vertical scroll */
+@media (min-width: 961px) {
+  html, body {
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+  }
 }
 
 /* ==========================================================================
@@ -111,7 +113,7 @@ body {
 .clay-decor-item {
   position: absolute;
   pointer-events: none;
-  filter: drop-shadow(8px 14px 22px rgba(0, 0, 0, 0.6)) opacity(0.85);
+  filter: drop-shadow(8px 14px 22px rgba(0, 0, 0, 0.65)) opacity(0.85);
   transition: transform 0.3s ease;
 }
 
@@ -121,65 +123,65 @@ body.light-mode .clay-decor-item {
 
 .decor-cloud {
   top: 3%;
-  left: 35%;
-  width: 110px;
-  height: 58px;
+  left: 32%;
+  width: 105px;
+  height: 55px;
   animation: floatCloud 7s ease-in-out infinite alternate;
 }
 
 .decor-sphere-pink {
-  top: 2.5%;
+  top: 3%;
   right: 3.5%;
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
   animation: floatSlow 5.5s ease-in-out infinite alternate;
 }
 
 .decor-squiggle-mint {
-  top: 20%;
+  top: 22%;
   right: 1.5%;
-  width: 55px;
-  height: 95px;
+  width: 50px;
+  height: 90px;
   animation: floatSlow 6.2s ease-in-out infinite alternate-reverse;
 }
 
 .decor-donut-peach {
-  bottom: 6%;
+  bottom: 5%;
   right: 2.5%;
-  width: 78px;
-  height: 78px;
+  width: 76px;
+  height: 76px;
   animation: floatRotate 9s ease-in-out infinite alternate;
 }
 
 .decor-pill-mint {
   bottom: 2%;
   left: 36%;
-  width: 50px;
-  height: 32px;
+  width: 48px;
+  height: 30px;
   animation: floatSlow 5s ease-in-out infinite alternate;
 }
 
 .decor-blob-purple {
   bottom: 1.5%;
   left: 1.5%;
-  width: 95px;
-  height: 88px;
+  width: 90px;
+  height: 82px;
   animation: floatSlow 6.8s ease-in-out infinite alternate-reverse;
 }
 
 .decor-coral-left {
   top: 28%;
   left: 1.5%;
-  width: 48px;
-  height: 80px;
+  width: 44px;
+  height: 75px;
   animation: floatSlow 6s ease-in-out infinite alternate;
 }
 
 .decor-sphere-purple {
-  top: 48%;
-  left: 3%;
-  width: 28px;
-  height: 28px;
+  top: 50%;
+  left: 2.5%;
+  width: 26px;
+  height: 26px;
   animation: floatSlow 4.8s ease-in-out infinite alternate-reverse;
 }
 
@@ -234,23 +236,29 @@ body.light-mode .theme-toggle-floating {
 }
 
 /* ==========================================================================
-   MAIN ENCLOSURE FRAME — FIT 100VH NO SCROLL
+   MOBILE BRAND HEADER (Hidden on Desktop)
+   ========================================================================== */
+.clay-mobile-brand-header {
+  display: none;
+}
+
+/* ==========================================================================
+   MAIN ENCLOSURE FRAME
    ========================================================================== */
 .clay-main-enclosure {
   position: relative;
   z-index: 10;
   width: 100%;
-  max-width: 1180px;
-  height: min(95vh, 730px); /* Strict height to guarantee no-scroll */
+  max-width: 1160px;
+  height: min(94vh, 700px); /* Fit within viewport on desktop */
   background: var(--bg-canvas);
   border-radius: var(--border-radius-card);
   box-shadow: var(--clay-enclosure-shadow);
   border: 1.5px solid rgba(255, 255, 255, 0.06);
-  padding: 24px 34px 18px;
+  padding: 24px 34px 16px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  overflow: hidden;
 }
 
 body.light-mode .clay-main-enclosure {
@@ -260,14 +268,14 @@ body.light-mode .clay-main-enclosure {
 .clay-content-grid {
   display: grid;
   grid-template-columns: 1.14fr 0.86fr;
-  gap: 32px;
+  gap: 36px;
   align-items: center;
   flex: 1;
-  min-height: 0; /* Prevents overflow */
+  min-height: 0;
 }
 
 /* ==========================================================================
-   LEFT PANEL — BRAND & MINI DASHBOARD MOCKUP
+   LEFT PANEL — BRAND & DASHBOARD MOCKUP
    ========================================================================== */
 .clay-brand-panel {
   display: flex;
@@ -285,11 +293,11 @@ body.light-mode .clay-main-enclosure {
 }
 
 .clay-brand-logo-icon {
-  width: 46px;
-  height: 46px;
-  border-radius: 15px;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
   background: var(--primary-gradient);
-  box-shadow: 4px 6px 14px rgba(99, 102, 241, 0.42), inset 2px 2px 3px rgba(255, 255, 255, 0.4), inset -2px -2px 3px rgba(0, 0, 0, 0.2);
+  box-shadow: 3px 5px 12px rgba(99, 102, 241, 0.42), inset 2px 2px 3px rgba(255, 255, 255, 0.4), inset -2px -2px 3px rgba(0, 0, 0, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -298,7 +306,7 @@ body.light-mode .clay-main-enclosure {
 }
 
 .clay-brand-title {
-  font-size: 25px;
+  font-size: 24px;
   font-weight: 800;
   color: var(--text-main);
   letter-spacing: -0.5px;
@@ -317,7 +325,7 @@ body.light-mode .clay-main-enclosure {
 }
 
 .clay-headline-desc {
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 400;
   color: var(--text-sub);
   margin-top: 2px;
@@ -340,7 +348,7 @@ body.light-mode .clay-main-enclosure {
   border: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   transition: transform 0.2s ease;
 }
 
@@ -353,9 +361,9 @@ body.light-mode .clay-feature-card {
 }
 
 .clay-feature-icon-box {
-  width: 30px;
-  height: 30px;
-  border-radius: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
   background: var(--bg-inset);
   box-shadow: var(--clay-inset-shadow);
   display: flex;
@@ -381,7 +389,7 @@ body.light-mode .clay-feature-card {
 }
 
 .clay-feature-sub {
-  font-size: 9.5px;
+  font-size: 9px;
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -389,17 +397,17 @@ body.light-mode .clay-feature-card {
 }
 
 /* ==========================================================================
-   MINIATURE CLAY DASHBOARD MOCKUP (Compact for 100vh)
+   MINIATURE CLAY DASHBOARD MOCKUP
    ========================================================================== */
 .clay-dashboard-mockup {
   background: var(--bg-card-elevated);
-  border-radius: 22px;
-  padding: 14px 16px;
+  border-radius: 20px;
+  padding: 12px 14px;
   box-shadow: var(--clay-mockup-shadow);
   border: 1.5px solid rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   position: relative;
   overflow: hidden;
 }
@@ -412,8 +420,8 @@ body.light-mode .clay-dashboard-mockup {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding-bottom: 8px;
+  gap: 8px;
+  padding-bottom: 6px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -424,8 +432,8 @@ body.light-mode .mockup-topbar {
 .mockup-brand-tag {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11px;
+  gap: 5px;
+  font-size: 10.5px;
   font-weight: 800;
   color: var(--text-main);
 }
@@ -435,7 +443,7 @@ body.light-mode .mockup-topbar {
 }
 
 .mockup-greeting {
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--text-sub);
   white-space: nowrap;
   overflow: hidden;
@@ -450,38 +458,38 @@ body.light-mode .mockup-topbar {
 .mockup-filter-pill {
   background: var(--bg-inset);
   box-shadow: var(--clay-inset-shadow);
-  border-radius: 8px;
-  padding: 3px 8px;
-  font-size: 9.5px;
+  border-radius: 7px;
+  padding: 2px 7px;
+  font-size: 9px;
   font-weight: 600;
   color: var(--text-sub);
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   white-space: nowrap;
 }
 
 .mockup-body {
   display: grid;
-  grid-template-columns: 74px 1fr;
-  gap: 12px;
+  grid-template-columns: 70px 1fr;
+  gap: 10px;
 }
 
 .mockup-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .mockup-nav-item {
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 600;
   color: var(--text-muted);
-  padding: 4px 6px;
-  border-radius: 8px;
+  padding: 3px 5px;
+  border-radius: 7px;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   white-space: nowrap;
 }
 
@@ -499,19 +507,19 @@ body.light-mode .mockup-nav-item.active {
 .mockup-content {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .mockup-kpis {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 6px;
 }
 
 .mockup-kpi-card {
   background: var(--bg-card);
-  border-radius: 12px;
-  padding: 7px 9px;
+  border-radius: 10px;
+  padding: 6px 8px;
   box-shadow: var(--clay-pill-shadow);
   display: flex;
   flex-direction: column;
@@ -524,7 +532,7 @@ body.light-mode .mockup-kpi-card {
 }
 
 .kpi-title {
-  font-size: 8.5px;
+  font-size: 8px;
   font-weight: 600;
   color: var(--text-muted);
 }
@@ -533,41 +541,41 @@ body.light-mode .mockup-kpi-card {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .kpi-value {
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 800;
   color: var(--text-main);
 }
 
 .kpi-badge {
-  font-size: 8px;
+  font-size: 7.5px;
   font-weight: 700;
   color: #10b981;
 }
 
 .kpi-sparkline {
   margin-top: 2px;
-  height: 16px;
+  height: 14px;
   width: 100%;
 }
 
 .mockup-charts-row {
   display: grid;
   grid-template-columns: 1.3fr 1fr;
-  gap: 10px;
+  gap: 8px;
 }
 
 .mockup-chart-card {
   background: var(--bg-card);
-  border-radius: 12px;
-  padding: 8px 10px;
+  border-radius: 10px;
+  padding: 7px 8px;
   box-shadow: var(--clay-pill-shadow);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
@@ -576,7 +584,7 @@ body.light-mode .mockup-chart-card {
 }
 
 .chart-card-title {
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 700;
   color: var(--text-main);
 }
@@ -584,26 +592,26 @@ body.light-mode .mockup-chart-card {
 .mockup-donut-wrap {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
 }
 
 .donut-legend {
   display: flex;
   flex-direction: column;
-  gap: 2.5px;
-  font-size: 8px;
+  gap: 2px;
+  font-size: 7.5px;
   color: var(--text-sub);
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 
 .legend-dot {
-  width: 5px;
-  height: 5px;
+  width: 4.5px;
+  height: 4.5px;
   border-radius: 50%;
 }
 
@@ -613,12 +621,12 @@ body.light-mode .mockup-chart-card {
 .dot-yellow { background: #eab308; }
 
 /* ==========================================================================
-   RIGHT PANEL — CLAY LOGIN CARD (Compact for 100vh)
+   RIGHT PANEL — CLAY LOGIN CARD (Clean, Balanced & Focused)
    ========================================================================== */
 .clay-login-card {
   background: var(--bg-card-elevated);
   border-radius: var(--border-radius-card);
-  padding: 24px 28px;
+  padding: 26px 30px;
   box-shadow: var(--clay-card-shadow);
   border: 1.5px solid rgba(255, 255, 255, 0.07);
   display: flex;
@@ -626,6 +634,7 @@ body.light-mode .mockup-chart-card {
   justify-content: center;
   position: relative;
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+  width: 100%;
 }
 
 body.light-mode .clay-login-card {
@@ -634,8 +643,8 @@ body.light-mode .clay-login-card {
 
 /* 3D Embossed Avatar Dish */
 .clay-avatar-dish {
-  width: 60px;
-  height: 60px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   background: var(--bg-inset);
   box-shadow: var(--clay-inset-deep);
@@ -652,8 +661,8 @@ body.light-mode .clay-avatar-dish {
 }
 
 .clay-avatar-puffy {
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: linear-gradient(135deg, #818cf8 0%, #6366f1 100%);
   box-shadow: 0 6px 14px rgba(99, 102, 241, 0.4), inset 2px 2px 3px rgba(255, 255, 255, 0.5), inset -2px -2px 3px rgba(0, 0, 0, 0.25);
@@ -692,7 +701,7 @@ body.light-mode .clay-avatar-dish {
   box-shadow: var(--clay-inset-shadow);
   display: flex;
   position: relative;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   gap: 3px;
 }
 
@@ -787,7 +796,7 @@ body.light-mode .clay-switcher-slider {
 
 /* Form Groups & Inset Inputs */
 .clay-form-group {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .clay-field-label {
@@ -808,7 +817,7 @@ body.light-mode .clay-switcher-slider {
   display: flex;
   align-items: center;
   padding: 0 14px;
-  height: 42px;
+  height: 44px;
   transition: all 0.25s ease;
 }
 
@@ -850,7 +859,7 @@ body.light-mode .clay-switcher-slider {
   border: none;
   cursor: pointer;
   color: var(--text-muted);
-  padding: 3px;
+  padding: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -864,7 +873,7 @@ body.light-mode .clay-switcher-slider {
 /* Dynamic Field Container */
 .clay-role-fields-container {
   position: relative;
-  height: 64px;
+  height: 66px;
   overflow: hidden;
   margin-bottom: 4px;
   width: 100%;
@@ -883,7 +892,7 @@ body.light-mode .clay-switcher-slider {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 4px 0 14px;
+  margin: 6px 0 16px;
   font-size: 11.5px;
 }
 
@@ -942,13 +951,13 @@ body.light-mode .clay-switcher-slider {
 /* Primary Action Button ("Sign In") */
 .clay-btn-primary {
   width: 100%;
-  height: 44px;
+  height: 46px;
   border-radius: var(--border-radius-pill);
   background: var(--primary-gradient);
   box-shadow: var(--primary-clay-shadow);
   border: 1.5px solid rgba(255, 255, 255, 0.25);
   color: #ffffff;
-  font-size: 14.5px;
+  font-size: 15px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -957,6 +966,7 @@ body.light-mode .clay-switcher-slider {
   cursor: pointer;
   transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
   position: relative;
+  margin-top: 4px;
 }
 
 .clay-btn-primary:hover {
@@ -1006,64 +1016,6 @@ body.light-mode .clay-switcher-slider {
   to { transform: rotate(360deg); }
 }
 
-/* Divider */
-.clay-divider-row {
-  display: flex;
-  align-items: center;
-  margin: 10px 0 8px;
-  gap: 12px;
-}
-
-.clay-divider-line {
-  flex: 1;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-body.light-mode .clay-divider-line {
-  background: rgba(166, 178, 206, 0.35);
-}
-
-.clay-divider-text {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-/* Secondary Button ("Sign in with Google") */
-.clay-btn-secondary {
-  width: 100%;
-  height: 38px;
-  border-radius: 14px;
-  background: var(--bg-card);
-  box-shadow: var(--clay-pill-shadow);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  color: var(--text-main);
-  font-size: 12.5px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-body.light-mode .clay-btn-secondary {
-  border-color: rgba(255, 255, 255, 0.85);
-}
-
-.clay-btn-secondary:hover {
-  transform: translateY(-1.5px);
-  box-shadow: 6px 8px 16px rgba(0, 0, 0, 0.5);
-}
-
-.clay-btn-secondary:active {
-  transform: translateY(1px);
-  box-shadow: var(--clay-inset-shadow);
-}
-
 /* ==========================================================================
    BOTTOM TRUST BADGES
    ========================================================================== */
@@ -1075,7 +1027,7 @@ body.light-mode .clay-btn-secondary {
   font-size: 11px;
   color: var(--text-muted);
   font-weight: 500;
-  margin-top: 4px;
+  margin-top: 6px;
   flex-wrap: nowrap;
 }
 
@@ -1094,37 +1046,94 @@ body.light-mode .clay-btn-secondary {
 }
 
 /* ==========================================================================
-   RESPONSIVE DESIGN (Tablets & Mobile Phones)
+   MOBILE & NARROW SCREEN RESPONSIVENESS (<= 960px)
    ========================================================================== */
-@media (max-height: 680px) {
-  .clay-main-enclosure {
-    height: 98vh;
-    padding: 16px 24px 12px;
+@media (max-width: 960px) {
+  html, body {
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto; /* Natural mobile scrolling */
+    overflow-x: hidden;
   }
-  .clay-dashboard-mockup {
+
+  body {
+    padding: 24px 16px;
+    align-items: flex-start;
+  }
+
+  .clay-floating-decor {
+    display: none; /* Hide heavy floating SVGs on mobile for 100% performance */
+  }
+
+  .clay-main-enclosure {
+    height: auto;
+    max-width: 440px;
+    margin: 0 auto;
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    gap: 16px;
+  }
+
+  /* Show Dedicated Mobile Brand Header */
+  .clay-mobile-brand-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 6px;
+    text-align: left;
+  }
+
+  .mobile-brand-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-main);
+    line-height: 1.15;
+  }
+
+  .mobile-brand-subtitle {
+    font-size: 11.5px;
+    color: var(--text-sub);
+  }
+
+  .clay-content-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+    width: 100%;
+  }
+
+  /* Hide Desktop Marketing & Heavy Mockup on Mobile */
+  .clay-brand-panel {
     display: none;
+  }
+
+  /* Login card becomes full-width focused card on mobile */
+  .clay-login-card {
+    padding: 28px 22px;
+    border-radius: 26px;
+    box-shadow: var(--clay-card-shadow);
+  }
+
+  .clay-bottom-trust {
+    margin-top: 14px;
+    font-size: 10.5px;
   }
 }
 
-@media (max-width: 1024px) {
-  html, body {
-    overflow-y: auto; /* Allow scroll only on small screens/tablets */
-    height: auto;
-    min-height: 100%;
+/* Very Small Mobile (< 400px) */
+@media (max-width: 400px) {
+  body {
+    padding: 16px 10px;
   }
-  
-  .clay-main-enclosure {
-    height: auto;
-    padding: 24px 20px;
-    margin: 16px auto;
+
+  .clay-login-card {
+    padding: 22px 16px;
+    border-radius: 22px;
   }
-  
-  .clay-content-grid {
-    grid-template-columns: 1fr;
-    gap: 24px;
-  }
-  
-  .clay-dashboard-mockup {
-    display: none;
+
+  .clay-login-title {
+    font-size: 20px;
   }
 }
