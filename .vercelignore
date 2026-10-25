@@ -3,6 +3,7 @@ vercel.exe
 .vercel.zip
 *.zip
 *.xlsx
+*.backup.*
 .env
 node_modules/
 database.json

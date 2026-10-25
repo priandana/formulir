@@ -6,270 +6,541 @@
   <title>Login — SS08 Sistem Pencapaian Kerja</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="dns-prefetch" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/login.css?v=2.0">
+  <link rel="stylesheet" href="/css/login.css?v=3.0">
 </head>
-<body class="">
+<body>
   <script>
     if (localStorage.getItem('theme') === 'dark') {
       document.body.classList.add('dark-mode');
     }
   </script>
 
-  <!-- Ambient Dynamic Canvas (Grid & Radial Light Orbs) -->
-  <div class="ambient-canvas">
-    <div class="ambient-grid"></div>
-    <div class="ambient-orb orb-1"></div>
-    <div class="ambient-orb orb-2"></div>
+  <!-- ======================== FLOATING 3D CLAY ORNAMENTS ======================== -->
+  <div class="clay-floating-decor" aria-hidden="true">
+    <!-- 1. Fluffy 3D Cloud (Top Center-Left) -->
+    <svg class="clay-decor-item decor-cloud" viewBox="0 0 140 80" fill="none">
+      <defs>
+        <radialGradient id="cloudGrad" cx="35%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="#ffffff"/>
+          <stop offset="35%" stop-color="#e2dcfa"/>
+          <stop offset="100%" stop-color="#b8a9f3"/>
+        </radialGradient>
+      </defs>
+      <path d="M35 60 C20 60 10 50 10 38 C10 26 22 18 34 20 C40 10 56 6 70 12 C82 4 102 8 110 22 C124 24 132 36 128 48 C124 60 110 60 98 60 Z" fill="url(#cloudGrad)"/>
+    </svg>
+
+    <!-- 2. Pastel Pink Sphere (Top Right) -->
+    <svg class="clay-decor-item decor-sphere-pink" viewBox="0 0 60 60" fill="none">
+      <defs>
+        <radialGradient id="spherePinkGrad" cx="35%" cy="30%" r="65%">
+          <stop offset="0%" stop-color="#ffffff"/>
+          <stop offset="40%" stop-color="#fbc6d0"/>
+          <stop offset="100%" stop-color="#ea93a4"/>
+        </radialGradient>
+      </defs>
+      <circle cx="30" cy="30" r="26" fill="url(#spherePinkGrad)"/>
+    </svg>
+
+    <!-- 3. Pastel Mint Squiggle / Bean (Far Right) -->
+    <svg class="clay-decor-item decor-squiggle-mint" viewBox="0 0 70 120" fill="none">
+      <defs>
+        <radialGradient id="mintBeanGrad" cx="35%" cy="25%" r="75%">
+          <stop offset="0%" stop-color="#ffffff"/>
+          <stop offset="40%" stop-color="#a7f3d0"/>
+          <stop offset="100%" stop-color="#4ade80"/>
+        </radialGradient>
+      </defs>
+      <path d="M35 15 C55 15 58 45 42 60 C26 75 48 105 35 105 C18 105 12 75 28 60 C40 48 18 15 35 15 Z" fill="url(#mintBeanGrad)"/>
+    </svg>
+
+    <!-- 4. Pastel Coral Torus / Donut (Bottom Right) -->
+    <svg class="clay-decor-item decor-donut-peach" viewBox="0 0 100 100" fill="none">
+      <defs>
+        <radialGradient id="donutGrad" cx="35%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="#ffffff"/>
+          <stop offset="35%" stop-color="#fecdd3"/>
+          <stop offset="70%" stop-color="#fb7185"/>
+          <stop offset="100%" stop-color="#e11d48"/>
+        </radialGradient>
+      </defs>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M50 10 A40 40 0 1 0 50 90 A40 40 0 1 0 50 10 Z M50 32 A18 18 0 1 1 50 68 A18 18 0 1 1 50 32 Z" fill="url(#donutGrad)"/>
+    </svg>
+
+    <!-- 5. Pastel Mint Mini Bean (Bottom Center) -->
+    <svg class="clay-decor-item decor-pill-mint" viewBox="0 0 80 50" fill="none">
+      <defs>
+        <radialGradient id="miniMintGrad" cx="35%" cy="30%" r="65%">
+          <stop offset="0%" stop-color="#ffffff"/>
+          <stop offset="45%" stop-color="#bbf7d0"/>
+          <stop offset="100%" stop-color="#86efac"/>
+        </radialGradient>
+      </defs>
+      <rect x="8" y="10" width="64" height="30" rx="15" fill="url(#miniMintGrad)"/>
+    </svg>
+
+    <!-- 6. Pastel Lavender Blob (Bottom Left) -->
+    <svg class="clay-decor-item decor-blob-purple" viewBox="0 0 130 120" fill="none">
+      <defs>
+        <radialGradient id="blobPurpleGrad" cx="35%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="#ffffff"/>
+          <stop offset="40%" stop-color="#ddd6fe"/>
+          <stop offset="100%" stop-color="#a78bfa"/>
+        </radialGradient>
+      </defs>
+      <path d="M60 15 C95 12 115 35 110 65 C105 95 80 110 45 105 C15 100 8 75 18 45 C28 15 45 18 60 15 Z" fill="url(#blobPurpleGrad)"/>
+    </svg>
+
+    <!-- 7. Pastel Coral Organic Shape (Far Left Middle) -->
+    <svg class="clay-decor-item decor-coral-left" viewBox="0 0 60 100" fill="none">
+      <defs>
+        <radialGradient id="coralLeftGrad" cx="40%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="#ffffff"/>
+          <stop offset="40%" stop-color="#fed7aa"/>
+          <stop offset="100%" stop-color="#fb923c"/>
+        </radialGradient>
+      </defs>
+      <path d="M30 10 C48 10 52 35 40 50 C28 65 44 90 28 90 C12 90 10 65 20 50 C30 35 14 10 30 10 Z" fill="url(#coralLeftGrad)"/>
+    </svg>
+
+    <!-- 8. Small Purple Sphere (Left Middle-Down) -->
+    <svg class="clay-decor-item decor-sphere-purple" viewBox="0 0 40 40" fill="none">
+      <defs>
+        <radialGradient id="spherePurpGrad" cx="35%" cy="30%" r="65%">
+          <stop offset="0%" stop-color="#ffffff"/>
+          <stop offset="40%" stop-color="#c4b5fd"/>
+          <stop offset="100%" stop-color="#8b5cf6"/>
+        </radialGradient>
+      </defs>
+      <circle cx="20" cy="20" r="16" fill="url(#spherePurpGrad)"/>
+    </svg>
   </div>
-  
-  <!-- Theme Toggle Floating Control -->
-  <button class="theme-toggle-btn" id="themeToggle" onclick="toggleDarkMode()" title="Ubah Tema (Terang / Gelap)" aria-label="Ubah Tema">
-    <svg id="themeToggleIcon" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+
+  <!-- Theme Toggle Floating Button -->
+  <button class="theme-toggle-floating" id="themeToggle" onclick="toggleDarkMode()" title="Ubah Tema (Terang / Gelap)" aria-label="Ubah Tema">
+    <svg id="themeToggleIcon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
       <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707.707M12 7a5 5 0 100 10 5 5 0 000-10z"/>
     </svg>
   </button>
 
-  <!-- ======================== LEFT: HERO PANEL ======================== -->
-  <div class="hero-panel">
-    <div class="hero-mesh-bg"></div>
-    <div class="hero-decor-circle-1"></div>
-    <div class="hero-decor-circle-2"></div>
-
-    <!-- Hero Top Header -->
-    <div class="hero-header">
-      <div class="hero-logo">
-        <div class="hero-logo-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
-            <path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/>
-            <path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>
-          </svg>
-        </div>
-        <div class="hero-logo-text">
-          <div class="brand">SS08 Workspace</div>
-          <div class="tagline">Sistem Pencapaian Kerja</div>
-        </div>
-      </div>
-      <div class="hero-system-pill">
-        <span class="pulse-dot"></span>
-        <span>Live System</span>
-      </div>
-    </div>
-
-    <!-- Hero Content -->
-    <div class="hero-content">
-      <h1 class="hero-headline" id="heroHeadline">
-        <span>Kerja Keras,</span><br>
-        <span class="highlight">Hasilkan Prestasi!</span>
-      </h1>
-      <p class="hero-description" id="heroDescription">Platform pencatatan pencapaian kerja yang mudah, cepat, dan akurat untuk tim SS08.</p>
-
-      <!-- Feature Cards Grid -->
-      <div class="hero-features-grid">
-        <div class="hero-feature-card">
-          <div class="feature-badge-icon">📦</div>
-          <div class="feature-card-title">Rekap Carian</div>
-          <div class="feature-card-desc">Integrasi harian otomatis</div>
-        </div>
-        <div class="hero-feature-card">
-          <div class="feature-badge-icon">📊</div>
-          <div class="feature-card-title">Live Monitor</div>
-          <div class="feature-card-desc">Progress tim real-time</div>
-        </div>
-        <div class="hero-feature-card">
-          <div class="feature-badge-icon">⚡</div>
-          <div class="feature-card-title">Akurasi Data</div>
-          <div class="feature-card-desc">Validasi transparan</div>
-        </div>
-      </div>
-
-      <!-- Live Operations Ticker -->
-      <div class="hero-ticker-wrap">
-        <div class="ticker-label">
-          <span class="live-dot"></span>
-          <span>LIVE OPS</span>
-        </div>
-        <div class="ticker-track">
-          <div class="ticker-content">
-            <span>⚡ 1.450+ Carian Terverifikasi</span>
-            <span class="ticker-sep">•</span>
-            <span>🟢 99.2% Akurasi QC</span>
-            <span class="ticker-sep">•</span>
-            <span>📦 38 Armada Terjadwal</span>
-            <span class="ticker-sep">•</span>
-            <span>🛡️ Zero Incident Shift Pagi</span>
-            <span class="ticker-sep">•</span>
-            <span>⚡ 1.450+ Carian Terverifikasi</span>
-            <span class="ticker-sep">•</span>
-            <span>🟢 99.2% Akurasi QC</span>
-            <span class="ticker-sep">•</span>
-            <span>📦 38 Armada Terjadwal</span>
-            <span class="ticker-sep">•</span>
-            <span>🛡️ Zero Incident Shift Pagi</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Hero Visual with Ambient Aura & Floating Chips -->
-      <div class="hero-visual-stage">
-        <div class="hero-glow-aura"></div>
-        <picture>
-          <source srcset="/login-hero.webp" type="image/webp">
-          <img src="/login-hero.png" alt="Ilustrasi SS08" class="hero-illustration" loading="lazy">
-        </picture>
-        <div class="floating-chip chip-top-left">
-          <div class="chip-pill-icon">✓</div>
-          <span>100% Terverifikasi</span>
-        </div>
-        <div class="floating-chip chip-bottom-right">
-          <div class="chip-pill-icon">⚡</div>
-          <span>Sinkronisasi Cepat</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Hero Quote Card -->
-    <div class="hero-quote-card">
-      <div class="quote-icon-badge">“</div>
-      <div class="quote-body">
-        <p class="quote-text" id="heroQuote">Disiplin adalah jembatan antara tujuan dan pencapaian.</p>
-        <p class="quote-author" id="heroQuoteAuthor">— Jim Rohn</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- ======================== RIGHT: FORM PANEL ======================== -->
-  <div class="form-panel">
-    <!-- Mobile Brand Header (Visible on Mobile / Tablet) -->
-    <div class="mobile-brand-banner">
-      <div class="mobile-brand-badge">
-        <div class="mobile-logo-icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
-            <path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/>
-            <path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>
-          </svg>
-        </div>
-        <div class="mobile-logo-text">
-          <div class="brand">SS08 Workspace</div>
-          <div class="tagline">Pencapaian Kerja</div>
-        </div>
-      </div>
-      <div class="mobile-badge-pill">
-        <span class="pulse-dot"></span> SS08 Portal
-      </div>
-    </div>
-
-    <!-- Glassmorphic Form Card -->
-    <div class="form-card">
-      <!-- Maintenance Alert -->
-      <div id="maintenanceAlert" style="display:none; background:rgba(245, 158, 11, 0.1); border:1.5px solid rgba(245, 158, 11, 0.3); color:#d97706; padding:12px 16px; border-radius:12px; font-size:12.5px; margin-bottom:20px; flex-direction:column; gap:4px; line-height:1.4; text-align:left;">
-        <div style="display:flex; align-items:center; gap:8px; font-weight:700;">
-          <span style="font-size:16px;">⚠️</span> Pemeliharaan Sistem Aktif
-        </div>
-        <div id="maintenanceAlertMsg">Sistem operasional sedang dalam pemeliharaan. Hanya Administrator yang dapat masuk.</div>
-      </div>
-
-      <!-- Time-Aware Greeting Badge & Header -->
-      <div class="form-header-badge" id="formGreetingBadge">
-        <span id="formGreetingIcon">✨</span>
-        <span id="formGreetingText">Selamat Datang</span>
-      </div>
-      <div class="form-title" id="formTitle">Selamat Datang! 👋</div>
-      <div class="form-subtitle" id="formSubtitle">Masuk ke konsol kontrol untuk verifikasi pencapaian kerja</div>
-
-      <!-- Segmented Role Switcher -->
-      <div class="role-switcher">
-        <div class="switcher-pill" id="switcherPill"></div>
-        <button type="button" class="role-btn active" id="btnAdmin" onclick="switchRole('admin')">
-          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          </svg>
-          <span>Administrator</span>
-        </button>
-        <button type="button" class="role-btn" id="btnOps" onclick="switchRole('operasional')">
-          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
-          </svg>
-          <span>Operasional</span>
-        </button>
-      </div>
-
-      <!-- Role Context Hint -->
-      <div class="role-hint-card" id="roleHintCard">
-        <svg class="role-hint-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-        </svg>
-        <span id="roleHintText">Masuk menggunakan kredensial Administrator SS08.</span>
-      </div>
-
-      <!-- Error & Warning Messages -->
-      <div class="error-msg" id="errorMsg">
-        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-        <span id="errorText">Username atau password salah.</span>
-      </div>
-      <div class="inactive-msg" id="inactiveMsg">
-        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-        <div class="inactive-msg-content">
-          <div class="inactive-msg-title">Akun Dinonaktifkan</div>
-          <div class="inactive-msg-desc">Akun Anda telah dinonaktifkan oleh Administrator. Hubungi HR atau Admin untuk informasi lebih lanjut.</div>
-        </div>
-      </div>
-
-      <!-- Login Form -->
-      <form id="loginForm" onsubmit="handleLogin(event)">
-        <div class="field">
-          <label class="field-label" for="username">Username</label>
-          <div class="field-input-wrap">
-            <svg class="field-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            <input type="text" id="username" class="field-input" placeholder="Masukkan username Anda" autocomplete="username" required>
-          </div>
-        </div>
-
-        <div class="role-fields-wrap" style="position: relative; height: 82px; overflow: hidden; margin-bottom: 20px; width: 100%;">
-          <div class="field" id="nikField" style="position: absolute; width: 100%; top: 0; transform: translateX(30px); opacity: 0; pointer-events: none; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); margin-bottom: 0;">
-            <label class="field-label" for="nik">Password</label>
-            <div class="field-input-wrap">
-              <svg class="field-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-              <input type="password" id="nik" class="field-input has-right-icon" placeholder="Masukkan password operasional" autocomplete="current-password">
-              <button type="button" class="field-icon-right" onclick="toggleNikPassword()" aria-label="Lihat password">
-                <svg id="eyeIconNik" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              </button>
+  <!-- ======================== MAIN CLAY ENCLOSURE FRAME ======================== -->
+  <main class="clay-main-enclosure" id="mainContainer">
+    <div class="clay-content-grid">
+      
+      <!-- ==================== LEFT COLUMN: BRAND & MOCKUP ==================== -->
+      <section class="clay-brand-panel">
+        <div>
+          <!-- Brand Logo & Title -->
+          <div class="clay-brand-header">
+            <div class="clay-brand-logo-icon">
+              <!-- Clay 3D Bar Chart Icon -->
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"/>
+                <line x1="12" y1="20" x2="12" y2="4"/>
+                <line x1="6" y1="20" x2="6" y2="14"/>
+              </svg>
+            </div>
+            <div class="clay-brand-title">
+              <span id="brandNameText">SS08 Workspace</span>
             </div>
           </div>
-          <div class="field" id="passwordField" style="position: absolute; width: 100%; top: 0; transform: translateX(0); opacity: 1; pointer-events: auto; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); margin-bottom: 0;">
-            <label class="field-label" for="password">Password</label>
-            <div class="field-input-wrap">
-              <svg class="field-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-              <input type="password" id="password" class="field-input has-right-icon" placeholder="Masukkan password admin" autocomplete="current-password" required>
-              <button type="button" class="field-icon-right" onclick="togglePassword()" aria-label="Lihat password">
-                <svg id="eyeIcon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              </button>
+
+          <!-- Headline & Tagline -->
+          <div class="clay-headline-wrap">
+            <h1 class="clay-headline-title" id="heroHeadline">
+              Kerja Keras, Hasilkan Prestasi!
+            </h1>
+            <p class="clay-headline-desc" id="heroDescription">
+              Platform pencatatan pencapaian kerja yang mudah, cepat, dan akurat untuk tim operasional SS08.
+            </p>
+          </div>
+
+          <!-- Feature Badges (3 Mini Clay Pills) -->
+          <div class="clay-features-row">
+            <!-- Feature 1 -->
+            <div class="clay-feature-card">
+              <div class="clay-feature-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21.21 15.89A10 10 0 1 1 8 2.83"/>
+                  <path d="M22 12A10 10 0 0 0 12 2v10z"/>
+                </svg>
+              </div>
+              <div class="clay-feature-info">
+                <span class="clay-feature-name">Rekap Carian</span>
+                <span class="clay-feature-sub">Integrasi harian</span>
+              </div>
+            </div>
+
+            <!-- Feature 2 -->
+            <div class="clay-feature-card">
+              <div class="clay-feature-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </div>
+              <div class="clay-feature-info">
+                <span class="clay-feature-name">Live Monitor</span>
+                <span class="clay-feature-sub">Progress QC real-time</span>
+              </div>
+            </div>
+
+            <!-- Feature 3 -->
+            <div class="clay-feature-card">
+              <div class="clay-feature-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2v8"/>
+                  <path d="m16 6-4-4-4 4"/>
+                  <rect width="20" height="8" x="2" y="14" rx="2"/>
+                  <path d="M6 18h.01"/>
+                  <path d="M10 18h.01"/>
+                </svg>
+              </div>
+              <div class="clay-feature-info">
+                <span class="clay-feature-name">Akurasi Data</span>
+                <span class="clay-feature-sub">Validasi transparan</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <button type="submit" class="btn-submit" id="submitBtn">
-          <span class="btn-text">Masuk Sekarang</span>
-          <svg class="btn-arrow" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
-          </svg>
-          <div class="spinner"></div>
-        </button>
-      </form>
+        <!-- Miniature Clay Dashboard Mockup Card -->
+        <div class="clay-dashboard-mockup" id="dashboardMockup">
+          <!-- Mockup Topbar -->
+          <div class="mockup-topbar">
+            <div class="mockup-brand-tag">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="2" y="3" width="20" height="18" rx="4"/>
+              </svg>
+              <span>Clay Dashboard</span>
+            </div>
+            <div class="mockup-greeting">
+              Good Morning, <strong>Admin! 👋</strong> Here's what's happening with your business today.
+            </div>
+            <div class="mockup-filter-pill">
+              <span>Last 30 days</span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+            </div>
+          </div>
 
-      <!-- Security Micro Banner -->
-      <div class="security-note">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-        </svg>
-        <span>Koneksi Aman & Terenkripsi • SS08 Hub</span>
-      </div>
+          <!-- Mockup Body (Sidebar + Content) -->
+          <div class="mockup-body">
+            <!-- Mini Sidebar -->
+            <nav class="mockup-sidebar">
+              <div class="mockup-nav-item active">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                <span>Overview</span>
+              </div>
+              <div class="mockup-nav-item">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                <span>Analytics</span>
+              </div>
+              <div class="mockup-nav-item">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <span>Reports</span>
+              </div>
+              <div class="mockup-nav-item">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                <span>Customers</span>
+              </div>
+              <div class="mockup-nav-item">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                <span>Products</span>
+              </div>
+              <div class="mockup-nav-item">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                <span>Settings</span>
+              </div>
+            </nav>
+
+            <!-- Main Content inside mockup -->
+            <div class="mockup-content">
+              <!-- 3 Mini KPI cards -->
+              <div class="mockup-kpis">
+                <!-- KPI 1 -->
+                <div class="mockup-kpi-card">
+                  <span class="kpi-title">Total Revenue</span>
+                  <div class="kpi-val-row">
+                    <span class="kpi-value">$24,780</span>
+                    <span class="kpi-badge">↑ 12.5%</span>
+                  </div>
+                  <svg class="kpi-sparkline" viewBox="0 0 90 24" fill="none">
+                    <path d="M0 18 Q 20 6, 35 14 T 65 8 T 90 4" stroke="#6366f1" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                  </svg>
+                </div>
+
+                <!-- KPI 2 -->
+                <div class="mockup-kpi-card">
+                  <span class="kpi-title">New Customers</span>
+                  <div class="kpi-val-row">
+                    <span class="kpi-value">1,248</span>
+                    <span class="kpi-badge">↑ 8.2%</span>
+                  </div>
+                  <svg class="kpi-sparkline" viewBox="0 0 90 24" fill="none">
+                    <path d="M0 16 Q 22 20, 40 10 T 70 12 T 90 5" stroke="#10b981" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                  </svg>
+                </div>
+
+                <!-- KPI 3 -->
+                <div class="mockup-kpi-card">
+                  <span class="kpi-title">Conversion Rate</span>
+                  <div class="kpi-val-row">
+                    <span class="kpi-value">3.86%</span>
+                    <span class="kpi-badge">↑ 4.1%</span>
+                  </div>
+                  <svg class="kpi-sparkline" viewBox="0 0 90 24" fill="none">
+                    <path d="M0 17 Q 25 15, 45 7 T 75 14 T 90 6" stroke="#f97316" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                  </svg>
+                </div>
+              </div>
+
+              <!-- Bottom Charts Row (Revenue Curve + Donut Chart) -->
+              <div class="mockup-charts-row">
+                <!-- Revenue Curve Chart -->
+                <div class="mockup-chart-card">
+                  <span class="chart-card-title">Revenue Overview</span>
+                  <svg viewBox="0 0 200 90" style="width:100%; height:80px;" fill="none">
+                    <defs>
+                      <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#818cf8" stop-opacity="0.35"/>
+                        <stop offset="100%" stop-color="#818cf8" stop-opacity="0.0"/>
+                      </linearGradient>
+                    </defs>
+                    <!-- Y-Axis labels & Grid lines -->
+                    <text x="2" y="14" fill="#94a3b8" font-size="7">30k</text>
+                    <line x1="18" y1="12" x2="195" y2="12" stroke="#e2e8f0" stroke-dasharray="2 2" stroke-width="0.8"/>
+                    <text x="2" y="44" fill="#94a3b8" font-size="7">20k</text>
+                    <line x1="18" y1="42" x2="195" y2="42" stroke="#e2e8f0" stroke-dasharray="2 2" stroke-width="0.8"/>
+                    <text x="2" y="74" fill="#94a3b8" font-size="7">10k</text>
+                    <line x1="18" y1="72" x2="195" y2="72" stroke="#e2e8f0" stroke-dasharray="2 2" stroke-width="0.8"/>
+                    <!-- Area & Curve -->
+                    <path d="M22 68 C 45 68, 60 48, 85 48 C 110 48, 125 22, 145 22 C 165 22, 175 42, 192 18 L 192 82 L 22 82 Z" fill="url(#areaGrad)"/>
+                    <path d="M22 68 C 45 68, 60 48, 85 48 C 110 48, 125 22, 145 22 C 165 22, 175 42, 192 18" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round"/>
+                    <!-- X-Axis dates -->
+                    <text x="20" y="88" fill="#94a3b8" font-size="6.5">Apr 21</text>
+                    <text x="60" y="88" fill="#94a3b8" font-size="6.5">Apr 28</text>
+                    <text x="105" y="88" fill="#94a3b8" font-size="6.5">May 5</text>
+                    <text x="145" y="88" fill="#94a3b8" font-size="6.5">May 12</text>
+                    <text x="175" y="88" fill="#94a3b8" font-size="6.5">May 19</text>
+                  </svg>
+                </div>
+
+                <!-- Donut Chart -->
+                <div class="mockup-chart-card">
+                  <span class="chart-card-title">Top Channels</span>
+                  <div class="mockup-donut-wrap">
+                    <svg width="68" height="68" viewBox="0 0 42 42">
+                      <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#e2e8f0" stroke-width="5.5"></circle>
+                      <!-- Organic Search (45%) -->
+                      <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#6366f1" stroke-width="5.5" stroke-dasharray="45 55" stroke-dashoffset="25"></circle>
+                      <!-- Direct (25%) -->
+                      <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#10b981" stroke-width="5.5" stroke-dasharray="25 75" stroke-dashoffset="80"></circle>
+                      <!-- Social Media (20%) -->
+                      <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#f97316" stroke-width="5.5" stroke-dasharray="20 80" stroke-dashoffset="55"></circle>
+                      <!-- Email (10%) -->
+                      <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#eab308" stroke-width="5.5" stroke-dasharray="10 90" stroke-dashoffset="35"></circle>
+                    </svg>
+                    <div class="donut-legend">
+                      <div class="legend-item"><span class="legend-dot dot-purple"></span><span>Organic 45%</span></div>
+                      <div class="legend-item"><span class="legend-dot dot-green"></span><span>Direct 25%</span></div>
+                      <div class="legend-item"><span class="legend-dot dot-coral"></span><span>Social 20%</span></div>
+                      <div class="legend-item"><span class="legend-dot dot-yellow"></span><span>Email 10%</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== RIGHT COLUMN: CLAY LOGIN FORM ==================== -->
+      <section class="clay-login-card" id="loginCard">
+        <!-- 3D Avatar Dish & Figure -->
+        <div class="clay-avatar-dish">
+          <div class="clay-avatar-puffy">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Title & Subtitle -->
+        <h2 class="clay-login-title" id="formTitle">Welcome Back</h2>
+        <p class="clay-login-subtitle" id="formSubtitle">Sign in to access your dashboard</p>
+
+        <!-- Role Segmented Pill Switcher -->
+        <div class="clay-role-switcher" role="tablist">
+          <div class="clay-switcher-slider" id="switcherSlider"></div>
+          <button type="button" class="clay-role-btn active" id="btnAdmin" onclick="switchRole('admin')" role="tab" aria-selected="true">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <span>Administrator</span>
+          </button>
+          <button type="button" class="clay-role-btn" id="btnOps" onclick="switchRole('operasional')" role="tab" aria-selected="false">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+            <span>Operasional</span>
+          </button>
+        </div>
+
+        <!-- Role Hint Text -->
+        <div class="clay-role-hint">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
+          </svg>
+          <span id="roleHintText">Masuk menggunakan kredensial Administrator SS08.</span>
+        </div>
+
+        <!-- Maintenance Alert -->
+        <div class="clay-alert-maintenance" id="maintenanceAlert">
+          <div style="display:flex; align-items:center; gap:8px; font-weight:700;">
+            <span>⚠️</span> Pemeliharaan Sistem Aktif
+          </div>
+          <div id="maintenanceAlertMsg">Sistem operasional sedang dalam pemeliharaan. Hanya Administrator yang dapat masuk.</div>
+        </div>
+
+        <!-- Error & Inactive Account Alerts -->
+        <div class="clay-alert-error" id="errorMsg">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
+          </svg>
+          <span id="errorText">Username atau password salah.</span>
+        </div>
+
+        <div class="clay-alert-inactive" id="inactiveMsg">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+          </svg>
+          <div>
+            <div style="font-weight:700; margin-bottom:2px;">Akun Dinonaktifkan</div>
+            <div style="font-size:11.5px; opacity:0.9;">Akun Anda telah dinonaktifkan. Silakan hubungi HR atau Administrator SS08.</div>
+          </div>
+        </div>
+
+        <!-- Login Form -->
+        <form id="loginForm" onsubmit="handleLogin(event)">
+          <!-- Username / Email Field -->
+          <div class="clay-form-group">
+            <label class="clay-field-label" for="username">Email address / Username</label>
+            <div class="clay-input-wrap">
+              <svg class="clay-input-icon" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <rect x="2" y="4" width="20" height="16" rx="2"/>
+                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+              </svg>
+              <input type="text" id="username" class="clay-input-field" placeholder="you@example.com / username" autocomplete="username" required>
+            </div>
+          </div>
+
+          <!-- Animated Dynamic Password / NIK Wrapper -->
+          <div class="clay-role-fields-container">
+            <!-- Operasional NIK Field -->
+            <div class="clay-animated-field" id="nikField" style="transform: translateX(30px); opacity: 0; pointer-events: none;">
+              <label class="clay-field-label" for="nik">Password Operasional</label>
+              <div class="clay-input-wrap">
+                <svg class="clay-input-icon" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <input type="password" id="nik" class="clay-input-field" placeholder="Masukkan password operasional" autocomplete="current-password">
+                <button type="button" class="clay-input-toggle" onclick="toggleNikPassword()" aria-label="Lihat password">
+                  <svg id="eyeIconNik" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Admin Password Field -->
+            <div class="clay-animated-field" id="passwordField" style="transform: translateX(0); opacity: 1; pointer-events: auto;">
+              <label class="clay-field-label" for="password">Password</label>
+              <div class="clay-input-wrap">
+                <svg class="clay-input-icon" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <input type="password" id="password" class="clay-input-field" placeholder="Enter your password" autocomplete="current-password" required>
+                <button type="button" class="clay-input-toggle" onclick="togglePassword()" aria-label="Lihat password">
+                  <svg id="eyeIcon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Options Row: Remember Me & Forgot Password -->
+          <div class="clay-options-row">
+            <label class="clay-checkbox-label">
+              <input type="checkbox" id="rememberMe" class="clay-hidden-checkbox" checked>
+              <span class="clay-custom-checkbox">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </span>
+              <span>Remember me</span>
+            </label>
+            <a href="javascript:void(0)" class="clay-forgot-link" onclick="alert('Untuk reset akun atau password, silakan hubungi tim Administrator SS08.')">Forgot password?</a>
+          </div>
+
+          <!-- Primary Sign In Action Button -->
+          <button type="submit" class="clay-btn-primary" id="submitBtn">
+            <span class="clay-btn-text">Sign In</span>
+            <svg class="clay-btn-arrow" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"/>
+              <polyline points="12 5 19 12 12 19"/>
+            </svg>
+            <div class="clay-spinner"></div>
+          </button>
+        </form>
+
+        <!-- Divider: or continue with -->
+        <div class="clay-divider-row">
+          <div class="clay-divider-line"></div>
+          <span class="clay-divider-text">or continue with</span>
+          <div class="clay-divider-line"></div>
+        </div>
+
+        <!-- Secondary Button: Sign in with Google / Quick SSO -->
+        <button type="button" class="clay-btn-secondary" onclick="alert('Akses Google Workspace SSO akan segera tersedia untuk domain resmi SS08.')">
+          <!-- Google 4-Color Icon -->
+          <svg width="18" height="18" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          <span>Sign in with Google</span>
+        </button>
+      </section>
+
     </div>
 
-    <div class="page-footer" id="pageFooter">© 2026 SS08 Pencapaian Kerja. All rights reserved.</div>
-  </div>
+    <!-- Bottom Trust Badges -->
+    <footer class="clay-bottom-trust">
+      <div class="clay-trust-item">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="m9 12 2 2 4-4"/>
+        </svg>
+        <span>Secure</span>
+      </div>
+      <div class="clay-trust-dot"></div>
+      <div class="clay-trust-item">
+        <span>Reliable</span>
+      </div>
+      <div class="clay-trust-dot"></div>
+      <div class="clay-trust-item">
+        <span id="pageFooter">Trusted by 10,000+ businesses • SS08 Operational System</span>
+      </div>
+    </footer>
+  </main>
 
+  <!-- ======================== SCRIPTS & LOGIC ======================== -->
   <script>
     let currentRole = 'admin';
 
@@ -284,26 +555,19 @@
     async function loadSettings() {
       try {
         const s = await fetch('/api/settings/login').then(r => r.json());
+        
         const h1 = document.getElementById('heroHeadline');
         if (h1 && (s.hero_headline_line1 || s.hero_headline_line2)) {
-          h1.innerHTML = '<span>' + (s.hero_headline_line1 || 'Kerja Keras,') + '</span><br><span class="highlight">' + (s.hero_headline_line2 || 'Hasilkan Prestasi!') + '</span>';
+          h1.textContent = (s.hero_headline_line1 || 'Kerja Keras,') + ' ' + (s.hero_headline_line2 || 'Hasilkan Prestasi!');
         }
+        
         const desc = document.getElementById('heroDescription');
         if (desc && s.hero_description) desc.textContent = s.hero_description;
-        const qt = document.getElementById('heroQuote');
-        if (qt && s.hero_quote) qt.textContent = s.hero_quote;
-        const qa = document.getElementById('heroQuoteAuthor');
-        if (qa && s.hero_quote_author) qa.textContent = s.hero_quote_author;
-
+        
         const greeting = getGreetingInfo();
-        const badgeText = document.getElementById('formGreetingText');
-        const badgeIcon = document.getElementById('formGreetingIcon');
-        if (badgeText) badgeText.textContent = 'Portal Akses SS08';
-        if (badgeIcon) badgeIcon.textContent = '✨';
-
         const ft = document.getElementById('formTitle');
-        if (ft) {
-          let title = s.form_title || 'Selamat Datang! 👋';
+        if (ft && s.form_title) {
+          let title = s.form_title;
           if (title.includes('Selamat Datang')) {
             title = title.replace('Selamat Datang', greeting.greet);
           }
@@ -312,6 +576,7 @@
 
         const fs = document.getElementById('formSubtitle');
         if (fs && s.form_subtitle) fs.textContent = s.form_subtitle;
+        
         const pf = document.getElementById('pageFooter');
         if (pf && s.footer_text) pf.textContent = s.footer_text;
       } catch (e) {
@@ -326,20 +591,19 @@
       currentRole = role;
       const isOps = role === 'operasional';
       
-      // 1. Toggle Active buttons
+      // 1. Toggle Button Active states
       document.getElementById('btnAdmin').classList.toggle('active', !isOps);
       document.getElementById('btnOps').classList.toggle('active', isOps);
+      document.getElementById('btnAdmin').setAttribute('aria-selected', !isOps);
+      document.getElementById('btnOps').setAttribute('aria-selected', isOps);
       
       // 2. Animate sliding pill
-      const pill = document.getElementById('switcherPill');
-      if (pill) {
-        pill.style.transform = isOps ? 'translateX(100%)' : 'translateX(0)';
+      const slider = document.getElementById('switcherSlider');
+      if (slider) {
+        slider.style.transform = isOps ? 'translateX(100%)' : 'translateX(0)';
       }
       
-      // 3. Toggle role-ops class on body for dynamic accent colors
-      document.body.classList.toggle('role-ops', isOps);
-      
-      // 4. Slide & Fade input fields and toggle disabled state to prevent Tab focus
+      // 3. Slide & Fade input fields
       const nikF = document.getElementById('nikField');
       const pwdF = document.getElementById('passwordField');
       const nikInput = document.getElementById('nik');
@@ -347,7 +611,6 @@
       
       if (nikF && pwdF && nikInput && pwdInput) {
         if (isOps) {
-          // Slide NIK in, Slide Password out
           nikF.style.transform = 'translateX(0)';
           nikF.style.opacity = '1';
           nikF.style.pointerEvents = 'auto';
@@ -358,7 +621,6 @@
           pwdF.style.pointerEvents = 'none';
           pwdInput.disabled = true;
         } else {
-          // Slide Password in, Slide NIK out
           nikF.style.transform = 'translateX(30px)';
           nikF.style.opacity = '0';
           nikF.style.pointerEvents = 'none';
@@ -371,20 +633,19 @@
         }
       }
       
-      // 5. Update formSubtitle text dynamically
-      const fs = document.getElementById('formSubtitle');
-      if (fs) {
-        fs.textContent = isOps 
-          ? 'Masuk untuk mencatat hasil kerja keras Anda hari ini!'
-          : 'Masuk ke konsol kontrol untuk verifikasi pencapaian kerja';
-      }
-
-      // 6. Update role hint text
+      // 4. Update Role Hint & Subtitle
       const hintText = document.getElementById('roleHintText');
       if (hintText) {
         hintText.textContent = isOps
           ? 'Masuk menggunakan NIK & Password Operasional Anda.'
           : 'Masuk menggunakan kredensial Administrator SS08.';
+      }
+      
+      const fs = document.getElementById('formSubtitle');
+      if (fs) {
+        fs.textContent = isOps 
+          ? 'Masuk untuk mencatat hasil kerja keras Anda hari ini!'
+          : 'Sign in to access your dashboard';
       }
       
       document.getElementById('nik').required = isOps;
@@ -396,15 +657,6 @@
       } else {
         disableLoginForMaintenance(false);
       }
-    }
-
-    // Prevent browser auto-scroll in container on focus
-    const fieldsWrap = document.querySelector('.role-fields-wrap');
-    if (fieldsWrap) {
-      fieldsWrap.addEventListener('scroll', () => {
-        fieldsWrap.scrollLeft = 0;
-        fieldsWrap.scrollTop = 0;
-      });
     }
 
     function togglePassword() {
@@ -507,7 +759,7 @@
     function disableLoginForMaintenance(disabled) {
       const btn = document.getElementById('submitBtn');
       if (!btn) return;
-      const btnText = btn.querySelector('.btn-text');
+      const btnText = btn.querySelector('.clay-btn-text');
       if (disabled) {
         btn.disabled = true;
         btn.style.opacity = '0.5';
@@ -517,13 +769,13 @@
         btn.disabled = false;
         btn.style.opacity = '1';
         btn.style.cursor = 'pointer';
-        if (btnText) btnText.textContent = 'Masuk Sekarang';
+        if (btnText) btnText.textContent = 'Sign In';
       }
     }
 
     checkMaintenance();
 
-    // Dark Mode Toggle Logic
+    // Dark Mode Toggle
     const currentTheme = localStorage.getItem('theme');
     if (currentTheme === 'dark') {
       updateThemeIcon(true);
@@ -545,49 +797,33 @@
       }
     }
 
-    // Time-Adaptive Ambiance
-    (function applyTimeAmbiance() {
-      const hr = new Date().getHours();
-      if (hr >= 5 && hr < 11) document.body.classList.add('time-morning');
-      else if (hr >= 11 && hr < 15) document.body.classList.add('time-afternoon');
-      else if (hr >= 15 && hr < 18) document.body.classList.add('time-evening');
-      else document.body.classList.add('time-night');
-    })();
+    // Interactive 3D Clay Tilt Effect for Desktop
+    if (window.matchMedia('(pointer: fine) and (min-width: 1024px)').matches) {
+      const card = document.getElementById('loginCard');
+      const mockup = document.getElementById('dashboardMockup');
 
-    // Mobile Haptic Feedback Helper
-    function triggerHaptic(duration = 20) {
-      if (window.navigator && window.navigator.vibrate) {
-        try { window.navigator.vibrate(duration); } catch (_) {}
-      }
-    }
+      document.addEventListener('mousemove', (e) => {
+        const { clientX, clientY } = e;
+        const { innerWidth, innerHeight } = window;
 
-    // Interactive 3D Parallax Tilt for Desktop
-    if (window.matchMedia('(pointer: fine) and (min-width: 901px)').matches) {
-      const card = document.querySelector('.form-card');
-      const visual = document.querySelector('.hero-visual-stage');
+        const xPct = (clientX / innerWidth) - 0.5;
+        const yPct = (clientY / innerHeight) - 0.5;
 
-      if (card) {
-        document.addEventListener('mousemove', (e) => {
-          const { clientX, clientY } = e;
-          const { innerWidth, innerHeight } = window;
-
-          const xPct = (clientX / innerWidth) - 0.5;
-          const yPct = (clientY / innerHeight) - 0.5;
-
-          const rotX = -yPct * 8;
-          const rotY = xPct * 10;
+        const rotX = -yPct * 6;
+        const rotY = xPct * 8;
+        
+        if (card) {
           card.style.transform = `perspective(1000px) rotateX(${rotX.toFixed(2)}deg) rotateY(${rotY.toFixed(2)}deg) translateY(-2px)`;
+        }
+        if (mockup) {
+          mockup.style.transform = `perspective(1000px) rotateX(${(-rotX * 0.6).toFixed(2)}deg) rotateY(${(-rotY * 0.6).toFixed(2)}deg)`;
+        }
+      });
 
-          if (visual) {
-            visual.style.transform = `perspective(1000px) rotateX(${(-rotX * 0.7).toFixed(2)}deg) rotateY(${(-rotY * 0.7).toFixed(2)}deg) translateY(${(-rotX * 0.8).toFixed(1)}px)`;
-          }
-        });
-
-        document.addEventListener('mouseleave', () => {
-          card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateY(0)';
-          if (visual) visual.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateY(0)';
-        });
-      }
+      document.addEventListener('mouseleave', () => {
+        if (card) card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateY(0)';
+        if (mockup) mockup.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg)';
+      });
     }
   </script>
 </body>
