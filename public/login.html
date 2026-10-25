@@ -6,13 +6,14 @@
   <title>Login — SS08 Sistem Pencapaian Kerja</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/login.css?v=3.0">
-  <link rel="stylesheet" href="css/login.css?v=3.0">
+  <link rel="stylesheet" href="/css/login.css?v=3.1">
+  <link rel="stylesheet" href="css/login.css?v=3.1">
 </head>
 <body>
   <script>
-    if (localStorage.getItem('theme') === 'dark') {
-      document.body.classList.add('dark-mode');
+    // Default is Dark Mode
+    if (localStorage.getItem('theme') === 'light') {
+      document.body.classList.add('light-mode');
     }
   </script>
 
@@ -775,16 +776,14 @@
 
     checkMaintenance();
 
-    // Dark Mode Toggle
+    // Dark Mode (Default is dark mode)
     const currentTheme = localStorage.getItem('theme');
-    if (currentTheme === 'dark') {
-      updateThemeIcon(true);
-    }
+    updateThemeIcon(currentTheme !== 'light');
 
     function toggleDarkMode() {
-      const isDark = document.body.classList.toggle('dark-mode');
-      localStorage.setItem('theme', isDark ? 'dark' : 'light');
-      updateThemeIcon(isDark);
+      const isLight = document.body.classList.toggle('light-mode');
+      localStorage.setItem('theme', isLight ? 'light' : 'dark');
+      updateThemeIcon(!isLight);
     }
 
     function updateThemeIcon(isDark) {

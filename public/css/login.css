@@ -1,6 +1,6 @@
 /* ==========================================================================
-   SS08 WORKSPACE — CLAYMORPHIC / SOFT 3D PASTEL LOGIN PAGE (V3.0)
-   Inspired by Claymorphism, Soft 3D Neo-Glass & Pastel Aesthetics
+   SS08 WORKSPACE — CLAYMORPHIC / SOFT 3D PASTEL LOGIN PAGE (V3.1)
+   Dark Mode Default & Full-Screen No-Scroll Optimization (Fit 100vh)
    ========================================================================== */
 
 *, *::before, *::after {
@@ -10,29 +10,30 @@
 }
 
 :root {
-  /* Claymorphic Pastel Theme (Light Mode) */
-  --bg-page: #edf1f8;
-  --bg-canvas: #f0f3fa;
-  --bg-card: #f4f6fc;
-  --bg-card-elevated: #f8fafe;
-  --bg-inset: #ebf0f8;
+  /* Default: Dark Clay / Deep Velvet Neumorphism */
+  --bg-page: #121520;
+  --bg-canvas: #161a29;
+  --bg-card: #1c2134;
+  --bg-card-elevated: #22283f;
+  --bg-inset: #131724;
   
-  --primary: #635bff;
-  --primary-light: #7b75ff;
-  --primary-dark: #4e44e6;
-  --primary-gradient: linear-gradient(135deg, #7468fb 0%, #5849e7 100%);
-  --primary-clay-shadow: 0 12px 24px rgba(99, 91, 255, 0.38), inset 2px 2px 4px rgba(255, 255, 255, 0.45), inset -2px -2px 4px rgba(0, 0, 0, 0.18);
+  --primary: #6366f1;
+  --primary-light: #818cf8;
+  --primary-dark: #4f46e5;
+  --primary-gradient: linear-gradient(135deg, #7c73fa 0%, #5849e7 100%);
+  --primary-clay-shadow: 0 10px 22px rgba(99, 102, 241, 0.4), inset 2px 2px 4px rgba(255, 255, 255, 0.45), inset -2px -2px 4px rgba(0, 0, 0, 0.25);
   
-  --text-main: #192038;
-  --text-sub: #54607e;
-  --text-muted: #8491ae;
+  --text-main: #f1f5f9;
+  --text-sub: #94a3b8;
+  --text-muted: #64748b;
   
-  /* Clay Shadows (Exterior & Inset Highlights) */
-  --clay-card-shadow: 18px 20px 40px rgba(166, 178, 206, 0.45), -14px -14px 32px #ffffff, inset 2px 2px 3px rgba(255, 255, 255, 0.85);
-  --clay-mockup-shadow: 14px 16px 32px rgba(166, 178, 206, 0.38), -10px -10px 24px #ffffff, inset 1px 1px 2px rgba(255, 255, 255, 0.9);
-  --clay-pill-shadow: 6px 7px 15px rgba(166, 178, 206, 0.35), -6px -6px 14px #ffffff, inset 1px 1px 2px rgba(255, 255, 255, 0.9);
-  --clay-inset-shadow: inset 3.5px 3.5px 7px rgba(166, 178, 206, 0.38), inset -3.5px -3.5px 7px #ffffff;
-  --clay-inset-deep: inset 5px 5px 10px rgba(166, 178, 206, 0.45), inset -5px -5px 10px #ffffff;
+  /* Dark Clay Shadows */
+  --clay-enclosure-shadow: 20px 24px 50px rgba(0, 0, 0, 0.7), -12px -12px 35px rgba(255, 255, 255, 0.03), inset 1px 1px 2px rgba(255, 255, 255, 0.08);
+  --clay-card-shadow: 16px 20px 40px rgba(0, 0, 0, 0.6), -10px -10px 30px rgba(255, 255, 255, 0.04), inset 1px 1px 2px rgba(255, 255, 255, 0.1);
+  --clay-mockup-shadow: 12px 16px 32px rgba(0, 0, 0, 0.55), -8px -8px 20px rgba(255, 255, 255, 0.03), inset 1px 1px 2px rgba(255, 255, 255, 0.08);
+  --clay-pill-shadow: 5px 6px 14px rgba(0, 0, 0, 0.5), -4px -4px 10px rgba(255, 255, 255, 0.03), inset 1px 1px 2px rgba(255, 255, 255, 0.08);
+  --clay-inset-shadow: inset 3.5px 3.5px 7px rgba(0, 0, 0, 0.7), inset -3.5px -3.5px 7px rgba(255, 255, 255, 0.04);
+  --clay-inset-deep: inset 5px 5px 10px rgba(0, 0, 0, 0.8), inset -5px -5px 10px rgba(255, 255, 255, 0.03);
   
   /* Accent Pastel Colors */
   --pastel-purple: #c5baff;
@@ -43,51 +44,61 @@
   --pastel-yellow: #fde68a;
   
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --border-radius-card: 38px;
-  --border-radius-pill: 22px;
+  --border-radius-card: 32px;
+  --border-radius-pill: 18px;
 }
 
-/* Dark Mode Clay / Deep Velvet Neumorphism */
-body.dark-mode {
-  --bg-page: #121520;
-  --bg-canvas: #161a29;
-  --bg-card: #1c2134;
-  --bg-card-elevated: #232940;
-  --bg-inset: #131724;
+/* Light Mode Overrides (when explicitly toggled) */
+body.light-mode {
+  --bg-page: #edf1f8;
+  --bg-canvas: #f0f3fa;
+  --bg-card: #f4f6fc;
+  --bg-card-elevated: #f8fafe;
+  --bg-inset: #ebf0f8;
   
-  --text-main: #f1f5f9;
-  --text-sub: #94a3b8;
-  --text-muted: #64748b;
+  --primary: #635bff;
+  --primary-light: #7b75ff;
+  --primary-dark: #4e44e6;
+  --primary-gradient: linear-gradient(135deg, #7468fb 0%, #5849e7 100%);
+  --primary-clay-shadow: 0 10px 22px rgba(99, 91, 255, 0.38), inset 2px 2px 4px rgba(255, 255, 255, 0.45), inset -2px -2px 4px rgba(0, 0, 0, 0.18);
   
-  --clay-card-shadow: 16px 20px 40px rgba(0, 0, 0, 0.6), -10px -10px 30px rgba(255, 255, 255, 0.04), inset 1px 1px 2px rgba(255, 255, 255, 0.1);
-  --clay-mockup-shadow: 12px 16px 32px rgba(0, 0, 0, 0.55), -8px -8px 20px rgba(255, 255, 255, 0.03), inset 1px 1px 2px rgba(255, 255, 255, 0.08);
-  --clay-pill-shadow: 5px 6px 14px rgba(0, 0, 0, 0.5), -4px -4px 10px rgba(255, 255, 255, 0.03), inset 1px 1px 2px rgba(255, 255, 255, 0.08);
-  --clay-inset-shadow: inset 3.5px 3.5px 7px rgba(0, 0, 0, 0.7), inset -3.5px -3.5px 7px rgba(255, 255, 255, 0.04);
-  --clay-inset-deep: inset 5px 5px 10px rgba(0, 0, 0, 0.8), inset -5px -5px 10px rgba(255, 255, 255, 0.03);
+  --text-main: #192038;
+  --text-sub: #54607e;
+  --text-muted: #8491ae;
+  
+  --clay-enclosure-shadow: 20px 22px 45px rgba(166, 178, 206, 0.45), -14px -14px 35px #ffffff, inset 1.5px 1.5px 3px rgba(255, 255, 255, 0.8);
+  --clay-card-shadow: 16px 18px 36px rgba(166, 178, 206, 0.45), -12px -12px 28px #ffffff, inset 2px 2px 3px rgba(255, 255, 255, 0.85);
+  --clay-mockup-shadow: 12px 14px 28px rgba(166, 178, 206, 0.38), -8px -8px 20px #ffffff, inset 1px 1px 2px rgba(255, 255, 255, 0.9);
+  --clay-pill-shadow: 5px 6px 12px rgba(166, 178, 206, 0.35), -5px -5px 12px #ffffff, inset 1px 1px 2px rgba(255, 255, 255, 0.9);
+  --clay-inset-shadow: inset 3px 3px 6px rgba(166, 178, 206, 0.38), inset -3px -3px 6px #ffffff;
+  --clay-inset-deep: inset 4px 4px 8px rgba(166, 178, 206, 0.45), inset -4px -4px 8px #ffffff;
 }
 
 html, body {
-  min-height: 100%;
+  height: 100%;
+  width: 100%;
   font-family: var(--font-family);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow: hidden; /* NO SCROLLBAR */
 }
 
 body {
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
   background-color: var(--bg-page);
   color: var(--text-main);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 32px 24px;
+  padding: 12px 20px;
   position: relative;
-  overflow-x: hidden;
-  transition: background-color 0.4s ease, color 0.3s ease;
+  overflow: hidden;
+  transition: background-color 0.35s ease, color 0.3s ease;
 }
 
 /* ==========================================================================
-   FLOATING 3D CLAY ORNAMENTS (Aesthetics Decoration)
+   FLOATING 3D CLAY ORNAMENTS
    ========================================================================== */
 .clay-floating-decor {
   position: fixed;
@@ -100,130 +111,117 @@ body {
 .clay-decor-item {
   position: absolute;
   pointer-events: none;
-  filter: drop-shadow(8px 14px 22px rgba(166, 178, 206, 0.45));
+  filter: drop-shadow(8px 14px 22px rgba(0, 0, 0, 0.6)) opacity(0.85);
   transition: transform 0.3s ease;
 }
 
-body.dark-mode .clay-decor-item {
-  filter: drop-shadow(8px 14px 22px rgba(0, 0, 0, 0.6)) opacity(0.8);
+body.light-mode .clay-decor-item {
+  filter: drop-shadow(8px 14px 22px rgba(166, 178, 206, 0.45)) opacity(1);
 }
 
-/* 1. Cloud 3D (Top Center-Left) */
 .decor-cloud {
-  top: 4%;
-  left: 36%;
-  width: 130px;
-  height: 68px;
+  top: 3%;
+  left: 35%;
+  width: 110px;
+  height: 58px;
   animation: floatCloud 7s ease-in-out infinite alternate;
 }
 
-/* 2. Pastel Pink Sphere (Top Right) */
 .decor-sphere-pink {
-  top: 3%;
-  right: 4%;
-  width: 52px;
-  height: 52px;
+  top: 2.5%;
+  right: 3.5%;
+  width: 44px;
+  height: 44px;
   animation: floatSlow 5.5s ease-in-out infinite alternate;
 }
 
-/* 3. Pastel Mint Squiggle / Bean (Far Right Middle) */
 .decor-squiggle-mint {
-  top: 22%;
+  top: 20%;
   right: 1.5%;
-  width: 65px;
-  height: 110px;
+  width: 55px;
+  height: 95px;
   animation: floatSlow 6.2s ease-in-out infinite alternate-reverse;
 }
 
-/* 4. Pastel Coral Torus / Donut (Bottom Right) */
 .decor-donut-peach {
-  bottom: 8%;
-  right: 3%;
-  width: 90px;
-  height: 90px;
+  bottom: 6%;
+  right: 2.5%;
+  width: 78px;
+  height: 78px;
   animation: floatRotate 9s ease-in-out infinite alternate;
 }
 
-/* 5. Pastel Mint Mini Bean (Bottom Center) */
 .decor-pill-mint {
-  bottom: 3%;
-  left: 38%;
-  width: 60px;
-  height: 38px;
+  bottom: 2%;
+  left: 36%;
+  width: 50px;
+  height: 32px;
   animation: floatSlow 5s ease-in-out infinite alternate;
 }
 
-/* 6. Pastel Lavender Blob (Bottom Left) */
 .decor-blob-purple {
-  bottom: 2%;
-  left: 2%;
-  width: 120px;
-  height: 110px;
+  bottom: 1.5%;
+  left: 1.5%;
+  width: 95px;
+  height: 88px;
   animation: floatSlow 6.8s ease-in-out infinite alternate-reverse;
 }
 
-/* 7. Pastel Coral Organic Shape (Far Left Middle) */
 .decor-coral-left {
-  top: 32%;
+  top: 28%;
   left: 1.5%;
-  width: 56px;
-  height: 95px;
+  width: 48px;
+  height: 80px;
   animation: floatSlow 6s ease-in-out infinite alternate;
 }
 
-/* 8. Small Purple Sphere (Left Middle-Down) */
 .decor-sphere-purple {
   top: 48%;
-  left: 3.5%;
-  width: 34px;
-  height: 34px;
+  left: 3%;
+  width: 28px;
+  height: 28px;
   animation: floatSlow 4.8s ease-in-out infinite alternate-reverse;
-}
-
-/* 9. Small Green Wavy Ribbon (Far Left Lower) */
-.decor-wavy-green {
-  bottom: 24%;
-  left: 2%;
-  width: 44px;
-  height: 120px;
-  animation: floatSlow 7.5s ease-in-out infinite alternate;
 }
 
 @keyframes floatSlow {
   0% { transform: translateY(0px) rotate(0deg); }
-  100% { transform: translateY(-16px) rotate(3deg); }
+  100% { transform: translateY(-12px) rotate(3deg); }
 }
 
 @keyframes floatCloud {
   0% { transform: translateY(0px) translateX(0px); }
-  100% { transform: translateY(-14px) translateX(8px); }
+  100% { transform: translateY(-10px) translateX(6px); }
 }
 
 @keyframes floatRotate {
   0% { transform: translateY(0px) rotate(0deg); }
-  100% { transform: translateY(-12px) rotate(15deg); }
+  100% { transform: translateY(-10px) rotate(15deg); }
 }
 
 /* ==========================================================================
-   THEME TOGGLE BUTTON (Floating Pill)
+   THEME TOGGLE BUTTON
    ========================================================================== */
 .theme-toggle-floating {
   position: fixed;
-  top: 24px;
-  right: 28px;
+  top: 18px;
+  right: 22px;
   z-index: 100;
-  width: 46px;
-  height: 46px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: var(--bg-card);
   box-shadow: var(--clay-pill-shadow);
-  border: 1.5px solid rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   color: var(--text-main);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+body.light-mode .theme-toggle-floating {
+  border-color: rgba(255, 255, 255, 0.85);
 }
 
 .theme-toggle-floating:hover {
@@ -236,59 +234,62 @@ body.dark-mode .clay-decor-item {
 }
 
 /* ==========================================================================
-   MAIN ENCLOSURE FRAME (Giant Rounded Clay Viewport)
+   MAIN ENCLOSURE FRAME — FIT 100VH NO SCROLL
    ========================================================================== */
 .clay-main-enclosure {
   position: relative;
   z-index: 10;
   width: 100%;
-  max-width: 1220px;
+  max-width: 1180px;
+  height: min(95vh, 730px); /* Strict height to guarantee no-scroll */
   background: var(--bg-canvas);
   border-radius: var(--border-radius-card);
-  box-shadow: 22px 24px 50px rgba(166, 178, 206, 0.45), -16px -16px 40px #ffffff, inset 1.5px 1.5px 3px rgba(255, 255, 255, 0.8);
-  border: 2px solid rgba(255, 255, 255, 0.7);
-  padding: 44px 48px;
+  box-shadow: var(--clay-enclosure-shadow);
+  border: 1.5px solid rgba(255, 255, 255, 0.06);
+  padding: 24px 34px 18px;
   display: flex;
   flex-direction: column;
-  gap: 32px;
-  transition: all 0.3s ease;
+  justify-content: space-between;
+  overflow: hidden;
 }
 
-body.dark-mode .clay-main-enclosure {
-  box-shadow: 20px 24px 50px rgba(0, 0, 0, 0.7), -12px -12px 35px rgba(255, 255, 255, 0.03), inset 1px 1px 2px rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.06);
+body.light-mode .clay-main-enclosure {
+  border-color: rgba(255, 255, 255, 0.7);
 }
 
 .clay-content-grid {
   display: grid;
-  grid-template-columns: 1.18fr 0.82fr;
-  gap: 46px;
-  align-items: stretch;
+  grid-template-columns: 1.14fr 0.86fr;
+  gap: 32px;
+  align-items: center;
+  flex: 1;
+  min-height: 0; /* Prevents overflow */
 }
 
 /* ==========================================================================
-   LEFT PANEL — BRAND & DASHBOARD PRESENTATION
+   LEFT PANEL — BRAND & MINI DASHBOARD MOCKUP
    ========================================================================== */
 .clay-brand-panel {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 24px;
+  height: 100%;
+  gap: 12px;
+  min-height: 0;
 }
 
-/* Brand Header */
 .clay-brand-header {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
 }
 
 .clay-brand-logo-icon {
-  width: 54px;
-  height: 54px;
-  border-radius: 18px;
+  width: 46px;
+  height: 46px;
+  border-radius: 15px;
   background: var(--primary-gradient);
-  box-shadow: 4px 8px 18px rgba(99, 91, 255, 0.42), inset 2px 2px 4px rgba(255, 255, 255, 0.45), inset -2px -2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 4px 6px 14px rgba(99, 102, 241, 0.42), inset 2px 2px 3px rgba(255, 255, 255, 0.4), inset -2px -2px 3px rgba(0, 0, 0, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -297,15 +298,11 @@ body.dark-mode .clay-main-enclosure {
 }
 
 .clay-brand-title {
-  font-size: 29px;
+  font-size: 25px;
   font-weight: 800;
   color: var(--text-main);
-  letter-spacing: -0.6px;
+  letter-spacing: -0.5px;
   line-height: 1.15;
-}
-
-.clay-brand-title span {
-  display: block;
 }
 
 .clay-headline-wrap {
@@ -313,58 +310,58 @@ body.dark-mode .clay-main-enclosure {
 }
 
 .clay-headline-title {
-  font-size: 16.5px;
-  font-weight: 600;
+  font-size: 14.5px;
+  font-weight: 700;
   color: var(--text-main);
-  line-height: 1.45;
+  line-height: 1.35;
 }
 
 .clay-headline-desc {
-  font-size: 14.5px;
+  font-size: 12.5px;
   font-weight: 400;
   color: var(--text-sub);
-  margin-top: 4px;
-  line-height: 1.5;
+  margin-top: 2px;
+  line-height: 1.4;
 }
 
-/* Feature Badges / Highlights (3 Mini Pills) */
+/* 3 Mini Feature Pills */
 .clay-features-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-  margin-top: 6px;
+  gap: 10px;
+  margin-top: 4px;
 }
 
 .clay-feature-card {
   background: var(--bg-card);
-  border-radius: 18px;
-  padding: 12px 14px;
+  border-radius: 14px;
+  padding: 8px 10px;
   box-shadow: var(--clay-pill-shadow);
-  border: 1.5px solid rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
   align-items: center;
-  gap: 12px;
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  gap: 9px;
+  transition: transform 0.2s ease;
 }
 
-body.dark-mode .clay-feature-card {
-  border-color: rgba(255, 255, 255, 0.05);
+body.light-mode .clay-feature-card {
+  border-color: rgba(255, 255, 255, 0.8);
 }
 
 .clay-feature-card:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
 }
 
 .clay-feature-icon-box {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
   background: var(--bg-inset);
   box-shadow: var(--clay-inset-shadow);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--primary);
+  color: var(--primary-light);
   flex-shrink: 0;
 }
 
@@ -375,7 +372,7 @@ body.dark-mode .clay-feature-card {
 }
 
 .clay-feature-name {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--text-main);
   white-space: nowrap;
@@ -384,7 +381,7 @@ body.dark-mode .clay-feature-card {
 }
 
 .clay-feature-sub {
-  font-size: 10.5px;
+  font-size: 9.5px;
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -392,51 +389,57 @@ body.dark-mode .clay-feature-card {
 }
 
 /* ==========================================================================
-   MINIATURE CLAY DASHBOARD MOCKUP
+   MINIATURE CLAY DASHBOARD MOCKUP (Compact for 100vh)
    ========================================================================== */
 .clay-dashboard-mockup {
   background: var(--bg-card-elevated);
-  border-radius: 28px;
-  padding: 20px 22px;
+  border-radius: 22px;
+  padding: 14px 16px;
   box-shadow: var(--clay-mockup-shadow);
-  border: 2px solid rgba(255, 255, 255, 0.85);
+  border: 1.5px solid rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
   position: relative;
   overflow: hidden;
 }
 
-body.dark-mode .clay-dashboard-mockup {
-  border-color: rgba(255, 255, 255, 0.05);
+body.light-mode .clay-dashboard-mockup {
+  border-color: rgba(255, 255, 255, 0.85);
 }
 
-/* Top bar inside mockup */
 .mockup-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(166, 178, 206, 0.2);
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+body.light-mode .mockup-topbar {
+  border-bottom-color: rgba(166, 178, 206, 0.2);
 }
 
 .mockup-brand-tag {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
+  gap: 6px;
+  font-size: 11px;
   font-weight: 800;
   color: var(--text-main);
 }
 
 .mockup-brand-tag svg {
-  color: var(--primary);
+  color: var(--primary-light);
 }
 
 .mockup-greeting {
-  font-size: 11.5px;
+  font-size: 10px;
   color: var(--text-sub);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .mockup-greeting strong {
@@ -447,87 +450,81 @@ body.dark-mode .clay-dashboard-mockup {
 .mockup-filter-pill {
   background: var(--bg-inset);
   box-shadow: var(--clay-inset-shadow);
-  border-radius: 10px;
-  padding: 4px 10px;
-  font-size: 10.5px;
+  border-radius: 8px;
+  padding: 3px 8px;
+  font-size: 9.5px;
   font-weight: 600;
   color: var(--text-sub);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   white-space: nowrap;
 }
 
-/* Mockup Layout (Sidebar + Main Area) */
 .mockup-body {
   display: grid;
-  grid-template-columns: 86px 1fr;
-  gap: 16px;
+  grid-template-columns: 74px 1fr;
+  gap: 12px;
 }
 
-/* Mini Sidebar */
 .mockup-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .mockup-nav-item {
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-weight: 600;
   color: var(--text-muted);
-  padding: 6px 8px;
-  border-radius: 10px;
+  padding: 4px 6px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  transition: all 0.2s ease;
+  gap: 5px;
   white-space: nowrap;
 }
 
 .mockup-nav-item.active {
+  background: rgba(99, 102, 241, 0.2);
+  color: #c7d2fe;
+  font-weight: 700;
+}
+
+body.light-mode .mockup-nav-item.active {
   background: #ede9fe;
   color: #6d28d9;
-  font-weight: 700;
-  box-shadow: 2px 3px 8px rgba(109, 40, 217, 0.15);
 }
 
-body.dark-mode .mockup-nav-item.active {
-  background: #3730a3;
-  color: #c7d2fe;
-}
-
-/* Mockup Main Stats Grid */
 .mockup-content {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
 
-/* 3 KPI Cards Row */
 .mockup-kpis {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  gap: 8px;
 }
 
 .mockup-kpi-card {
   background: var(--bg-card);
-  border-radius: 14px;
-  padding: 10px;
+  border-radius: 12px;
+  padding: 7px 9px;
   box-shadow: var(--clay-pill-shadow);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-body.dark-mode .mockup-kpi-card {
-  border-color: rgba(255, 255, 255, 0.05);
+body.light-mode .mockup-kpi-card {
+  border-color: rgba(255, 255, 255, 0.8);
 }
 
 .kpi-title {
-  font-size: 9.5px;
+  font-size: 8.5px;
   font-weight: 600;
   color: var(--text-muted);
 }
@@ -536,67 +533,65 @@ body.dark-mode .mockup-kpi-card {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-top: 3px;
+  margin-top: 2px;
 }
 
 .kpi-value {
-  font-size: 13px;
+  font-size: 11.5px;
   font-weight: 800;
   color: var(--text-main);
 }
 
 .kpi-badge {
-  font-size: 8.5px;
+  font-size: 8px;
   font-weight: 700;
   color: #10b981;
 }
 
 .kpi-sparkline {
-  margin-top: 4px;
-  height: 20px;
+  margin-top: 2px;
+  height: 16px;
   width: 100%;
 }
 
-/* Bottom 2 Charts Grid */
 .mockup-charts-row {
   display: grid;
-  grid-template-columns: 1.35fr 1fr;
-  gap: 12px;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 10px;
 }
 
 .mockup-chart-card {
   background: var(--bg-card);
-  border-radius: 16px;
-  padding: 12px;
+  border-radius: 12px;
+  padding: 8px 10px;
   box-shadow: var(--clay-pill-shadow);
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  gap: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-body.dark-mode .mockup-chart-card {
-  border-color: rgba(255, 255, 255, 0.05);
+body.light-mode .mockup-chart-card {
+  border-color: rgba(255, 255, 255, 0.8);
 }
 
 .chart-card-title {
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-weight: 700;
   color: var(--text-main);
 }
 
-/* Donut & Legend Container */
 .mockup-donut-wrap {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .donut-legend {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 8.5px;
+  gap: 2.5px;
+  font-size: 8px;
   color: var(--text-sub);
 }
 
@@ -607,25 +602,25 @@ body.dark-mode .mockup-chart-card {
 }
 
 .legend-dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
 }
 
-.dot-purple { background: #6366f1; }
+.dot-purple { background: #818cf8; }
 .dot-green { background: #10b981; }
 .dot-coral { background: #f97316; }
 .dot-yellow { background: #eab308; }
 
 /* ==========================================================================
-   RIGHT PANEL — CLAY LOGIN CARD
+   RIGHT PANEL — CLAY LOGIN CARD (Compact for 100vh)
    ========================================================================== */
 .clay-login-card {
   background: var(--bg-card-elevated);
   border-radius: var(--border-radius-card);
-  padding: 38px 34px;
+  padding: 24px 28px;
   box-shadow: var(--clay-card-shadow);
-  border: 2px solid rgba(255, 255, 255, 0.9);
+  border: 1.5px solid rgba(255, 255, 255, 0.07);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -633,189 +628,174 @@ body.dark-mode .mockup-chart-card {
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
 }
 
-body.dark-mode .clay-login-card {
-  border-color: rgba(255, 255, 255, 0.06);
+body.light-mode .clay-login-card {
+  border-color: rgba(255, 255, 255, 0.9);
 }
 
-/* 3D Embossed Avatar at Top */
+/* 3D Embossed Avatar Dish */
 .clay-avatar-dish {
-  width: 76px;
-  height: 76px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   background: var(--bg-inset);
   box-shadow: var(--clay-inset-deep);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 16px;
+  margin: 0 auto 10px;
   position: relative;
-  border: 2px solid rgba(255, 255, 255, 0.6);
+  border: 1.5px solid rgba(255, 255, 255, 0.04);
 }
 
-body.dark-mode .clay-avatar-dish {
-  border-color: rgba(255, 255, 255, 0.03);
+body.light-mode .clay-avatar-dish {
+  border-color: rgba(255, 255, 255, 0.6);
 }
 
 .clay-avatar-puffy {
-  width: 48px;
-  height: 48px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   background: linear-gradient(135deg, #818cf8 0%, #6366f1 100%);
-  box-shadow: 0 8px 16px rgba(99, 102, 241, 0.35), inset 2px 2px 4px rgba(255, 255, 255, 0.5), inset -2px -2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 6px 14px rgba(99, 102, 241, 0.4), inset 2px 2px 3px rgba(255, 255, 255, 0.5), inset -2px -2px 3px rgba(0, 0, 0, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #ffffff;
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.25s ease;
 }
 
 .clay-avatar-dish:hover .clay-avatar-puffy {
-  transform: scale(1.08) rotate(5deg);
+  transform: scale(1.08) rotate(4deg);
 }
 
-/* Headings */
 .clay-login-title {
-  font-size: 26px;
+  font-size: 22px;
   font-weight: 800;
   color: var(--text-main);
   text-align: center;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.4px;
 }
 
 .clay-login-subtitle {
-  font-size: 13.5px;
+  font-size: 12px;
   color: var(--text-sub);
   text-align: center;
-  margin-top: 4px;
-  margin-bottom: 20px;
+  margin-top: 2px;
+  margin-bottom: 14px;
 }
 
-/* Role Segmented Switcher (Admin / Ops) */
+/* Role Segmented Switcher */
 .clay-role-switcher {
   background: var(--bg-inset);
   border-radius: var(--border-radius-pill);
-  padding: 5px;
+  padding: 4px;
   box-shadow: var(--clay-inset-shadow);
   display: flex;
   position: relative;
-  margin-bottom: 18px;
-  gap: 4px;
+  margin-bottom: 12px;
+  gap: 3px;
 }
 
 .clay-switcher-slider {
   position: absolute;
-  top: 5px;
-  left: 5px;
-  width: calc(50% - 7px);
-  height: calc(100% - 10px);
+  top: 4px;
+  left: 4px;
+  width: calc(50% - 5px);
+  height: calc(100% - 8px);
   background: var(--bg-card);
-  border-radius: 17px;
+  border-radius: 14px;
   box-shadow: var(--clay-pill-shadow);
   transition: transform 0.3s cubic-bezier(0.34, 1.25, 0.64, 1);
   pointer-events: none;
-  border: 1px solid rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-body.dark-mode .clay-switcher-slider {
-  border-color: rgba(255, 255, 255, 0.08);
+body.light-mode .clay-switcher-slider {
+  border-color: rgba(255, 255, 255, 0.85);
 }
 
 .clay-role-btn {
   flex: 1;
   background: transparent;
   border: none;
-  border-radius: 17px;
-  padding: 9px 12px;
-  font-size: 13px;
+  border-radius: 14px;
+  padding: 7px 10px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-muted);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   cursor: pointer;
   z-index: 2;
   transition: color 0.25s ease;
-  position: relative;
 }
 
 .clay-role-btn.active {
-  color: var(--primary);
+  color: var(--primary-light);
   font-weight: 700;
 }
 
-/* Role Hint Text */
 .clay-role-hint {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--text-sub);
-  margin-bottom: 18px;
+  margin-bottom: 12px;
   text-align: center;
 }
 
 /* Alert Boxes */
-.clay-alert-error {
+.clay-alert-error,
+.clay-alert-inactive,
+.clay-alert-maintenance {
   display: none;
-  background: #fef2f2;
-  border: 1.5px solid #fecaca;
-  color: #dc2626;
-  border-radius: 16px;
-  padding: 10px 14px;
-  font-size: 12.5px;
-  font-weight: 500;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 16px;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 11.5px;
+  margin-bottom: 12px;
 }
 
 .clay-alert-error.visible {
   display: flex;
-}
-
-.clay-alert-inactive {
-  display: none;
-  background: #fffbeb;
-  border: 1.5px solid #fde68a;
-  color: #b45309;
-  border-radius: 16px;
-  padding: 12px 14px;
-  font-size: 12.5px;
-  align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 16px;
+  background: rgba(220, 38, 38, 0.15);
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  color: #f87171;
+  align-items: center;
+  gap: 6px;
 }
 
 .clay-alert-inactive.visible {
   display: flex;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+  align-items: flex-start;
+  gap: 8px;
 }
 
 .clay-alert-maintenance {
-  display: none;
-  background: #eff6ff;
-  border: 1.5px solid #bfdbfe;
-  color: #1d4ed8;
-  border-radius: 16px;
-  padding: 12px 14px;
-  font-size: 12.5px;
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  color: #93c5fd;
   flex-direction: column;
-  gap: 4px;
-  margin-bottom: 16px;
+  gap: 3px;
 }
 
-/* Form Groups & Clay Inset Inputs */
+/* Form Groups & Inset Inputs */
 .clay-form-group {
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .clay-field-label {
   display: block;
-  font-size: 12.5px;
+  font-size: 11.5px;
   font-weight: 700;
   color: var(--text-main);
-  margin-bottom: 7px;
+  margin-bottom: 5px;
   margin-left: 2px;
 }
 
@@ -823,30 +803,30 @@ body.dark-mode .clay-switcher-slider {
   position: relative;
   background: var(--bg-inset);
   box-shadow: var(--clay-inset-shadow);
-  border-radius: 18px;
+  border-radius: 14px;
   border: 1.5px solid transparent;
   display: flex;
   align-items: center;
-  padding: 0 16px;
-  height: 50px;
+  padding: 0 14px;
+  height: 42px;
   transition: all 0.25s ease;
 }
 
 .clay-input-wrap:focus-within {
-  border-color: rgba(99, 91, 255, 0.45);
-  box-shadow: var(--clay-inset-shadow), 0 0 0 4px rgba(99, 91, 255, 0.12);
+  border-color: rgba(99, 102, 241, 0.45);
+  box-shadow: var(--clay-inset-shadow), 0 0 0 3px rgba(99, 102, 241, 0.15);
   background: var(--bg-card);
 }
 
 .clay-input-icon {
   color: var(--text-muted);
   flex-shrink: 0;
-  margin-right: 12px;
+  margin-right: 10px;
   transition: color 0.25s ease;
 }
 
 .clay-input-wrap:focus-within .clay-input-icon {
-  color: var(--primary);
+  color: var(--primary-light);
 }
 
 .clay-input-field {
@@ -854,7 +834,7 @@ body.dark-mode .clay-switcher-slider {
   background: transparent;
   border: none;
   outline: none;
-  font-size: 14px;
+  font-size: 13px;
   font-family: inherit;
   color: var(--text-main);
   width: 100%;
@@ -870,7 +850,7 @@ body.dark-mode .clay-switcher-slider {
   border: none;
   cursor: pointer;
   color: var(--text-muted);
-  padding: 4px;
+  padding: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -881,12 +861,12 @@ body.dark-mode .clay-switcher-slider {
   color: var(--text-main);
 }
 
-/* Role Dynamic Fields Animation Container */
+/* Dynamic Field Container */
 .clay-role-fields-container {
   position: relative;
-  height: 78px;
+  height: 64px;
   overflow: hidden;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   width: 100%;
 }
 
@@ -898,20 +878,19 @@ body.dark-mode .clay-switcher-slider {
   transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease;
 }
 
-/* Options Row (Remember Me + Forgot Password) */
+/* Options Row */
 .clay-options-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 4px;
-  margin-bottom: 22px;
-  font-size: 12.5px;
+  margin: 4px 0 14px;
+  font-size: 11.5px;
 }
 
 .clay-checkbox-label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   color: var(--text-sub);
   font-weight: 500;
   cursor: pointer;
@@ -919,9 +898,9 @@ body.dark-mode .clay-switcher-slider {
 }
 
 .clay-custom-checkbox {
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
   background: var(--bg-inset);
   box-shadow: var(--clay-inset-shadow);
   display: flex;
@@ -937,7 +916,7 @@ body.dark-mode .clay-switcher-slider {
 
 .clay-hidden-checkbox:checked + .clay-custom-checkbox {
   background: var(--primary);
-  box-shadow: 0 4px 10px rgba(99, 91, 255, 0.4);
+  box-shadow: 0 3px 8px rgba(99, 102, 241, 0.45);
 }
 
 .clay-custom-checkbox svg {
@@ -950,7 +929,7 @@ body.dark-mode .clay-switcher-slider {
 }
 
 .clay-forgot-link {
-  color: var(--primary);
+  color: var(--primary-light);
   font-weight: 600;
   text-decoration: none;
   transition: color 0.2s ease;
@@ -958,38 +937,36 @@ body.dark-mode .clay-switcher-slider {
 
 .clay-forgot-link:hover {
   text-decoration: underline;
-  color: var(--primary-dark);
 }
 
-/* Primary Puffy Clay Button ("Sign In") */
+/* Primary Action Button ("Sign In") */
 .clay-btn-primary {
   width: 100%;
-  height: 52px;
+  height: 44px;
   border-radius: var(--border-radius-pill);
   background: var(--primary-gradient);
   box-shadow: var(--primary-clay-shadow);
-  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
   color: #ffffff;
-  font-size: 15.5px;
+  font-size: 14.5px;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   cursor: pointer;
-  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s ease;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
   position: relative;
-  overflow: hidden;
 }
 
 .clay-btn-primary:hover {
-  transform: translateY(-2.5px);
-  box-shadow: 0 16px 28px rgba(99, 91, 255, 0.48), inset 2px 2px 4px rgba(255, 255, 255, 0.5), inset -2px -2px 4px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 14px 26px rgba(99, 102, 241, 0.48), inset 2px 2px 3px rgba(255, 255, 255, 0.5), inset -2px -2px 3px rgba(0, 0, 0, 0.2);
 }
 
 .clay-btn-primary:active {
-  transform: translateY(1.5px) scale(0.985);
-  box-shadow: 0 6px 14px rgba(99, 91, 255, 0.35), inset 3px 3px 6px rgba(0, 0, 0, 0.3);
+  transform: translateY(1px) scale(0.99);
+  box-shadow: 0 5px 12px rgba(99, 102, 241, 0.35), inset 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .clay-btn-primary:disabled {
@@ -1003,15 +980,14 @@ body.dark-mode .clay-switcher-slider {
 }
 
 .clay-btn-primary:hover .clay-btn-arrow {
-  transform: translateX(4px);
+  transform: translateX(3px);
 }
 
-/* Spinner */
 .clay-spinner {
   display: none;
-  width: 18px;
-  height: 18px;
-  border: 2.5px solid rgba(255, 255, 255, 0.35);
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
   border-top-color: #ffffff;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -1030,57 +1006,57 @@ body.dark-mode .clay-switcher-slider {
   to { transform: rotate(360deg); }
 }
 
-/* Divider ("or continue with") */
+/* Divider */
 .clay-divider-row {
   display: flex;
   align-items: center;
-  margin: 22px 0 16px;
-  gap: 14px;
+  margin: 10px 0 8px;
+  gap: 12px;
 }
 
 .clay-divider-line {
   flex: 1;
   height: 1px;
-  background: rgba(166, 178, 206, 0.35);
-}
-
-body.dark-mode .clay-divider-line {
   background: rgba(255, 255, 255, 0.08);
 }
 
+body.light-mode .clay-divider-line {
+  background: rgba(166, 178, 206, 0.35);
+}
+
 .clay-divider-text {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
   font-weight: 500;
   white-space: nowrap;
 }
 
-/* Secondary Button ("Sign in with Google" / Quick SSO) */
+/* Secondary Button ("Sign in with Google") */
 .clay-btn-secondary {
   width: 100%;
-  height: 48px;
-  border-radius: 18px;
+  height: 38px;
+  border-radius: 14px;
   background: var(--bg-card);
   box-shadow: var(--clay-pill-shadow);
-  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   color: var(--text-main);
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-body.dark-mode .clay-btn-secondary {
-  border-color: rgba(255, 255, 255, 0.06);
+body.light-mode .clay-btn-secondary {
+  border-color: rgba(255, 255, 255, 0.85);
 }
 
 .clay-btn-secondary:hover {
-  transform: translateY(-2px);
-  box-shadow: 8px 10px 20px rgba(166, 178, 206, 0.45), -6px -6px 16px #ffffff;
+  transform: translateY(-1.5px);
+  box-shadow: 6px 8px 16px rgba(0, 0, 0, 0.5);
 }
 
 .clay-btn-secondary:active {
@@ -1089,29 +1065,29 @@ body.dark-mode .clay-btn-secondary {
 }
 
 /* ==========================================================================
-   BOTTOM TRUST BADGES & FOOTER
+   BOTTOM TRUST BADGES
    ========================================================================== */
 .clay-bottom-trust {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
-  font-size: 12px;
+  gap: 10px;
+  font-size: 11px;
   color: var(--text-muted);
   font-weight: 500;
-  margin-top: 8px;
-  flex-wrap: wrap;
+  margin-top: 4px;
+  flex-wrap: nowrap;
 }
 
 .clay-trust-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .clay-trust-dot {
-  width: 4px;
-  height: 4px;
+  width: 3.5px;
+  height: 3.5px;
   border-radius: 50%;
   background: var(--text-muted);
   opacity: 0.6;
@@ -1120,59 +1096,35 @@ body.dark-mode .clay-btn-secondary {
 /* ==========================================================================
    RESPONSIVE DESIGN (Tablets & Mobile Phones)
    ========================================================================== */
-@media (max-width: 1080px) {
+@media (max-height: 680px) {
   .clay-main-enclosure {
-    padding: 34px 28px;
-    gap: 24px;
+    height: 98vh;
+    padding: 16px 24px 12px;
+  }
+  .clay-dashboard-mockup {
+    display: none;
+  }
+}
+
+@media (max-width: 1024px) {
+  html, body {
+    overflow-y: auto; /* Allow scroll only on small screens/tablets */
+    height: auto;
+    min-height: 100%;
+  }
+  
+  .clay-main-enclosure {
+    height: auto;
+    padding: 24px 20px;
+    margin: 16px auto;
   }
   
   .clay-content-grid {
     grid-template-columns: 1fr;
-    gap: 36px;
+    gap: 24px;
   }
   
   .clay-dashboard-mockup {
-    display: none; /* Hide heavy mockup on smaller screens for peak performance */
-  }
-  
-  .decor-cloud, .decor-donut-peach, .decor-squiggle-mint {
-    opacity: 0.45;
-  }
-}
-
-@media (max-width: 680px) {
-  body {
-    padding: 16px 12px;
-  }
-  
-  .clay-main-enclosure {
-    padding: 24px 18px;
-    border-radius: 28px;
-    box-shadow: 12px 14px 30px rgba(166, 178, 206, 0.35), -8px -8px 20px #ffffff;
-  }
-  
-  .clay-login-card {
-    padding: 28px 18px;
-    border-radius: 24px;
-  }
-  
-  .clay-brand-title {
-    font-size: 24px;
-  }
-  
-  .clay-features-row {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-  
-  .clay-floating-decor {
-    display: none; /* Clean viewport for mobile devices */
-  }
-  
-  .theme-toggle-floating {
-    top: 14px;
-    right: 14px;
-    width: 40px;
-    height: 40px;
+    display: none;
   }
 }
