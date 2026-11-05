@@ -803,7 +803,9 @@ app.get('/api/submissions', requirePermission('submissions'), async (req, res) =
     if (status && ['pending', 'approved', 'rejected'].includes(status)) {
       filters.status = status;
     }
-    if (limit) filters.limit = parseInt(limit);
+    // Default limit to 1000 if not specified to prevent scanning 19,000+ rows
+    const effectiveLimit = limit ? parseInt(limit) : (req.query.all === 'true' ? null : 1000);
+    if (effectiveLimit) filters.limit = effectiveLimit;
     if (offset) filters.offset = parseInt(offset);
 
     const submissions = await db.getAllSubmissions(filters);
@@ -2696,7 +2698,7 @@ app.put('/api/submissions/:id/status', requirePermission('submissions'), async (
 // Query params: tanggal_mulai, tanggal_akhir, posisi, zona, status
 app.get('/api/export', requireAuth, async (req, res) => {
   try {
-    let submissions = await db.getAllSubmissions();
+    let submissions = await db.getAllSubmissions(req.query);
 
     // ===== Terapkan Filter =====
     const { tanggal_mulai, tanggal_akhir, posisi: filterPosisi, zona: filterZona, status: filterStatus } = req.query;
@@ -2883,7 +2885,7 @@ app.get('/api/export', requireAuth, async (req, res) => {
 // GET /api/export-csv
 app.get('/api/export-csv', requireAuth, async (req, res) => {
   try {
-    let submissions = await db.getAllSubmissions();
+    let submissions = await db.getAllSubmissions(req.query);
 
     // Apply filters
     const { tanggal_mulai, tanggal_akhir, posisi: filterPosisi, zona: filterZona, status: filterStatus } = req.query;
@@ -4339,9 +4341,8 @@ app.get('/api/status-carian', requirePermission('status-carian'), async (req, re
       return true;
     });
 
-    // Ambil submissions untuk tanggal tersebut
-    const allSubmissions = await db.getAllSubmissions();
-    const submissionsHariIni = allSubmissions.filter(s => s.tanggal_carian === tanggal);
+    // Ambil submissions untuk tanggal tersebut langsung dengan filter tanggal_carian
+    const submissionsHariIni = await db.getAllSubmissions({ tanggal_carian: tanggal });
 
     // Siapa yang sudah submit (berdasarkan nama_lengkap match dengan nama di submissions)
     const sudahSubmitNama = new Set(submissionsHariIni.map(s => s.nama?.toLowerCase().trim()));

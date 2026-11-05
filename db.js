@@ -330,11 +330,26 @@ module.exports = {
           .order('created_at', { ascending: false })
           .range(from, from + PAGE_SIZE - 1);
 
-        if (filters.status) {
+        if (filters.status && filters.status !== 'semua') {
           query = query.eq('status', filters.status);
         }
         if (filters.nama) {
           query = query.eq('nama', filters.nama);
+        }
+        if (filters.posisi && filters.posisi !== 'semua') {
+          query = query.eq('posisi', filters.posisi);
+        }
+        if (filters.zona && filters.zona !== 'semua') {
+          query = query.eq('zona', filters.zona);
+        }
+        if (filters.tanggal_carian) {
+          query = query.eq('tanggal_carian', filters.tanggal_carian);
+        }
+        if (filters.tanggal_mulai) {
+          query = query.gte('tanggal_carian', filters.tanggal_mulai);
+        }
+        if (filters.tanggal_akhir) {
+          query = query.lte('tanggal_carian', filters.tanggal_akhir);
         }
 
         if (filters.limit) {
@@ -372,11 +387,26 @@ module.exports = {
     } else {
       const db = load();
       let subs = [...db.submissions];
-      if (filters.status) {
+      if (filters.status && filters.status !== 'semua') {
         subs = subs.filter(s => s.status === filters.status);
       }
       if (filters.nama) {
         subs = subs.filter(s => s.nama === filters.nama);
+      }
+      if (filters.posisi && filters.posisi !== 'semua') {
+        subs = subs.filter(s => s.posisi === filters.posisi);
+      }
+      if (filters.zona && filters.zona !== 'semua') {
+        subs = subs.filter(s => s.zona === filters.zona);
+      }
+      if (filters.tanggal_carian) {
+        subs = subs.filter(s => s.tanggal_carian === filters.tanggal_carian);
+      }
+      if (filters.tanggal_mulai) {
+        subs = subs.filter(s => s.tanggal_carian >= filters.tanggal_mulai);
+      }
+      if (filters.tanggal_akhir) {
+        subs = subs.filter(s => s.tanggal_carian <= filters.tanggal_akhir);
       }
       subs.sort((a, b) =>
         new Date(b.created_at) - new Date(a.created_at)
@@ -478,25 +508,28 @@ module.exports = {
 
   async getStats() {
     if (isSupabaseEnabled) {
-      const { data: allSubmissions, error } = await supabase
-        .from('submissions')
-        .select('posisi, created_at');
-      if (error) {
-        console.error('Supabase getStats error:', error);
-        throw error;
+      try {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const [totalRes, todayRes, pickerRes] = await Promise.all([
+          supabase.from('submissions').select('id', { count: 'exact', head: true }),
+          supabase.from('submissions').select('id', { count: 'exact', head: true }).gte('created_at', todayStr + 'T00:00:00.000Z'),
+          supabase.from('submissions').select('id', { count: 'exact', head: true }).eq('posisi', 'Picker')
+        ]);
+
+        const total = totalRes.count || 0;
+        const today = todayRes.count || 0;
+        const pickerCount = pickerRes.count || 0;
+        const otherCount = Math.max(0, total - pickerCount);
+        const byPosisi = [
+          { posisi: 'Picker', count: pickerCount },
+          { posisi: 'Other', count: otherCount }
+        ];
+
+        return { total, today, byPosisi };
+      } catch (err) {
+        console.error('Supabase getStats error:', err);
+        return { total: 0, today: 0, byPosisi: [] };
       }
-      
-      const total = allSubmissions.length;
-      const todayStr = new Date().toISOString().slice(0, 10);
-      const today = allSubmissions.filter(s => s.created_at.startsWith(todayStr)).length;
-
-      const byPosisiMap = {};
-      allSubmissions.forEach(s => {
-        byPosisiMap[s.posisi] = (byPosisiMap[s.posisi] || 0) + 1;
-      });
-      const byPosisi = Object.entries(byPosisiMap).map(([posisi, count]) => ({ posisi, count }));
-
-      return { total, today, byPosisi };
     } else {
       const db = load();
       const total = db.submissions.length;

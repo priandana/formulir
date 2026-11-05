@@ -145,7 +145,7 @@ function showOnscreenError(source, err) {
       const timeoutPromise = new Promise((_, reject) => {
         timeoutId = setTimeout(() => {
           reject(new Error('Waktu muat habis (timeout). Periksa koneksi internet Anda lalu klik Coba Lagi.'));
-        }, 20000);
+        }, 45000);
       });
 
       await Promise.race([
@@ -303,12 +303,12 @@ function showOnscreenError(source, err) {
   async function loadData(opts = {}) {
     const throwOnError = !!(opts && opts.throwOnError);
     try {
-      // Fetch data paralel: semua submissions (top-1000) + SEMUA pending (tanpa batas)
+      // Fetch data paralel: semua submissions (top-1000) + SEMUA pending (top-1000)
       const [submissions, stats, pendingCountRes, pendingSubmissions] = await Promise.all([
-        fetch('/api/submissions').then(r => { if (!r.ok && throwOnError) throw new Error('Gagal memuat data submissions.'); return r.json(); }),
+        fetch('/api/submissions?limit=1000').then(r => { if (!r.ok && throwOnError) throw new Error('Gagal memuat data submissions.'); return r.json(); }),
         fetch('/api/stats').then(r => { if (!r.ok && throwOnError) throw new Error('Gagal memuat statistik operasional.'); return r.json(); }),
         fetch('/api/submissions/pending-count').then(r => r.json()).catch(() => ({ count: 0 })),
-        fetch('/api/submissions?status=pending').then(r => r.json()).catch(() => [])
+        fetch('/api/submissions?status=pending&limit=1000').then(r => r.json()).catch(() => [])
       ]);
       allSubmissions = Array.isArray(submissions) ? submissions : [];
       // Merge pending submissions yang mungkin tidak ada di top-1000
