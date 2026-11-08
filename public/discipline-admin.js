@@ -234,6 +234,10 @@
               <p class="disc-hero-sub">Pemantauan objektif catatan kinerja, analisis tren operasional, dan evaluasi pembinaan karyawan SS08.</p>
             </div>
             <div class="disc-hero-actions">
+              <button class="disc-btn-hero" style="background:#4F46E5;color:#fff;box-shadow:0 4px 14px rgba(79,70,229,0.35);border:none;" onclick="DisciplineAdminModule.printGlobalDisciplinePdf()">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                📄 Cetak Rekap PDF Global
+              </button>
               <button class="disc-btn-hero" onclick="showPage('discipline-input')">
                 <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
                 Input Kejadian Baru
@@ -907,9 +911,13 @@
               <p class="disc-hero-sub">Histori kejadian disimpan permanen. Gunakan fitur Adjustment jika diperlukan koreksi atau pembatalan poin.</p>
             </div>
             <div class="disc-hero-actions">
+              <button class="disc-btn-hero" style="background:#4F46E5;color:#fff;box-shadow:0 4px 14px rgba(79,70,229,0.35);border:none;" onclick="DisciplineAdminModule.printGlobalDisciplinePdf()">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                📄 Cetak Rekap PDF Global
+              </button>
               <button class="disc-btn-hero" onclick="DisciplineAdminModule.exportExcel()">
                 <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1"/></svg>
-                Export Excel Sesuai Filter
+                Export Excel
               </button>
               <button class="disc-btn-hero" style="background:rgba(255,255,255,0.18);color:#fff;" onclick="showPage('discipline-input')">
                 + Input Kejadian
@@ -1086,6 +1094,7 @@
               </td>
               <td>
                 <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  <button class="btn btn-outline" style="padding:5px 9px;font-size:11px;border-color:#4F46E5;color:#4F46E5;font-weight:700;" onclick="DisciplineAdminModule.printIndividualDisciplinePdf('${escHtml(inc.id)}')" title="Cetak Surat Pemberitahuan Poin Resmi (PDF)">📄 Surat PDF</button>
                   <button class="btn btn-outline" style="padding:5px 9px;font-size:11px;" onclick="DisciplineAdminModule.openIncidentDetailModal('${escHtml(inc.id)}')">Detail</button>
                   <button class="btn btn-outline" style="padding:5px 9px;font-size:11px;" onclick="DisciplineAdminModule.openEditIncidentModal('${escHtml(inc.id)}')">Edit</button>
                   <button class="btn btn-primary" style="padding:5px 9px;font-size:11px;" onclick="DisciplineAdminModule.openAdjustmentModal('${escHtml(inc.id)}')">Adjustment</button>
@@ -1176,8 +1185,9 @@
             </div>
           `,
           `
+            <button class="btn btn-primary" style="background:#4F46E5;border-color:#4F46E5;color:#fff;" onclick="DisciplineAdminModule.printIndividualDisciplinePdf('${escHtml(inc.id)}')">📄 Cetak Surat Poin (PDF)</button>
             ${inc.status_poin !== 'CANCELLED' ? `<button class="btn btn-outline" style="border-color:rgba(239,68,68,0.4);color:#DC2626;" onclick="DisciplineAdminModule.openCancelIncidentModal('${escHtml(inc.id)}')">🚫 Batalkan Kejadian</button>` : ''}
-            <button class="btn btn-primary" onclick="DisciplineAdminModule.closeModal()">Tutup</button>
+            <button class="btn btn-outline" onclick="DisciplineAdminModule.closeModal()">Tutup</button>
           `
         );
       } catch (err) {
@@ -1979,6 +1989,774 @@
       }
       const overlay = document.getElementById('discAdminModalOverlay');
       if (overlay) overlay.classList.remove('visible');
+    },
+
+    async printGlobalDisciplinePdf() {
+      try {
+        notifyToast('Sedang menyiapkan dokumen Rekap PDF...', 'info');
+        const res = await fetch('/api/discipline/incidents?status_poin=ACTIVE&limit=500', { credentials: 'include' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Gagal mengambil data poin.');
+
+        const incidents = data.items || [];
+        const totalActiveIncidents = incidents.length;
+        const totalActivePoints = incidents.reduce((sum, i) => sum + (Number(i.poin) || 0), 0);
+
+        // Group by user
+        const userMap = new Map();
+        incidents.forEach(inc => {
+          const uid = inc.user_id || inc.user_name_snapshot;
+          if (!userMap.has(uid)) {
+            userMap.set(uid, {
+              id: inc.user_id,
+              name: inc.user_name_snapshot,
+              nik: inc.nik_snapshot || '-',
+              posisi: inc.posisi,
+              points: 0,
+              incidents: [],
+              nearestExpiry: null
+            });
+          }
+          const u = userMap.get(uid);
+          u.points += Number(inc.poin) || 0;
+          u.incidents.push(inc);
+          if (inc.expired_at) {
+            if (!u.nearestExpiry || new Date(inc.expired_at) < new Date(u.nearestExpiry)) {
+              u.nearestExpiry = inc.expired_at;
+            }
+          }
+        });
+
+        const userList = Array.from(userMap.values()).sort((a, b) => b.points - a.points);
+        const totalActiveUsers = userList.length;
+
+        const now = new Date();
+        const docDateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+        const docCode = `MEMO/SS08-OPS/DISC/${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+        const periodStr = now.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+
+        const win = window.open('', '_blank');
+        if (!win) {
+          alert('Pop-up terblokir oleh browser. Silakan izinkan pop-up untuk mencetak PDF.');
+          return;
+        }
+
+        win.document.write(`<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Rekapitulasi Poin Kedisiplinan SS08 - ${docDateStr}</title>
+  <style>
+    @page { size: A4 portrait; margin: 12mm 15mm 15mm 15mm; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+      color: #0f172a;
+      background: #f8fafc;
+      margin: 0;
+      padding: 20px;
+      font-size: 11px;
+      line-height: 1.45;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .page-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 28px 32px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    .no-print {
+      position: sticky;
+      top: 0;
+      background: #0f172a;
+      color: #ffffff;
+      padding: 12px 20px;
+      margin: -20px -20px 20px -20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      z-index: 999;
+    }
+    .btn-print {
+      background: #2563eb;
+      color: #ffffff;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-close {
+      background: #475569;
+      color: #ffffff;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    @media print {
+      body { background: #ffffff; padding: 0; font-size: 10.5px; }
+      .page-container { border: none; box-shadow: none; padding: 0; max-width: 100%; }
+      .no-print { display: none !important; }
+    }
+    .kop-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2.5px solid #0f172a;
+      padding-bottom: 12px;
+      margin-bottom: 4px;
+    }
+    .kop-brand { display: flex; flex-direction: column; }
+    .kop-title {
+      font-size: 17px;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      color: #0f172a;
+      text-transform: uppercase;
+      margin: 0;
+    }
+    .kop-sub { font-size: 11px; font-weight: 700; color: #2563eb; text-transform: uppercase; margin-top: 2px; }
+    .kop-address { font-size: 9.5px; color: #64748b; margin-top: 3px; }
+    .kop-badge {
+      border: 1.5px solid #0f172a;
+      padding: 6px 12px;
+      text-align: right;
+      font-size: 9.5px;
+      font-weight: 700;
+      border-radius: 4px;
+      background: #f8fafc;
+    }
+    .kop-divider-sub { height: 1px; background: #0f172a; margin-bottom: 16px; }
+    .doc-banner { text-align: center; margin-bottom: 16px; }
+    .doc-title {
+      font-size: 14px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #0f172a;
+      margin: 0;
+    }
+    .doc-sub { font-size: 11px; color: #475569; margin-top: 3px; }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+    }
+    .meta-item-label { font-size: 9px; color: #64748b; text-transform: uppercase; font-weight: 700; }
+    .meta-item-value { font-size: 12px; font-weight: 800; color: #0f172a; margin-top: 2px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 10px; }
+    th {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 7px 8px;
+      font-weight: 700;
+      text-align: left;
+      font-size: 9.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+    tr:nth-child(even) td { background: #f8fafc; }
+    .badge-pt {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-weight: 800;
+      font-size: 10.5px;
+      text-align: center;
+    }
+    .pt-warn { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+    .pt-sp1 { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+    .section-head {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #0f172a;
+      border-left: 3.5px solid #2563eb;
+      padding-left: 8px;
+      margin: 14px 0 8px 0;
+    }
+    .notes-box {
+      background: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 9.5px;
+      color: #334155;
+      margin-bottom: 20px;
+    }
+    .notes-box ul { margin: 4px 0 0 16px; padding: 0; }
+    .notes-box li { margin-bottom: 2px; }
+    .sig-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 24px;
+      page-break-inside: avoid;
+    }
+    .sig-col { text-align: center; font-size: 10px; }
+    .sig-role { font-weight: 700; color: #475569; }
+    .sig-space { height: 50px; }
+    .sig-name { font-weight: 800; color: #0f172a; text-decoration: underline; }
+    .sig-sub { font-size: 9px; color: #64748b; margin-top: 2px; }
+  </style>
+</head>
+<body>
+  <div class="no-print">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-weight:800;font-size:15px;">📄 Dokumen Laporan Rekapitulasi Poin SS08</span>
+      <span style="font-size:11px;background:#2563eb;padding:3px 10px;border-radius:12px;font-weight:600;">Format Resmi (A4)</span>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn-print" onclick="window.print()">🖨️ Cetak / Simpan PDF</button>
+      <button class="btn-close" onclick="window.close()">✕ Tutup</button>
+    </div>
+  </div>
+
+  <div class="page-container">
+    <div class="kop-header">
+      <div class="kop-brand">
+        <h1 class="kop-title">SS08 LOGISTICS &amp; FULFILLMENT CENTER</h1>
+        <div class="kop-sub">Divisi Operasional &amp; Sumber Daya Manusia (HRD)</div>
+        <div class="kop-address">Kawasan Pergudangan DC SS08 • Portal Sistem: formulir-pencapaian-kerja.vercel.app</div>
+      </div>
+      <div class="kop-badge">
+        DOKUMEN RESMI INTERNAL<br>
+        <span style="color:#2563eb;font-weight:800;">CONFIDENTIAL</span>
+      </div>
+    </div>
+    <div class="kop-divider-sub"></div>
+
+    <div class="doc-banner">
+      <h2 class="doc-title">REKAPITULASI RESMI POIN KEDISIPLINAN KARYAWAN</h2>
+      <div class="doc-sub">Daftar Karyawan Dalam Masa Pembinaan Aktif • Periode: ${periodStr}</div>
+    </div>
+
+    <div class="meta-grid">
+      <div>
+        <div class="meta-item-label">Nomor Dokumen</div>
+        <div class="meta-item-value" style="font-family:monospace;font-size:11px;">${docCode}</div>
+      </div>
+      <div>
+        <div class="meta-item-label">Tanggal Diterbitkan</div>
+        <div class="meta-item-value">${docDateStr}</div>
+      </div>
+      <div>
+        <div class="meta-item-label">Karyawan Berpoin Aktif</div>
+        <div class="meta-item-value" style="color:#dc2626;">${totalActiveUsers} Orang</div>
+      </div>
+      <div>
+        <div class="meta-item-label">Total Poin Aktif Tim</div>
+        <div class="meta-item-value" style="color:#dc2626;">${totalActivePoints} Poin</div>
+      </div>
+    </div>
+
+    <div class="section-head">I. DAFTAR REKAPITULASI KARYAWAN DENGAN POIN AKTIF</div>
+    ${userList.length === 0 ? '<div style="text-align:center;padding:20px;color:#64748b;font-weight:700;">Tidak ada karyawan yang memiliki poin aktif saat ini. Seluruh tim dalam status nihil poin (tertib).</div>' : `
+    <table>
+      <thead>
+        <tr>
+          <th style="width:28px;text-align:center;">No</th>
+          <th>Nama Karyawan</th>
+          <th>NIK</th>
+          <th>Posisi</th>
+          <th style="text-align:center;">Poin Aktif</th>
+          <th>Pelanggaran Terakhir</th>
+          <th style="text-align:center;">Expired Terdekat</th>
+          <th>Status Pembinaan</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${userList.map((u, idx) => {
+          const latestInc = u.incidents[0] || {};
+          let statusText = 'Peringatan Lisan';
+          let badgeClass = 'pt-warn';
+          if (u.points >= 10) { statusText = 'Tinjauan Kontrak / SP 3'; badgeClass = 'pt-warn'; }
+          else if (u.points >= 7) { statusText = 'Peringatan Keras (SP 2)'; badgeClass = 'pt-warn'; }
+          else if (u.points >= 4) { statusText = 'Surat Peringatan I (SP 1)'; badgeClass = 'pt-sp1'; }
+          
+          return `
+            <tr>
+              <td style="text-align:center;font-weight:700;">${idx + 1}</td>
+              <td style="font-weight:800;color:#0f172a;">${escHtml(u.name)}</td>
+              <td style="font-family:monospace;color:#475569;">${escHtml(u.nik)}</td>
+              <td><span style="font-weight:600;">${escHtml(u.posisi)}</span></td>
+              <td style="text-align:center;">
+                <span class="badge-pt ${badgeClass}">+${u.points} Poin</span>
+              </td>
+              <td>${escHtml(latestInc.subkategori || latestInc.kategori_nama || '-')}</td>
+              <td style="text-align:center;color:#475569;font-weight:600;">${fmtDateId(u.nearestExpiry)}</td>
+              <td style="font-weight:700;">${statusText}</td>
+            </tr>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
+    `}
+
+    <div class="section-head" style="margin-top:16px;">II. RINCIAN KEJADIAN PELANGGARAN AKTIF</div>
+    ${incidents.length === 0 ? '<div style="text-align:center;padding:16px;color:#64748b;">Nihil kejadian aktif.</div>' : `
+    <table>
+      <thead>
+        <tr>
+          <th style="width:28px;text-align:center;">No</th>
+          <th>Kode</th>
+          <th>Tanggal</th>
+          <th>Nama Karyawan</th>
+          <th>Kategori &amp; Subkategori</th>
+          <th>Kronologi Singkat</th>
+          <th style="text-align:center;">Poin</th>
+          <th style="text-align:center;">Tgl Expired</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${incidents.map((inc, i) => `
+          <tr>
+            <td style="text-align:center;font-weight:700;">${i + 1}</td>
+            <td style="font-family:monospace;font-weight:700;color:#2563eb;">${escHtml(inc.incident_code)}</td>
+            <td>${fmtDateId(inc.incident_date)}</td>
+            <td style="font-weight:700;">${escHtml(inc.user_name_snapshot)}</td>
+            <td>
+              <div style="font-weight:700;">${escHtml(inc.subkategori)}</div>
+              <div style="font-size:9px;color:#64748b;">${escHtml(inc.kategori_nama)}</div>
+            </td>
+            <td style="max-width:200px;line-height:1.3;">${escHtml(inc.kronologi || '-')}</td>
+            <td style="text-align:center;font-weight:800;color:#dc2626;">+${inc.poin}</td>
+            <td style="text-align:center;color:#475569;">${fmtDateId(inc.expired_at)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    `}
+
+    <div class="notes-box">
+      <div style="font-weight:800;text-transform:uppercase;margin-bottom:4px;color:#0f172a;">Ketentuan &amp; Tata Tertib Pembinaan Kinerja SS08:</div>
+      <ul>
+        <li>Poin aktif berlaku selama masa pembinaan (standar 30 hari) dan akan terhapus (*expired*) secara otomatis jika karyawan konsisten menjaga kedisiplinan tanpa pelanggaran berulang.</li>
+        <li>Tingkat akumulasi poin berlaku berjenjang: <strong>1–3 Poin</strong> (Teguran Lisan/Bimbingan), <strong>4–6 Poin</strong> (Surat Peringatan I), <strong>7–9 Poin</strong> (Surat Peringatan II), <strong>&ge;10 Poin</strong> (Surat Peringatan III / Evaluasi Kelayakan).</li>
+        <li>Karyawan memiliki hak menyampaikan sanggahan atau klarifikasi resmi dengan bukti pendukung melalui portal mandiri di web paling lambat <strong>2x24 jam</strong> sejak kejadian dicatat.</li>
+      </ul>
+    </div>
+
+    <div class="sig-grid">
+      <div class="sig-col">
+        <div class="sig-role">Dibuat Oleh,</div>
+        <div class="sig-sub">Admin Operasional Disiplin</div>
+        <div class="sig-space"></div>
+        <div class="sig-name">( ........................................ )</div>
+        <div class="sig-sub">Admin / Petugas Penginput</div>
+      </div>
+      <div class="sig-col">
+        <div class="sig-role">Diperiksa Oleh,</div>
+        <div class="sig-sub">Supervisor Lapangan SS08</div>
+        <div class="sig-space"></div>
+        <div class="sig-name">( ........................................ )</div>
+        <div class="sig-sub">Supervisor Operasional</div>
+      </div>
+      <div class="sig-col">
+        <div class="sig-role">Diketahui &amp; Disetujui,</div>
+        <div class="sig-sub">Manajemen Operasional / HR</div>
+        <div class="sig-space"></div>
+        <div class="sig-name">( ........................................ )</div>
+        <div class="sig-sub">Operations Lead / HRD</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.onload = function() {
+      setTimeout(function() { window.print(); }, 400);
+    };
+  </script>
+</body>
+</html>`);
+        win.document.close();
+      } catch (err) {
+        console.error('printGlobalDisciplinePdf error:', err);
+        notifyToast('Gagal membuat dokumen PDF: ' + err.message, 'error');
+      }
+    },
+
+    async printIndividualDisciplinePdf(incidentId) {
+      try {
+        notifyToast('Menyiapkan Surat Catatan Poin...', 'info');
+        const res = await fetch('/api/discipline/incidents/' + incidentId, { credentials: 'include' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Gagal memuat detail kejadian.');
+        const inc = data.incident;
+
+        let userActivePoints = inc.poin;
+        try {
+          if (inc.user_id) {
+            const uRes = await fetch('/api/discipline/incidents?user_id=' + inc.user_id + '&status_poin=ACTIVE&limit=100', { credentials: 'include' });
+            if (uRes.ok) {
+              const uData = await uRes.json();
+              userActivePoints = (uData.items || []).reduce((sum, item) => sum + (Number(item.poin) || 0), 0);
+            }
+          }
+        } catch (_) {}
+
+        const now = new Date();
+        const docDateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+        const letterNo = `SPK/SS08-OPS/${inc.incident_code || 'DISC'}/${now.getFullYear()}`;
+
+        let stageText = 'Tahap Bimbingan & Peringatan Lisan';
+        if (userActivePoints >= 10) stageText = 'Tahap Evaluasi Lanjut / Surat Peringatan III (SP 3)';
+        else if (userActivePoints >= 7) stageText = 'Surat Peringatan II (SP 2)';
+        else if (userActivePoints >= 4) stageText = 'Surat Peringatan I (SP 1)';
+
+        const win = window.open('', '_blank');
+        if (!win) {
+          alert('Pop-up terblokir oleh browser. Silakan izinkan pop-up untuk mencetak PDF.');
+          return;
+        }
+
+        win.document.write(`<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Surat Catatan Poin - ${escHtml(inc.user_name_snapshot)} - ${inc.incident_code}</title>
+  <style>
+    @page { size: A4 portrait; margin: 15mm 18mm 18mm 18mm; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+      color: #0f172a;
+      background: #f8fafc;
+      margin: 0;
+      padding: 20px;
+      font-size: 11.5px;
+      line-height: 1.5;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .page-container {
+      max-width: 750px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 32px 36px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    .no-print {
+      position: sticky;
+      top: 0;
+      background: #0f172a;
+      color: #ffffff;
+      padding: 12px 20px;
+      margin: -20px -20px 20px -20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      z-index: 999;
+    }
+    .btn-print {
+      background: #2563eb;
+      color: #ffffff;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-close {
+      background: #475569;
+      color: #ffffff;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    @media print {
+      body { background: #ffffff; padding: 0; font-size: 11px; }
+      .page-container { border: none; box-shadow: none; padding: 0; max-width: 100%; }
+      .no-print { display: none !important; }
+    }
+    .kop-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2.5px solid #0f172a;
+      padding-bottom: 12px;
+      margin-bottom: 4px;
+    }
+    .kop-brand { display: flex; flex-direction: column; }
+    .kop-title {
+      font-size: 17px;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      color: #0f172a;
+      text-transform: uppercase;
+      margin: 0;
+    }
+    .kop-sub { font-size: 11px; font-weight: 700; color: #2563eb; text-transform: uppercase; margin-top: 2px; }
+    .kop-address { font-size: 9.5px; color: #64748b; margin-top: 3px; }
+    .kop-badge {
+      border: 1.5px solid #dc2626;
+      color: #dc2626;
+      padding: 6px 12px;
+      text-align: center;
+      font-size: 10px;
+      font-weight: 800;
+      border-radius: 4px;
+      background: #fef2f2;
+      text-transform: uppercase;
+    }
+    .kop-divider-sub { height: 1px; background: #0f172a; margin-bottom: 20px; }
+    .letter-title { text-align: center; margin-bottom: 22px; }
+    .letter-title h2 {
+      font-size: 15px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #0f172a;
+      margin: 0;
+      text-decoration: underline;
+    }
+    .letter-no { font-size: 11px; color: #475569; font-weight: 700; margin-top: 4px; }
+    .opening-text { text-align: justify; margin-bottom: 16px; line-height: 1.6; }
+    .card-box {
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: #f8fafc;
+      padding: 12px 16px;
+      margin-bottom: 14px;
+    }
+    .card-title {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #1e293b;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 4px;
+    }
+    .info-table { width: 100%; border-collapse: collapse; }
+    .info-table td { padding: 4px 6px; vertical-align: top; font-size: 11px; }
+    .info-label { width: 180px; font-weight: 700; color: #475569; }
+    .info-sep { width: 14px; text-align: center; font-weight: 700; color: #64748b; }
+    .info-val { font-weight: 700; color: #0f172a; }
+    .point-highlight {
+      display: inline-block;
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #f87171;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-weight: 900;
+      font-size: 12px;
+    }
+    .closing-text {
+      text-align: justify;
+      margin-top: 14px;
+      margin-bottom: 24px;
+      line-height: 1.6;
+      font-size: 10.5px;
+      color: #334155;
+    }
+    .sig-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 28px;
+      page-break-inside: avoid;
+    }
+    .sig-col { text-align: center; font-size: 10.5px; }
+    .sig-role { font-weight: 700; color: #475569; }
+    .sig-space { height: 60px; }
+    .sig-name { font-weight: 800; color: #0f172a; text-decoration: underline; }
+    .sig-sub { font-size: 9px; color: #64748b; margin-top: 2px; }
+  </style>
+</head>
+<body>
+  <div class="no-print">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-weight:800;font-size:15px;">📄 Surat Poin Karyawan — ${escHtml(inc.user_name_snapshot)}</span>
+      <span style="font-size:11px;background:#2563eb;padding:3px 10px;border-radius:12px;font-weight:600;">Format Individu (A4)</span>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn-print" onclick="window.print()">🖨️ Cetak / Simpan PDF</button>
+      <button class="btn-close" onclick="window.close()">✕ Tutup</button>
+    </div>
+  </div>
+
+  <div class="page-container">
+    <div class="kop-header">
+      <div class="kop-brand">
+        <h1 class="kop-title">SS08 LOGISTICS &amp; FULFILLMENT CENTER</h1>
+        <div class="kop-sub">Divisi Operasional &amp; Manajemen Kinerja</div>
+        <div class="kop-address">Kawasan Pergudangan DC SS08 • Email/Portal: formulir-pencapaian-kerja.vercel.app</div>
+      </div>
+      <div class="kop-badge">
+        BERSIFAT PRIBADI<br>
+        CONFIDENTIAL
+      </div>
+    </div>
+    <div class="kop-divider-sub"></div>
+
+    <div class="letter-title">
+      <h2>SURAT PEMBERITAHUAN CATATAN POIN KEDISIPLINAN</h2>
+      <div class="letter-no">Nomor: ${letterNo}</div>
+    </div>
+
+    <div class="opening-text">
+      Bersama surat ini, Manajemen Operasional SS08 menyampaikan pemberitahuan resmi terkait catatan ketidaksesuaian prosedur operasional (SOP) / kedisiplinan kerja yang tercatat dalam sistem terhadap karyawan di bawah ini:
+    </div>
+
+    <div class="card-box">
+      <div class="card-title">I. IDENTITAS KARYAWAN</div>
+      <table class="info-table">
+        <tr>
+          <td class="info-label">Nama Lengkap</td>
+          <td class="info-sep">:</td>
+          <td class="info-val" style="font-size:12px;">${escHtml(inc.user_name_snapshot)}</td>
+        </tr>
+        <tr>
+          <td class="info-label">Nomor Induk Karyawan (NIK)</td>
+          <td class="info-sep">:</td>
+          <td class="info-val" style="font-family:monospace;">${escHtml(inc.nik_snapshot || '-')}</td>
+        </tr>
+        <tr>
+          <td class="info-label">Posisi / Divisi</td>
+          <td class="info-sep">:</td>
+          <td class="info-val">${escHtml(inc.posisi)}</td>
+        </tr>
+        <tr>
+          <td class="info-label">Lokasi Operasional</td>
+          <td class="info-sep">:</td>
+          <td class="info-val">DC Pergudangan SS08</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="card-box">
+      <div class="card-title">II. RINCIAN KEJADIAN PELANGGARAN &amp; TEMUAN LAPANGAN</div>
+      <table class="info-table">
+        <tr>
+          <td class="info-label">Kode Kejadian</td>
+          <td class="info-sep">:</td>
+          <td class="info-val" style="font-family:monospace;color:#2563eb;">${escHtml(inc.incident_code)}</td>
+        </tr>
+        <tr>
+          <td class="info-label">Tanggal Kejadian</td>
+          <td class="info-sep">:</td>
+          <td class="info-val">${fmtDateId(inc.incident_date)}</td>
+        </tr>
+        <tr>
+          <td class="info-label">Kategori / Klasifikasi</td>
+          <td class="info-sep">:</td>
+          <td class="info-val">${escHtml(inc.kategori_nama)} &mdash; <span style="font-weight:800;">${escHtml(inc.subkategori)}</span></td>
+        </tr>
+        <tr>
+          <td class="info-label">Tingkat Keparahan</td>
+          <td class="info-sep">:</td>
+          <td class="info-val">${escHtml(inc.severity)} ${inc.requires_hr_review ? '<span style="color:#dc2626;">(Memerlukan Tinjauan HR)</span>' : ''}</td>
+        </tr>
+        <tr>
+          <td class="info-label">Bobot Poin Kejadian Ini</td>
+          <td class="info-sep">:</td>
+          <td class="info-val">
+            <span class="point-highlight">+${inc.poin} Poin</span>
+          </td>
+        </tr>
+        <tr>
+          <td class="info-label">Kronologi / Uraian Temuan</td>
+          <td class="info-sep">:</td>
+          <td class="info-val" style="font-weight:normal;line-height:1.5;background:#ffffff;padding:8px;border:1px solid #e2e8f0;border-radius:4px;">
+            ${escHtml(inc.kronologi || 'Tidak ada catatan kronologi tambahan.')}
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="card-box" style="background:#fef2f2;border-color:#fca5a5;">
+      <div class="card-title" style="color:#991b1b;border-color:#fecaca;">III. STATUS PEMBINAAN &amp; MASA BERLAKU POIN</div>
+      <table class="info-table">
+        <tr>
+          <td class="info-label" style="color:#7f1d1d;">Masa Berlaku Poin Ini</td>
+          <td class="info-sep">:</td>
+          <td class="info-val">${inc.masa_berlaku_bulan} Bulan (Kedaluwarsa / Hangus pada: <strong>${fmtDateId(inc.expired_at)}</strong>)</td>
+        </tr>
+        <tr>
+          <td class="info-label" style="color:#7f1d1d;">Total Poin Aktif Karyawan Saat Ini</td>
+          <td class="info-sep">:</td>
+          <td class="info-val" style="font-size:13px;color:#b91c1c;">${userActivePoints} Poin Aktif</td>
+        </tr>
+        <tr>
+          <td class="info-label" style="color:#7f1d1d;">Tingkat Pembinaan Berjalan</td>
+          <td class="info-sep">:</td>
+          <td class="info-val" style="color:#991b1b;font-weight:800;">${stageText}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="closing-text">
+      <strong>Catatan &amp; Arahan Pembinaan:</strong><br>
+      1. Surat ini diterbitkan sebagai bentuk evaluasi kinerja dan pembinaan agar karyawan yang bersangkutan dapat segera memperbaiki ketelitian, kedisiplinan, serta kepatuhan terhadap SOP kerja di lingkungan DC SS08.<br>
+      2. Poin ini akan otomatis gugur/expired apabila karyawan mempertahankan kinerja yang baik selama masa pembinaan.<br>
+      3. Apabila karyawan merasa terdapat kekeliruan pencatatan atau memiliki bukti sanggahan yang sah, karyawan berhak mengajukan <strong>Klarifikasi Resmi</strong> melalui portal web paling lambat <strong>2x24 jam</strong> sejak surat ini diterima.
+    </div>
+
+    <div class="sig-grid">
+      <div class="sig-col">
+        <div class="sig-role">Karyawan Yang Bersangkutan,</div>
+        <div class="sig-sub">(Tanda Tangan &amp; Tanda Terima)</div>
+        <div class="sig-space"></div>
+        <div class="sig-name">( ${escHtml(inc.user_name_snapshot)} )</div>
+        <div class="sig-sub">Tanggal: ...................................</div>
+      </div>
+      <div class="sig-col">
+        <div class="sig-role">Petugas Pelapor / Admin,</div>
+        <div class="sig-sub">Divisi Kedisiplinan SS08</div>
+        <div class="sig-space"></div>
+        <div class="sig-name">( ${escHtml(inc.created_by_name || 'Admin Disiplin')} )</div>
+        <div class="sig-sub">Tanggal: ${docDateStr}</div>
+      </div>
+      <div class="sig-col">
+        <div class="sig-role">Mengetahui,</div>
+        <div class="sig-sub">Supervisor Operasional DC SS08</div>
+        <div class="sig-space"></div>
+        <div class="sig-name">( ........................................ )</div>
+        <div class="sig-sub">Tanggal: ...................................</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.onload = function() {
+      setTimeout(function() { window.print(); }, 400);
+    };
+  </script>
+</body>
+</html>`);
+        win.document.close();
+      } catch (err) {
+        console.error('printIndividualDisciplinePdf error:', err);
+        notifyToast('Gagal membuat surat PDF: ' + err.message, 'error');
+      }
     },
 
     // Aliases for showPage compatibility
