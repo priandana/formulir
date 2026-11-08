@@ -2204,13 +2204,12 @@
     .notes-box ul { margin: 4px 0 0 16px; padding: 0; }
     .notes-box li { margin-bottom: 2px; }
     .sig-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-      margin-top: 24px;
+      display: flex;
+      justify-content: space-around;
+      margin-top: 32px;
       page-break-inside: avoid;
     }
-    .sig-col { text-align: center; font-size: 10px; }
+    .sig-col { text-align: center; font-size: 10.5px; min-width: 220px; }
     .sig-role { font-weight: 700; color: #475569; }
     .sig-space { height: 50px; }
     .sig-name { font-weight: 800; color: #0f172a; text-decoration: underline; }
@@ -2357,24 +2356,14 @@
     <div class="sig-grid">
       <div class="sig-col">
         <div class="sig-role">Dibuat Oleh,</div>
-        <div class="sig-sub">Admin Operasional Disiplin</div>
         <div class="sig-space"></div>
         <div class="sig-name">( ........................................ )</div>
-        <div class="sig-sub">Admin / Petugas Penginput</div>
-      </div>
-      <div class="sig-col">
-        <div class="sig-role">Diperiksa Oleh,</div>
-        <div class="sig-sub">Supervisor Lapangan SS08</div>
-        <div class="sig-space"></div>
-        <div class="sig-name">( ........................................ )</div>
-        <div class="sig-sub">Supervisor Operasional</div>
       </div>
       <div class="sig-col">
         <div class="sig-role">Diketahui &amp; Disetujui,</div>
-        <div class="sig-sub">Manajemen Operasional / HR</div>
+        <div class="sig-sub" style="font-weight:700;color:#0f172a;margin-top:2px;">Warehouse Coordinator</div>
         <div class="sig-space"></div>
         <div class="sig-name">( ........................................ )</div>
-        <div class="sig-sub">Operations Lead / HRD</div>
       </div>
     </div>
   </div>
@@ -2729,15 +2718,14 @@
         <div class="sig-sub">Tanggal: ...................................</div>
       </div>
       <div class="sig-col">
-        <div class="sig-role">Petugas Pelapor / Admin,</div>
-        <div class="sig-sub">Divisi Kedisiplinan SS08</div>
+        <div class="sig-role">Dibuat Oleh,</div>
         <div class="sig-space"></div>
-        <div class="sig-name">( ${escHtml(inc.created_by_name || 'Admin Disiplin')} )</div>
+        <div class="sig-name">( ${escHtml(inc.created_by_name || '........................................')} )</div>
         <div class="sig-sub">Tanggal: ${docDateStr}</div>
       </div>
       <div class="sig-col">
-        <div class="sig-role">Mengetahui,</div>
-        <div class="sig-sub">Supervisor Operasional DC SS08</div>
+        <div class="sig-role">Diketahui &amp; Disetujui,</div>
+        <div class="sig-sub" style="font-weight:700;color:#0f172a;margin-top:2px;">Warehouse Coordinator</div>
         <div class="sig-space"></div>
         <div class="sig-name">( ........................................ )</div>
         <div class="sig-sub">Tanggal: ...................................</div>
