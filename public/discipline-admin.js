@@ -2047,16 +2047,16 @@
   <meta charset="UTF-8">
   <title>Rekapitulasi Poin Kedisiplinan SS08 - ${docDateStr}</title>
   <style>
-    @page { size: A4 portrait; margin: 12mm 15mm 15mm 15mm; }
+    @page { size: A4 portrait; margin: 10mm 12mm 12mm 12mm; }
     * { box-sizing: border-box; }
     body {
       font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
       color: #0f172a;
       background: #f8fafc;
       margin: 0;
-      padding: 20px;
-      font-size: 11px;
-      line-height: 1.45;
+      padding: 16px;
+      font-size: 10.5px;
+      line-height: 1.4;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
@@ -2064,8 +2064,8 @@
       max-width: 800px;
       margin: 0 auto;
       background: #ffffff;
-      padding: 28px 32px;
-      border: 1px solid #e2e8f0;
+      padding: 24px 28px;
+      border: 1px solid #cbd5e1;
       box-shadow: 0 4px 20px rgba(0,0,0,0.06);
     }
     .no-print {
@@ -2073,8 +2073,8 @@
       top: 0;
       background: #0f172a;
       color: #ffffff;
-      padding: 12px 20px;
-      margin: -20px -20px 20px -20px;
+      padding: 10px 18px;
+      margin: -16px -16px 16px -16px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -2085,10 +2085,10 @@
       background: #2563eb;
       color: #ffffff;
       border: none;
-      padding: 8px 18px;
+      padding: 7px 16px;
       border-radius: 6px;
       font-weight: 700;
-      font-size: 13px;
+      font-size: 12.5px;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
@@ -2098,16 +2098,32 @@
       background: #475569;
       color: #ffffff;
       border: none;
-      padding: 8px 14px;
+      padding: 7px 12px;
       border-radius: 6px;
       font-weight: 600;
-      font-size: 13px;
+      font-size: 12.5px;
       cursor: pointer;
     }
     @media print {
-      body { background: #ffffff; padding: 0; font-size: 10.5px; }
-      .page-container { border: none; box-shadow: none; padding: 0; max-width: 100%; }
+      @page { size: A4 portrait; margin: 10mm 12mm 12mm 12mm; }
+      body { background: #ffffff !important; color: #000000 !important; padding: 0 !important; font-size: 10px !important; }
+      .page-container { border: none !important; box-shadow: none !important; padding: 0 !important; max-width: 100% !important; }
       .no-print { display: none !important; }
+      
+      /* High-contrast Monochrome rules for Black & White warehouse printers */
+      * { color: #000000 !important; }
+      .kop-header { border-bottom: 2px solid #000000 !important; }
+      .kop-divider-sub { background: #000000 !important; height: 1px !important; }
+      .kop-badge { border: 1.5px solid #000000 !important; background: transparent !important; }
+      .meta-grid { border: 1.2px solid #000000 !important; background: transparent !important; }
+      table { border: 1px solid #000000 !important; }
+      th { background: #f1f5f9 !important; color: #000000 !important; border: 1px solid #000000 !important; }
+      td { border: 1px solid #000000 !important; }
+      tr:nth-child(even) td { background: transparent !important; }
+      .badge-pt { border: 1.2px solid #000000 !important; background: transparent !important; color: #000000 !important; }
+      .notes-box { border: 1px solid #000000 !important; background: transparent !important; }
+      tr { page-break-inside: avoid; }
+      .sig-wrap { page-break-inside: avoid; }
     }
     .kop-header {
       display: flex;
@@ -2418,34 +2434,34 @@
   <meta charset="UTF-8">
   <title>Surat Catatan Poin - ${escHtml(inc.user_name_snapshot)} - ${inc.incident_code}</title>
   <style>
-    @page { size: A4 portrait; margin: 15mm 18mm 18mm 18mm; }
+    @page { size: A4 portrait; margin: 8mm 12mm 8mm 12mm; }
     * { box-sizing: border-box; }
     body {
       font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
       color: #0f172a;
       background: #f8fafc;
       margin: 0;
-      padding: 20px;
-      font-size: 11.5px;
-      line-height: 1.5;
+      padding: 14px;
+      font-size: 10.5px;
+      line-height: 1.4;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
     .page-container {
-      max-width: 750px;
+      max-width: 720px;
       margin: 0 auto;
       background: #ffffff;
-      padding: 32px 36px;
-      border: 1px solid #e2e8f0;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+      padding: 22px 26px;
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
     }
     .no-print {
       position: sticky;
       top: 0;
       background: #0f172a;
       color: #ffffff;
-      padding: 12px 20px;
-      margin: -20px -20px 20px -20px;
+      padding: 10px 18px;
+      margin: -14px -14px 14px -14px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -2456,10 +2472,10 @@
       background: #2563eb;
       color: #ffffff;
       border: none;
-      padding: 8px 18px;
+      padding: 7px 16px;
       border-radius: 6px;
       font-weight: 700;
-      font-size: 13px;
+      font-size: 12.5px;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
@@ -2469,51 +2485,77 @@
       background: #475569;
       color: #ffffff;
       border: none;
-      padding: 8px 14px;
+      padding: 7px 12px;
       border-radius: 6px;
       font-weight: 600;
-      font-size: 13px;
+      font-size: 12.5px;
       cursor: pointer;
     }
     @media print {
-      body { background: #ffffff; padding: 0; font-size: 11px; }
-      .page-container { border: none; box-shadow: none; padding: 0; max-width: 100%; }
+      @page { size: A4 portrait; margin: 8mm 10mm 8mm 10mm; }
+      html, body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        font-size: 10px !important;
+        line-height: 1.35 !important;
+        width: 100% !important;
+      }
+      .page-container {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+        page-break-inside: avoid !important;
+      }
       .no-print { display: none !important; }
+      
+      /* High-contrast Monochrome overrides for Black & White warehouse printers */
+      * { color: #000000 !important; }
+      .kop-header { border-bottom: 2px solid #000000 !important; }
+      .kop-divider-sub { background: #000000 !important; height: 1px !important; }
+      .kop-badge { border: 1.5px solid #000000 !important; background: transparent !important; color: #000000 !important; }
+      .card-box { border: 1.2px solid #000000 !important; background: transparent !important; }
+      .card-title { border-bottom: 1px solid #000000 !important; color: #000000 !important; }
+      .point-highlight { border: 1.5px solid #000000 !important; background: #e5e5e5 !important; color: #000000 !important; }
+      .sig-name { color: #000000 !important; text-decoration: underline !important; }
     }
     .kop-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 2.5px solid #0f172a;
-      padding-bottom: 12px;
-      margin-bottom: 4px;
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 8px;
+      margin-bottom: 3px;
     }
     .kop-brand { display: flex; flex-direction: column; }
     .kop-title {
-      font-size: 17px;
+      font-size: 15px;
       font-weight: 900;
       letter-spacing: 0.5px;
       color: #0f172a;
       text-transform: uppercase;
       margin: 0;
     }
-    .kop-sub { font-size: 11px; font-weight: 700; color: #2563eb; text-transform: uppercase; margin-top: 2px; }
-    .kop-address { font-size: 9.5px; color: #64748b; margin-top: 3px; }
+    .kop-sub { font-size: 10px; font-weight: 700; color: #2563eb; text-transform: uppercase; margin-top: 1px; }
+    .kop-address { font-size: 8.5px; color: #64748b; margin-top: 2px; }
     .kop-badge {
       border: 1.5px solid #dc2626;
       color: #dc2626;
-      padding: 6px 12px;
+      padding: 4px 8px;
       text-align: center;
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 800;
       border-radius: 4px;
       background: #fef2f2;
       text-transform: uppercase;
+      line-height: 1.25;
     }
-    .kop-divider-sub { height: 1px; background: #0f172a; margin-bottom: 20px; }
-    .letter-title { text-align: center; margin-bottom: 22px; }
+    .kop-divider-sub { height: 1px; background: #0f172a; margin-bottom: 12px; }
+    .letter-title { text-align: center; margin-bottom: 10px; }
     .letter-title h2 {
-      font-size: 15px;
+      font-size: 13.5px;
       font-weight: 900;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -2521,59 +2563,62 @@
       margin: 0;
       text-decoration: underline;
     }
-    .letter-no { font-size: 11px; color: #475569; font-weight: 700; margin-top: 4px; }
-    .opening-text { text-align: justify; margin-bottom: 16px; line-height: 1.6; }
+    .letter-no { font-size: 10px; color: #475569; font-weight: 700; margin-top: 2px; }
+    .opening-text { text-align: justify; margin-bottom: 8px; line-height: 1.4; font-size: 10.5px; }
     .card-box {
       border: 1px solid #cbd5e1;
-      border-radius: 6px;
+      border-radius: 5px;
       background: #f8fafc;
-      padding: 12px 16px;
-      margin-bottom: 14px;
+      padding: 7px 12px;
+      margin-bottom: 8px;
+      page-break-inside: avoid;
     }
     .card-title {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 800;
       text-transform: uppercase;
       color: #1e293b;
-      margin-bottom: 8px;
+      margin-bottom: 5px;
       border-bottom: 1px solid #e2e8f0;
-      padding-bottom: 4px;
+      padding-bottom: 3px;
+      letter-spacing: 0.3px;
     }
     .info-table { width: 100%; border-collapse: collapse; }
-    .info-table td { padding: 4px 6px; vertical-align: top; font-size: 11px; }
-    .info-label { width: 180px; font-weight: 700; color: #475569; }
-    .info-sep { width: 14px; text-align: center; font-weight: 700; color: #64748b; }
+    .info-table td { padding: 2.5px 4px; vertical-align: top; font-size: 10.5px; }
+    .info-label { width: 175px; font-weight: 700; color: #475569; }
+    .info-sep { width: 12px; text-align: center; font-weight: 700; color: #64748b; }
     .info-val { font-weight: 700; color: #0f172a; }
     .point-highlight {
       display: inline-block;
       background: #fee2e2;
       color: #b91c1c;
       border: 1px solid #f87171;
-      padding: 3px 10px;
-      border-radius: 12px;
+      padding: 2px 8px;
+      border-radius: 10px;
       font-weight: 900;
-      font-size: 12px;
+      font-size: 11px;
     }
     .closing-text {
       text-align: justify;
-      margin-top: 14px;
-      margin-bottom: 24px;
-      line-height: 1.6;
-      font-size: 10.5px;
+      margin-top: 8px;
+      margin-bottom: 12px;
+      line-height: 1.4;
+      font-size: 9.5px;
       color: #334155;
+      page-break-inside: avoid;
     }
     .sig-grid {
       display: flex;
       justify-content: space-between;
-      margin-top: 36px;
+      margin-top: 14px;
       page-break-inside: avoid;
       padding: 0 16px;
     }
-    .sig-col { text-align: center; font-size: 11px; min-width: 220px; }
+    .sig-col { text-align: center; font-size: 10px; min-width: 210px; }
     .sig-role { font-weight: 700; color: #475569; }
-    .sig-space { height: 60px; }
+    .sig-space { height: 40px; }
     .sig-name { font-weight: 800; color: #0f172a; text-decoration: underline; }
-    .sig-sub { font-size: 9px; color: #64748b; margin-top: 2px; }
+    .sig-sub { font-size: 8.5px; color: #64748b; margin-top: 2px; }
   </style>
 </head>
 <body>
@@ -2670,7 +2715,7 @@
         <tr>
           <td class="info-label">Kronologi / Uraian Temuan</td>
           <td class="info-sep">:</td>
-          <td class="info-val" style="font-weight:normal;line-height:1.5;background:#ffffff;padding:8px;border:1px solid #e2e8f0;border-radius:4px;">
+          <td class="info-val" style="font-weight:normal;line-height:1.45;background:#ffffff;padding:5px 8px;border:1px solid #cbd5e1;border-radius:4px;">
             ${escHtml(inc.kronologi || 'Tidak ada catatan kronologi tambahan.')}
           </td>
         </tr>
