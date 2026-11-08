@@ -2353,17 +2353,13 @@
       </ul>
     </div>
 
-    <div class="sig-grid">
-      <div class="sig-col">
-        <div class="sig-role">Dibuat Oleh,</div>
-        <div class="sig-space"></div>
-        <div class="sig-name">( ........................................ )</div>
-      </div>
-      <div class="sig-col">
+    <div class="sig-wrap" style="display:flex;justify-content:flex-end;margin-top:32px;padding-right:20px;">
+      <div class="sig-col" style="text-align:center;font-size:10.5px;min-width:240px;">
         <div class="sig-role">Diketahui &amp; Disetujui,</div>
         <div class="sig-sub" style="font-weight:700;color:#0f172a;margin-top:2px;">Warehouse Coordinator</div>
-        <div class="sig-space"></div>
+        <div class="sig-space" style="height:55px;"></div>
         <div class="sig-name">( ........................................ )</div>
+        <div class="sig-sub" style="font-size:9.5px;color:#64748b;margin-top:3px;">Tanggal: ${docDateStr}</div>
       </div>
     </div>
   </div>
@@ -2567,13 +2563,13 @@
       color: #334155;
     }
     .sig-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-      margin-top: 28px;
+      display: flex;
+      justify-content: space-between;
+      margin-top: 36px;
       page-break-inside: avoid;
+      padding: 0 16px;
     }
-    .sig-col { text-align: center; font-size: 10.5px; }
+    .sig-col { text-align: center; font-size: 11px; min-width: 220px; }
     .sig-role { font-weight: 700; color: #475569; }
     .sig-space { height: 60px; }
     .sig-name { font-weight: 800; color: #0f172a; text-decoration: underline; }
@@ -2718,17 +2714,11 @@
         <div class="sig-sub">Tanggal: ...................................</div>
       </div>
       <div class="sig-col">
-        <div class="sig-role">Dibuat Oleh,</div>
-        <div class="sig-space"></div>
-        <div class="sig-name">( ${escHtml(inc.created_by_name || '........................................')} )</div>
-        <div class="sig-sub">Tanggal: ${docDateStr}</div>
-      </div>
-      <div class="sig-col">
         <div class="sig-role">Diketahui &amp; Disetujui,</div>
         <div class="sig-sub" style="font-weight:700;color:#0f172a;margin-top:2px;">Warehouse Coordinator</div>
         <div class="sig-space"></div>
         <div class="sig-name">( ........................................ )</div>
-        <div class="sig-sub">Tanggal: ...................................</div>
+        <div class="sig-sub">Tanggal: ${docDateStr}</div>
       </div>
     </div>
   </div>
