@@ -798,13 +798,21 @@ app.get('/api/audit-logs/export', requireSuperAdmin, async (req, res) => {
 // GET /api/submissions
 app.get('/api/submissions', requirePermission('submissions'), async (req, res) => {
   try {
-    const { status, limit, offset } = req.query;
+    const { status, limit, offset, tanggal_mulai, tanggal_akhir, tanggal_carian, posisi, zona } = req.query;
     const filters = {};
     if (status && ['pending', 'approved', 'rejected'].includes(status)) {
       filters.status = status;
     }
-    // Default limit to 1000 if not specified to prevent scanning 19,000+ rows
-    const effectiveLimit = limit ? parseInt(limit) : (req.query.all === 'true' ? null : 1000);
+    if (tanggal_carian) filters.tanggal_carian = tanggal_carian;
+    if (tanggal_mulai)  filters.tanggal_mulai = tanggal_mulai;
+    if (tanggal_akhir)  filters.tanggal_akhir = tanggal_akhir;
+    if (posisi && posisi !== 'semua' && posisi !== 'all') filters.posisi = posisi;
+    if (zona && zona !== 'semua' && zona !== 'all') filters.zona = zona;
+
+    // Default limit 1000 hanya untuk tampilan awal tanpa filter tanggal agar tidak scan 19.000+ rows.
+    // Jika ada filter tanggal, ambil seluruh data pada rentang tanggal tersebut.
+    const hasDateFilter = !!(tanggal_carian || tanggal_mulai || tanggal_akhir);
+    const effectiveLimit = limit ? parseInt(limit) : ((req.query.all === 'true' || hasDateFilter) ? null : 1000);
     if (effectiveLimit) filters.limit = effectiveLimit;
     if (offset) filters.offset = parseInt(offset);
 

@@ -47,6 +47,8 @@ function showOnscreenError(source, err) {
   let filteredSubmissions = [];
   let currentPage = 1;
   const PAGE_SIZE = 15;
+  let submissionsDateRangeKey = '';
+  let submissionsRequestSeq = 0;
   let currentUser = { username: '', allowed_pages: [] };
   let currentView = 'dashboard';
   let appReady = false;      // true setelah init selesai
@@ -300,19 +302,62 @@ function showOnscreenError(source, err) {
     requestAnimationFrame(update);
   }
 
+  function buildSubmissionsApiUrl(dateFrom, dateTo) {
+    const params = new URLSearchParams();
+    if (dateFrom) params.set('tanggal_mulai', dateFrom);
+    if (dateTo)   params.set('tanggal_akhir', dateTo);
+    if (!dateFrom && !dateTo) params.set('limit', '1000');
+    return '/api/submissions?' + params.toString();
+  }
+
+  function setSubmissionsLoading(isLoading) {
+    const badge = document.getElementById('subLoadingBadge');
+    if (badge) badge.classList.toggle('visible', !!isLoading);
+    if (isLoading) {
+      const tbody = document.getElementById('allTableBody');
+      if (tbody) {
+        tbody.innerHTML = Array.from({ length: 6 }, () => `
+          <tr class="skeleton-row">
+            <td><span class="skeleton-cell circle"></span></td>
+            <td><span class="skeleton-cell w-sm"></span></td>
+            <td><span class="skeleton-cell w-md"></span></td>
+            <td><span class="skeleton-cell w-md"></span></td>
+            <td><span class="skeleton-cell w-xl"></span></td>
+            <td><span class="skeleton-cell badge-shape"></span></td>
+            <td><span class="skeleton-cell w-md"></span></td>
+            <td><span class="skeleton-cell w-sm"></span></td>
+            <td><span class="skeleton-cell w-sm"></span></td>
+            <td><span class="skeleton-cell w-sm"></span></td>
+            <td><span class="skeleton-cell badge-shape"></span></td>
+            <td><span class="skeleton-cell w-md"></span></td>
+            <td><span class="skeleton-cell w-md"></span></td>
+          </tr>`).join('');
+      }
+    }
+  }
+
   async function loadData(opts = {}) {
     const throwOnError = !!(opts && opts.throwOnError);
+    const dateFrom = document.getElementById('filterDateFrom')?.value || '';
+    const dateTo   = document.getElementById('filterDateTo')?.value || '';
+    const hasDateFilter = !!(dateFrom || dateTo);
+    const reqSeq = ++submissionsRequestSeq;
     try {
-      // Fetch data paralel: semua submissions (top-1000) + SEMUA pending (top-1000)
+      if (hasDateFilter) setSubmissionsLoading(true);
+      // Fetch data paralel: submissions (sesuai filter tanggal aktif, atau top-1000 jika tanpa filter)
       const [submissions, stats, pendingCountRes, pendingSubmissions] = await Promise.all([
-        fetch('/api/submissions?limit=1000').then(r => { if (!r.ok && throwOnError) throw new Error('Gagal memuat data submissions.'); return r.json(); }),
+        fetch(buildSubmissionsApiUrl(dateFrom, dateTo)).then(r => { if (!r.ok && throwOnError) throw new Error('Gagal memuat data submissions.'); return r.json(); }),
         fetch('/api/stats').then(r => { if (!r.ok && throwOnError) throw new Error('Gagal memuat statistik operasional.'); return r.json(); }),
         fetch('/api/submissions/pending-count').then(r => r.json()).catch(() => ({ count: 0 })),
-        fetch('/api/submissions?status=pending&limit=1000').then(r => r.json()).catch(() => [])
+        hasDateFilter
+          ? Promise.resolve([])
+          : fetch('/api/submissions?status=pending&limit=1000').then(r => r.json()).catch(() => [])
       ]);
+      if (reqSeq !== submissionsRequestSeq) return;
+      submissionsDateRangeKey = `${dateFrom}|${dateTo}`;
       allSubmissions = Array.isArray(submissions) ? submissions : [];
-      // Merge pending submissions yang mungkin tidak ada di top-1000
-      if (Array.isArray(pendingSubmissions) && pendingSubmissions.length > 0) {
+      // Merge pending submissions yang mungkin tidak ada di top-1000 (hanya saat mode default)
+      if (!hasDateFilter && Array.isArray(pendingSubmissions) && pendingSubmissions.length > 0) {
         const existingIds = new Set(allSubmissions.map(s => s.id));
         for (const ps of pendingSubmissions) {
           if (!existingIds.has(ps.id)) {
@@ -369,6 +414,8 @@ function showOnscreenError(source, err) {
       console.error('loadData error:', err);
       showToast('Gagal memuat data.', 'error');
       if (throwOnError) throw err;
+    } finally {
+      if (reqSeq === submissionsRequestSeq) setSubmissionsLoading(false);
     }
   }
 
@@ -644,6 +691,173 @@ function showOnscreenError(source, err) {
     return [1,'...',cur-1,cur,cur+1,'...',total];
   }
 
+  function toLocalIsoDate(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  function getSubmissionsPresetRange(preset) {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (preset === 'latest') return { from: '', to: '' };
+    if (preset === 'today') {
+      const s = toLocalIsoDate(today);
+      return { from: s, to: s };
+    }
+    if (preset === 'yesterday') {
+      const y = new Date(today);
+      y.setDate(y.getDate() - 1);
+      const s = toLocalIsoDate(y);
+      return { from: s, to: s };
+    }
+    if (preset === '7d') {
+      const start = new Date(today);
+      start.setDate(start.getDate() - 6);
+      return { from: toLocalIsoDate(start), to: toLocalIsoDate(today) };
+    }
+    if (preset === 'thisMonth') {
+      const first = new Date(today.getFullYear(), today.getMonth(), 1);
+      const last  = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      return { from: toLocalIsoDate(first), to: toLocalIsoDate(last) };
+    }
+    if (preset === 'lastMonth') {
+      const first = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const last  = new Date(today.getFullYear(), today.getMonth(), 0);
+      return { from: toLocalIsoDate(first), to: toLocalIsoDate(last) };
+    }
+    return { from: '', to: '' };
+  }
+
+  function syncSubmissionsPresetButtons(dateFrom, dateTo) {
+    const bar = document.getElementById('subPresetBar');
+    if (!bar) return;
+    const presets = ['latest', 'today', 'yesterday', '7d', 'thisMonth', 'lastMonth'];
+    let matched = '';
+    for (const p of presets) {
+      const r = getSubmissionsPresetRange(p);
+      if (r.from === (dateFrom || '') && r.to === (dateTo || '')) {
+        matched = p;
+        break;
+      }
+    }
+    bar.querySelectorAll('.sub-preset-pill').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.preset === matched);
+    });
+  }
+
+  function formatShortIndoDate(isoStr) {
+    if (!isoStr) return '';
+    const parts = isoStr.split('-').map(Number);
+    if (parts.length !== 3) return isoStr;
+    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  function updateSubmissionsSummaryStrip(dateFrom, dateTo) {
+    const scopeEl = document.getElementById('subScopeBadge');
+    const countEl = document.getElementById('subKpiCount');
+    const outEl   = document.getElementById('subKpiOutput');
+    const pickEl  = document.getElementById('subKpiPicker');
+    const sortEl  = document.getElementById('subKpiSorter');
+
+    if (scopeEl) {
+      if (dateFrom || dateTo) {
+        scopeEl.classList.add('period-mode');
+        const label = (dateFrom && dateTo)
+          ? (dateFrom === dateTo ? formatShortIndoDate(dateFrom) : `${formatShortIndoDate(dateFrom)} – ${formatShortIndoDate(dateTo)}`)
+          : (dateFrom ? `Mulai ${formatShortIndoDate(dateFrom)}` : `Sampai ${formatShortIndoDate(dateTo)}`);
+        scopeEl.textContent = `📅 Periode: ${label} (Semua Data)`;
+      } else {
+        scopeEl.classList.remove('period-mode');
+        scopeEl.textContent = '⚡ Mode: 1.000 Data Terbaru';
+      }
+    }
+
+    let totalOutput = 0;
+    let pickerCount = 0;
+    let sorterCount = 0;
+    for (const s of filteredSubmissions) {
+      totalOutput += parseInt(s.jumlah_output) || 0;
+      if (s.posisi === 'Picker') pickerCount++;
+      else if (s.posisi === 'Sorter') sorterCount++;
+    }
+
+    if (countEl) countEl.textContent = filteredSubmissions.length.toLocaleString('id-ID');
+    if (outEl)   outEl.textContent   = totalOutput.toLocaleString('id-ID');
+    if (pickEl)  pickEl.textContent  = pickerCount.toLocaleString('id-ID');
+    if (sortEl)  sortEl.textContent  = sorterCount.toLocaleString('id-ID');
+  }
+
+  async function onSubmissionsDateChange() {
+    let dateFrom = document.getElementById('filterDateFrom')?.value || '';
+    let dateTo   = document.getElementById('filterDateTo')?.value || '';
+
+    // Auto-swap jika user pilih tanggal akhir lebih kecil dari tanggal awal
+    if (dateFrom && dateTo && dateTo < dateFrom) {
+      const tmp = dateFrom;
+      dateFrom = dateTo;
+      dateTo = tmp;
+      const fromEl = document.getElementById('filterDateFrom');
+      const toEl   = document.getElementById('filterDateTo');
+      if (fromEl) fromEl.value = dateFrom;
+      if (toEl)   toEl.value   = dateTo;
+    }
+
+    syncSubmissionsPresetButtons(dateFrom, dateTo);
+    const nextKey = `${dateFrom}|${dateTo}`;
+
+    if (nextKey === submissionsDateRangeKey) {
+      filterTable();
+      return;
+    }
+
+    const reqSeq = ++submissionsRequestSeq;
+    const hasDateFilter = !!(dateFrom || dateTo);
+    setSubmissionsLoading(true);
+    try {
+      const [submissions, pendingSubmissions] = await Promise.all([
+        fetch(buildSubmissionsApiUrl(dateFrom, dateTo)).then(r => {
+          if (!r.ok) throw new Error('Gagal memuat data submissions.');
+          return r.json();
+        }),
+        hasDateFilter
+          ? Promise.resolve([])
+          : fetch('/api/submissions?status=pending&limit=1000').then(r => r.json()).catch(() => [])
+      ]);
+      if (reqSeq !== submissionsRequestSeq) return;
+
+      submissionsDateRangeKey = nextKey;
+      allSubmissions = Array.isArray(submissions) ? submissions : [];
+      if (!hasDateFilter && Array.isArray(pendingSubmissions) && pendingSubmissions.length > 0) {
+        const existingIds = new Set(allSubmissions.map(s => s.id));
+        for (const ps of pendingSubmissions) {
+          if (!existingIds.has(ps.id)) allSubmissions.push(ps);
+        }
+      }
+      allSubmissions = allSubmissions.map(s => ({ ...s, status: s.status || 'approved' }));
+      populateFilterDropdowns();
+      filterTable();
+    } catch (err) {
+      if (reqSeq !== submissionsRequestSeq) return;
+      console.error('onSubmissionsDateChange error:', err);
+      showToast('Gagal mengambil data pada rentang tanggal tersebut.', 'error');
+      filterTable();
+    } finally {
+      if (reqSeq === submissionsRequestSeq) setSubmissionsLoading(false);
+    }
+  }
+
+  function applySubmissionsDatePreset(preset) {
+    const range = getSubmissionsPresetRange(preset);
+    const fromEl = document.getElementById('filterDateFrom');
+    const toEl   = document.getElementById('filterDateTo');
+    if (fromEl) fromEl.value = range.from;
+    if (toEl)   toEl.value   = range.to;
+    onSubmissionsDateChange();
+  }
+
   function filterTable() {
     const q        = (document.getElementById('searchInput')?.value || '').toLowerCase();
     const statusVal = document.getElementById('statusFilterInput')?.value || 'all';
@@ -677,7 +891,9 @@ function showOnscreenError(source, err) {
       return matchSearch && matchStatus && matchPosisi && matchLokasi && matchZona && matchFrom && matchTo;
     });
 
-    // Update active chips + highlight inputs
+    // Update active chips + highlight inputs + preset & summary strip
+    syncSubmissionsPresetButtons(dateFrom, dateTo);
+    updateSubmissionsSummaryStrip(dateFrom, dateTo);
     updateFilterChips({ q, statusVal, posisiVal, lokasiVal, zonaVal, dateFrom, dateTo });
     // Update result info
     const info = document.getElementById('filterResultInfo');
@@ -700,13 +916,15 @@ function showOnscreenError(source, err) {
       const prev = lokasiSel.value;
       lokasiSel.innerHTML = '<option value="all">Semua Lokasi</option>' +
         tipeLokasi.map(t => `<option value="${t}">${t}</option>`).join('');
-      if (prev) lokasiSel.value = prev;
+      lokasiSel.value = (prev && tipeLokasi.includes(prev)) ? prev : 'all';
+      if (typeof lokasiSel._refreshCustomSelect === 'function') lokasiSel._refreshCustomSelect();
     }
     if (zonaSel) {
       const prev = zonaSel.value;
       zonaSel.innerHTML = '<option value="all">Semua Zona</option>' +
         zonas.map(z => `<option value="${z}">Zona ${z}</option>`).join('');
-      if (prev) zonaSel.value = prev;
+      zonaSel.value = (prev && zonas.includes(prev)) ? prev : 'all';
+      if (typeof zonaSel._refreshCustomSelect === 'function') zonaSel._refreshCustomSelect();
     }
   }
 
@@ -725,8 +943,8 @@ function showOnscreenError(source, err) {
     if (statusVal !== 'all') chips.push({ label: `Status: ${statusVal}`, clear: () => {
       const el = document.getElementById('statusFilterInput'); el.value = 'all'; el.dispatchEvent(new Event('change')); filterTable();
     }});
-    if (dateFrom) chips.push({ label: `Dari: ${dateFrom}`, clear: () => { document.getElementById('filterDateFrom').value = ''; filterTable(); } });
-    if (dateTo)   chips.push({ label: `Sampai: ${dateTo}`, clear: () => { document.getElementById('filterDateTo').value = ''; filterTable(); } });
+    if (dateFrom) chips.push({ label: `Dari: ${dateFrom}`, clear: () => { document.getElementById('filterDateFrom').value = ''; onSubmissionsDateChange(); } });
+    if (dateTo)   chips.push({ label: `Sampai: ${dateTo}`, clear: () => { document.getElementById('filterDateTo').value = ''; onSubmissionsDateChange(); } });
 
     const container = document.getElementById('filterActiveChips');
     if (container) {
@@ -773,9 +991,17 @@ function showOnscreenError(source, err) {
     const ids = ['searchInput', 'filterDateFrom', 'filterDateTo'];
     ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     ['filterPosisi', 'filterTipeLokasi', 'filterZona', 'statusFilterInput'].forEach(id => {
-      const el = document.getElementById(id); if (el) el.value = 'all';
+      const el = document.getElementById(id);
+      if (el) {
+        el.value = 'all';
+        if (typeof el._refreshCustomSelect === 'function') el._refreshCustomSelect();
+      }
     });
-    filterTable();
+    if (submissionsDateRangeKey !== '') {
+      onSubmissionsDateChange();
+    } else {
+      filterTable();
+    }
   }
 
   function filterToPending() {
@@ -2820,6 +3046,20 @@ function showOnscreenError(source, err) {
     window.location.href = '/api/export-csv' + (params ? '?' + params : '');
   }
   function getExportFilterParams() {
+    if (typeof currentView !== 'undefined' && currentView === 'submissions') {
+      const mulai  = document.getElementById('filterDateFrom')?.value || '';
+      const akhir  = document.getElementById('filterDateTo')?.value || '';
+      const posisi = document.getElementById('filterPosisi')?.value || 'all';
+      const zona   = document.getElementById('filterZona')?.value || 'all';
+      const status = document.getElementById('statusFilterInput')?.value || 'all';
+      const parts = [];
+      if (mulai) parts.push('tanggal_mulai=' + encodeURIComponent(mulai));
+      if (akhir) parts.push('tanggal_akhir=' + encodeURIComponent(akhir));
+      if (posisi && posisi !== 'all') parts.push('posisi=' + encodeURIComponent(posisi));
+      if (zona && zona !== 'all') parts.push('zona=' + encodeURIComponent(zona));
+      if (status && status !== 'all') parts.push('status=' + encodeURIComponent(status));
+      return parts.join('&');
+    }
     const mulai  = document.getElementById('efTanggalMulai')  ? document.getElementById('efTanggalMulai').value  : '';
     const akhir  = document.getElementById('efTanggalAkhir')  ? document.getElementById('efTanggalAkhir').value  : '';
     const posisi = document.getElementById('efPosisi')         ? document.getElementById('efPosisi').value         : '';
@@ -4467,6 +4707,8 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\\n...\\n-----END 
   window.loadStatusCarian = loadStatusCarian;
   window.openWAModal      = openWAModal;
   window.kirimReminderWA  = kirimReminderWA;
+  window.onSubmissionsDateChange    = onSubmissionsDateChange;
+  window.applySubmissionsDatePreset = applySubmissionsDatePreset;
 
   // ============= WELCOME PAGE =============
   const PAGE_MENU_META = {

@@ -809,24 +809,39 @@
               <button class="btn btn-outline" style="height:36px; padding: 0 14px; font-size:13px;" onclick="exportCSV()">CSV</button>
             </div>
           </div>
-          <div class="filter-panel-body">
-            <!-- Search -->
-            <div class="filter-group">
+
+          <!-- Quick Period Presets -->
+          <div class="sub-preset-bar" id="subPresetBar">
+            <span class="sub-preset-label">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Periode Cepat:
+            </span>
+            <button type="button" class="sub-preset-pill active" data-preset="latest" onclick="applySubmissionsDatePreset('latest')">⚡ Terbaru (1.000)</button>
+            <button type="button" class="sub-preset-pill" data-preset="today" onclick="applySubmissionsDatePreset('today')">Hari Ini</button>
+            <button type="button" class="sub-preset-pill" data-preset="yesterday" onclick="applySubmissionsDatePreset('yesterday')">Kemarin</button>
+            <button type="button" class="sub-preset-pill" data-preset="7d" onclick="applySubmissionsDatePreset('7d')">7 Hari Terakhir</button>
+            <button type="button" class="sub-preset-pill" data-preset="thisMonth" onclick="applySubmissionsDatePreset('thisMonth')">Bulan Ini</button>
+            <button type="button" class="sub-preset-pill" data-preset="lastMonth" onclick="applySubmissionsDatePreset('lastMonth')">Bulan Lalu</button>
+          </div>
+
+          <div class="submissions-filter-grid">
+            <!-- Search (span 2) -->
+            <div class="filter-group filter-group-search">
               <label class="filter-label">Cari</label>
               <div class="search-bar filter-search">
                 <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-                <input type="text" id="searchInput" placeholder="Nama, posisi, zona..." oninput="filterTable()">
+                <input type="text" id="searchInput" placeholder="Nama karyawan, posisi, zona, atau lokasi..." oninput="filterTable()">
               </div>
             </div>
             <!-- Tanggal Dari -->
             <div class="filter-group">
               <label class="filter-label">Tgl Carian Dari</label>
-              <input type="date" id="filterDateFrom" class="filter-input" onchange="filterTable()">
+              <input type="date" id="filterDateFrom" class="filter-input" onchange="onSubmissionsDateChange()">
             </div>
             <!-- Tanggal Sampai -->
             <div class="filter-group">
               <label class="filter-label">Tgl Carian Sampai</label>
-              <input type="date" id="filterDateTo" class="filter-input" onchange="filterTable()">
+              <input type="date" id="filterDateTo" class="filter-input" onchange="onSubmissionsDateChange()">
             </div>
             <!-- Posisi -->
             <div class="filter-group">
@@ -865,7 +880,25 @@
             </div>
           </div>
         </div>
-        <div class="table-header" style="border-top: 1px solid var(--card-border); padding: 14px 24px;">
+
+        <!-- Scope & Live Summary Strip -->
+        <div class="sub-summary-strip" id="submissionsSummaryStrip">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <span class="sub-scope-badge" id="subScopeBadge">⚡ Mode: 1.000 Data Terbaru</span>
+            <span class="sub-loading-badge" id="subLoadingBadge">
+              <span class="sub-mini-spin"></span>
+              Mengambil data server...
+            </span>
+          </div>
+          <div class="sub-kpi-pills" id="subKpiPills">
+            <span class="sub-kpi-pill">Total: <strong id="subKpiCount">0</strong> data</span>
+            <span class="sub-kpi-pill">Output: <strong id="subKpiOutput">0</strong></span>
+            <span class="sub-kpi-pill"><span class="dot" style="background:#3B82F6;"></span>Picker: <strong id="subKpiPicker">0</strong></span>
+            <span class="sub-kpi-pill"><span class="dot" style="background:#10B981;"></span>Sorter: <strong id="subKpiSorter">0</strong></span>
+          </div>
+        </div>
+
+        <div class="table-header" style="border-top: none; padding: 14px 24px;">
           <div class="table-title" style="font-size:14px;">Semua Data Submissions</div>
           <div id="filterResultInfo" style="font-size:12px; color:var(--text-muted);"></div>
         </div>
