@@ -50,6 +50,9 @@ const BORDER_TOTAL = {
   right:  { style: 'thin',   color: { argb: COLORS.borderMed } },
 };
 
+const DETAIL_SHEET = "'Data Detail Submissions'";
+const EMP_SHEET    = "'Rekap Per Karyawan'";
+
 function parseBatches(batchCluster) {
   if (!batchCluster) return [];
   if (Array.isArray(batchCluster)) return batchCluster;
@@ -64,11 +67,17 @@ function parseBatches(batchCluster) {
   }
 }
 
+function toExcelUtcDate(isoStr) {
+  if (!isoStr || !/^\d{4}-\d{2}-\d{2}/.test(String(isoStr))) return null;
+  const [y, m, d] = String(isoStr).slice(0, 10).split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
 function formatMonthLabel(ym) {
   if (!ym || !/^\d{4}-\d{2}$/.test(ym)) return ym || 'Lainnya';
   const [y, m] = ym.split('-').map(Number);
-  const d = new Date(y, m - 1, 1);
-  return d.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' });
+  return new Date(y, m - 1, 1).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' });
 }
 
 function formatIndoDate(isoStr) {
@@ -154,8 +163,12 @@ function autoFitColumns(sheet, colConfigs, extraPad = 4) {
       const v = cell.value;
       if (v === null || v === undefined) return;
       let text = '';
-      if (typeof v === 'object' && v.formula !== undefined) {
-        text = String(v.result !== undefined ? v.result : '000,000');
+      if (v instanceof Date) {
+        text = '2026-10-31';
+      } else if (typeof v === 'object' && v.formula !== undefined) {
+        text = typeof v.result === 'number'
+          ? v.result.toLocaleString('id-ID')
+          : String(v.result !== undefined ? v.result : '000,000');
       } else if (typeof v === 'number') {
         text = v.toLocaleString('id-ID');
       } else {
@@ -237,7 +250,7 @@ function aggregateReportData(submissions, users) {
     const zona = String(s.zona || '-').trim();
     const tipeLokasi = String(s.tipe_lokasi || '-').trim();
     const tgl = s.tanggal_carian ? String(s.tanggal_carian).slice(0, 10) : '';
-    const monthKey = tgl && tgl.length >= 7 ? tgl.slice(0, 7) : 'Lainnya';
+    const monthKey = tgl && /^\d{4}-\d{2}/.test(tgl) ? tgl.slice(0, 7) : 'Lainnya';
     const batches = parseBatches(s.batch_cluster);
     const batchCount = batches.length;
     const output = Number(s.jumlah_output) || 0;
@@ -257,7 +270,7 @@ function aggregateReportData(submissions, users) {
         approved: 0,
         pending: 0,
         rejected: 0,
-        months: {}, // monthKey -> { days: Set, inputs: 0, output: 0, batches: 0 }
+        months: {},
       };
     }
     const emp = byEmployeeRole[empKey];
@@ -285,7 +298,6 @@ function aggregateReportData(submissions, users) {
       emp.months[monthKey].batches += batchCount;
       if (tgl) emp.months[monthKey].days.add(tgl);
 
-      // By Posisi
       if (!byPosisi[posisi]) {
         byPosisi[posisi] = { posisi, employees: new Set(), days: new Set(), inputs: 0, batches: 0, output: 0 };
       }
@@ -295,7 +307,6 @@ function aggregateReportData(submissions, users) {
       byPosisi[posisi].batches += batchCount;
       byPosisi[posisi].output += output;
 
-      // By Zona
       const zonaKey = `${tipeLokasi}|||${zona}|||${posisi}`;
       if (!byZona[zonaKey]) {
         byZona[zonaKey] = { tipeLokasi, zona, posisi, employees: new Set(), inputs: 0, batches: 0, output: 0 };
@@ -333,7 +344,14 @@ function aggregateReportData(submissions, users) {
   };
 }
 
-function buildExecutiveSheet(workbook, data, meta) {
+/**
+ * Helper to create absolute range string on a target sheet.
+ */
+function absRange(sheetRef, col, startRow, endRow) {
+  return `${sheetRef}!$${col}$${startRow}:$${col}$${endRow}`;
+}
+
+function buildExecutiveSheet(workbook, data, meta, refs) {
   const ws = workbook.addWorksheet('Ringkasan Eksekutif', {
     properties: { tabColor: { argb: COLORS.navyMid } },
     views: [{ showGridLines: true }],
@@ -345,17 +363,68 @@ function buildExecutiveSheet(workbook, data, meta) {
     'LAPORAN PENCAPAIAN KINERJA OPERASIONAL — DC SS08',
     `Periode: ${meta.periodLabel}   |   Filter: ${meta.filterText}   |   Dicetak: ${meta.printedAt}`
   );
-
-  // Spacer
   ws.getRow(3).height = 10;
 
-  // ===== KPI CARDS (Rows 4-6, 4 cards across cols A-B, C-D, E-F, G-I) =====
+  const hasDetail = refs.detailEndRow >= refs.detailStartRow;
+  const hasEmp    = refs.empEndRow >= refs.empStartRow;
+
+  const dNama   = absRange(DETAIL_SHEET, 'D', refs.detailStartRow, refs.detailEndRow);
+  const dPosisi = absRange(DETAIL_SHEET, 'G', refs.detailStartRow, refs.detailEndRow);
+  const dLokasi = absRange(DETAIL_SHEET, 'H', refs.detailStartRow, refs.detailEndRow);
+  const dZona   = absRange(DETAIL_SHEET, 'I', refs.detailStartRow, refs.detailEndRow);
+  const dBatch  = absRange(DETAIL_SHEET, 'K', refs.detailStartRow, refs.detailEndRow);
+  const dOutput = absRange(DETAIL_SHEET, 'L', refs.detailStartRow, refs.detailEndRow);
+  const dStatus = absRange(DETAIL_SHEET, 'M', refs.detailStartRow, refs.detailEndRow);
+
+  const eNama   = absRange(EMP_SHEET, 'B', refs.empStartRow, refs.empEndRow);
+  const ePosisi = absRange(EMP_SHEET, 'E', refs.empStartRow, refs.empEndRow);
+  const eValid  = absRange(EMP_SHEET, 'G', refs.empStartRow, refs.empEndRow);
+
+  // ===== KPI CARDS (Rows 4-6) — Pure Formulas + Cached Results =====
   const approvalRate = data.totalInputAll > 0 ? data.totalApproved / data.totalInputAll : 0;
   const kpis = [
-    { start: 1, end: 2, label: 'KARYAWAN AKTIF INPUT', value: `${data.activeEmployeesCount.toLocaleString('id-ID')} Orang`, sub: `${data.activeDaysCount} Hari Kerja Tercatat`, accent: COLORS.royalBlue, bg: 'FFEFF6FF' },
-    { start: 3, end: 4, label: 'TOTAL INPUT / ENTRI',  value: `${data.totalInputAll.toLocaleString('id-ID')} Entri`, sub: `Approved: ${data.totalApproved} • Pending: ${data.totalPending} • Rejected: ${data.totalRejected}`, accent: 'FF4F46E5', bg: 'FFEEF2FF' },
-    { start: 5, end: 6, label: 'TOTAL OUTPUT (VALID)', value: data.totalOutputValid.toLocaleString('id-ID'), sub: `Total Batch Dikerjakan: ${data.totalBatchValid.toLocaleString('id-ID')}`, accent: COLORS.emerald, bg: 'FFECFDF5' },
-    { start: 7, end: 9, label: 'TINGKAT APPROVAL',     value: `${(approvalRate * 100).toFixed(1)}%`, sub: `Rata2 Valid: ${(data.activeDaysCount ? data.totalOutputValid / data.activeDaysCount : 0).toLocaleString('id-ID', { maximumFractionDigits: 0 })} Output / Hari`, accent: 'FFD97706', bg: 'FFFFFBEB' },
+    {
+      start: 1, end: 2,
+      label: 'KARYAWAN AKTIF INPUT',
+      value: hasEmp
+        ? { formula: `SUMPRODUCT(1/COUNTIF(${eNama},${eNama}))`, result: data.activeEmployeesCount }
+        : 0,
+      numFmt: '#,##0 "Orang"',
+      sub: `${data.activeDaysCount} Hari Kerja Tercatat`,
+      accent: COLORS.royalBlue, bg: 'FFEFF6FF',
+    },
+    {
+      start: 3, end: 4,
+      label: 'TOTAL INPUT / ENTRI',
+      value: hasDetail
+        ? { formula: `COUNTA(${dNama})`, result: data.totalInputAll }
+        : 0,
+      numFmt: '#,##0 "Entri"',
+      sub: `Approved: ${data.totalApproved} • Pending: ${data.totalPending} • Rejected: ${data.totalRejected}`,
+      accent: 'FF4F46E5', bg: 'FFEEF2FF',
+    },
+    {
+      start: 5, end: 6,
+      label: 'TOTAL OUTPUT (VALID)',
+      value: hasDetail
+        ? { formula: `SUMIFS(${dOutput},${dStatus},"<>Rejected")`, result: data.totalOutputValid }
+        : 0,
+      numFmt: '#,##0',
+      sub: hasDetail
+        ? { formula: `"Total Batch: "&TEXT(SUMIFS(${dBatch},${dStatus},"<>Rejected"),"#,##0")`, result: `Total Batch: ${data.totalBatchValid.toLocaleString('id-ID')}` }
+        : 'Total Batch: 0',
+      accent: COLORS.emerald, bg: 'FFECFDF5',
+    },
+    {
+      start: 7, end: 9,
+      label: 'TINGKAT APPROVAL',
+      value: hasDetail
+        ? { formula: `IFERROR(COUNTIF(${dStatus},"Approved")/COUNTA(${dStatus}),0)`, result: approvalRate }
+        : 0,
+      numFmt: '0.0%',
+      sub: `Rata2 Valid: ${(data.activeDaysCount ? data.totalOutputValid / data.activeDaysCount : 0).toLocaleString('id-ID', { maximumFractionDigits: 0 })} Output / Hari`,
+      accent: 'FFD97706', bg: 'FFFFFBEB',
+    },
   ];
 
   ws.getRow(4).height = 18;
@@ -389,6 +458,7 @@ function buildExecutiveSheet(workbook, data, meta) {
 
     const valCell = ws.getRow(5).getCell(k.start);
     valCell.value = k.value;
+    valCell.numFmt = k.numFmt;
     valCell.font = { name: FONT_NAME, size: 16, bold: true, color: { argb: COLORS.navy } };
     valCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
@@ -400,7 +470,6 @@ function buildExecutiveSheet(workbook, data, meta) {
 
   let curRow = 8;
 
-  // Helper to render section title
   const addSectionTitle = (text, colsCount) => {
     ws.mergeCells(`A${curRow}:${colLetter(colsCount)}${curRow}`);
     const r = ws.getRow(curRow);
@@ -409,13 +478,16 @@ function buildExecutiveSheet(workbook, data, meta) {
     c.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: COLORS.navyMid } };
     c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
     c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-    c.border = { left: { style: 'thick', color: { argb: COLORS.royalBlue } }, bottom: { style: 'thin', color: { argb: COLORS.borderMed } } };
+    c.border = {
+      left: { style: 'thick', color: { argb: COLORS.royalBlue } },
+      bottom: { style: 'thin', color: { argb: COLORS.borderMed } },
+    };
     r.height = 24;
     curRow++;
   };
 
-  // ===== SECTION 1: RINGKASAN PER POSISI =====
-  addSectionTitle('A. RINGKASAN PENCAPAIAN PER POSISI', 9);
+  // ===== SECTION A: RINGKASAN PER POSISI =====
+  addSectionTitle('A. RINGKASAN PENCAPAIAN PER POSISI (RUMUS OTOMATIS)', 9);
   const posHeaders = ['No', 'Posisi', 'Jml Karyawan', 'Hari Aktif', 'Jml Input', 'Total Batch', 'Total Output', 'Rata2 / Input', 'Kontribusi (%)'];
   const posHeaderRow = ws.getRow(curRow);
   posHeaders.forEach((h, i) => {
@@ -435,13 +507,31 @@ function buildExecutiveSheet(workbook, data, meta) {
     ws.getRow(curRow).getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
     curRow++;
   } else {
+    const posStartRow = curRow;
+    const posEndRow = curRow + data.posisiList.length - 1;
+    const posTotRow = posEndRow + 1;
+
     data.posisiList.forEach((p, idx) => {
       const r = ws.getRow(curRow);
       const bg = idx % 2 === 0 ? COLORS.zebraEven : COLORS.zebraOdd;
       const contrib = data.totalOutputValid > 0 ? p.output / data.totalOutputValid : 0;
       const avgInput = p.inputs > 0 ? p.output / p.inputs : 0;
-      const vals = [idx + 1, p.posisi, p.employees.size, p.days.size, p.inputs, p.batches, p.output, avgInput, contrib];
-      vals.forEach((v, cIdx) => {
+
+      const rowVals = [
+        idx + 1,
+        p.posisi,
+        hasEmp
+          ? { formula: `COUNTIFS(${ePosisi},B${curRow},${eValid},">0")`, result: p.employees.size }
+          : p.employees.size,
+        p.days.size,
+        { formula: `COUNTIFS(${dPosisi},B${curRow},${dStatus},"<>Rejected")`, result: p.inputs },
+        { formula: `SUMIFS(${dBatch},${dPosisi},B${curRow},${dStatus},"<>Rejected")`, result: p.batches },
+        { formula: `SUMIFS(${dOutput},${dPosisi},B${curRow},${dStatus},"<>Rejected")`, result: p.output },
+        { formula: `IFERROR(G${curRow}/E${curRow},0)`, result: avgInput },
+        { formula: `IFERROR(G${curRow}/$G$${posTotRow},0)`, result: contrib },
+      ];
+
+      rowVals.forEach((v, cIdx) => {
         const cell = r.getCell(cIdx + 1);
         cell.value = v;
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
@@ -452,11 +542,7 @@ function buildExecutiveSheet(workbook, data, meta) {
       const posBadge = getPosisiStyle(p.posisi);
       r.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: posBadge.bg } };
       r.getCell(2).font = { name: FONT_NAME, size: 10, bold: true, color: { argb: posBadge.fg } };
-      r.getCell(3).numFmt = '#,##0';
-      r.getCell(4).numFmt = '#,##0';
-      r.getCell(5).numFmt = '#,##0';
-      r.getCell(6).numFmt = '#,##0';
-      r.getCell(7).numFmt = '#,##0';
+      [3, 4, 5, 6, 7].forEach(c => { r.getCell(c).numFmt = '#,##0'; });
       r.getCell(7).font = { name: FONT_NAME, size: 10, bold: true, color: { argb: COLORS.navy } };
       r.getCell(8).numFmt = '#,##0.0';
       r.getCell(9).numFmt = '0.0%';
@@ -465,23 +551,33 @@ function buildExecutiveSheet(workbook, data, meta) {
     });
 
     // Total Row Posisi
-    const totR = ws.getRow(curRow);
-    const totVals = ['TOTAL', '', data.activeEmployeesCount, data.activeDaysCount, data.posisiList.reduce((s, x) => s + x.inputs, 0), data.totalBatchValid, data.totalOutputValid, data.totalInputAll > 0 ? data.totalOutputValid / data.posisiList.reduce((s, x) => s + x.inputs, 0) : 0, 1];
-    totVals.forEach((v, cIdx) => {
-      const cell = totR.getCell(cIdx + 1);
-      cell.value = v;
+    const totR = ws.getRow(posTotRow);
+    const totalValidInputs = data.posisiList.reduce((s, x) => s + x.inputs, 0);
+    const totAvgInput = totalValidInputs > 0 ? data.totalOutputValid / totalValidInputs : 0;
+
+    for (let c = 1; c <= 9; c++) {
+      const cell = totR.getCell(c);
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.totalBg } };
       cell.font = { name: FONT_NAME, size: 10, bold: true, color: { argb: COLORS.totalFg } };
       cell.border = BORDER_TOTAL;
-      cell.alignment = { vertical: 'middle', horizontal: cIdx <= 1 ? 'center' : 'right' };
-    });
-    ws.mergeCells(`A${curRow}:B${curRow}`);
+      cell.alignment = { vertical: 'middle', horizontal: c <= 2 ? 'center' : 'right' };
+    }
+    ws.mergeCells(`A${posTotRow}:B${posTotRow}`);
+    totR.getCell(1).value = 'TOTAL';
+    totR.getCell(3).value = hasEmp
+      ? { formula: `SUMPRODUCT(1/COUNTIF(${eNama},${eNama}))`, result: data.activeEmployeesCount }
+      : data.activeEmployeesCount;
     totR.getCell(3).numFmt = '#,##0';
+    totR.getCell(4).value = data.activeDaysCount;
     totR.getCell(4).numFmt = '#,##0';
-    totR.getCell(5).numFmt = '#,##0';
-    totR.getCell(6).numFmt = '#,##0';
-    totR.getCell(7).numFmt = '#,##0';
+    ['E', 'F', 'G'].forEach((l, i) => {
+      const cached = [totalValidInputs, data.totalBatchValid, data.totalOutputValid][i];
+      totR.getCell(i + 5).value = { formula: `SUM(${l}${posStartRow}:${l}${posEndRow})`, result: cached };
+      totR.getCell(i + 5).numFmt = '#,##0';
+    });
+    totR.getCell(8).value = { formula: `IFERROR(G${posTotRow}/E${posTotRow},0)`, result: totAvgInput };
     totR.getCell(8).numFmt = '#,##0.0';
+    totR.getCell(9).value = { formula: `SUM(I${posStartRow}:I${posEndRow})`, result: 1 };
     totR.getCell(9).numFmt = '0.0%';
     totR.height = 22;
     curRow++;
@@ -489,8 +585,8 @@ function buildExecutiveSheet(workbook, data, meta) {
 
   curRow += 1;
 
-  // ===== SECTION 2: TOP 10 KARYAWAN OUTPUT TERTINGGI =====
-  addSectionTitle('B. TOP 10 KARYAWAN OUTPUT TERTINGGI (VALID / NON-REJECTED)', 9);
+  // ===== SECTION B: TOP 10 KARYAWAN (LINKED LIVE TO REKAP PER KARYAWAN) =====
+  addSectionTitle('B. TOP 10 KARYAWAN OUTPUT TERTINGGI (TERHUBUNG KE REKAP PER KARYAWAN)', 9);
   const topHeaders = ['Rank', 'Nama Karyawan', 'NIK', 'Tipe', 'Posisi', 'Hari Aktif', 'Jml Input', 'Total Output', 'Rata2 / Hari'];
   const topHeaderRow = ws.getRow(curRow);
   topHeaders.forEach((h, i) => {
@@ -514,9 +610,21 @@ function buildExecutiveSheet(workbook, data, meta) {
     top10.forEach((e, idx) => {
       const r = ws.getRow(curRow);
       const bg = idx % 2 === 0 ? COLORS.zebraEven : COLORS.zebraOdd;
+      const empRow = refs.empStartRow + idx;
       const daysCount = e.validDays.size;
       const avgDay = daysCount > 0 ? e.totalOutput / daysCount : 0;
-      const vals = [idx + 1, e.nama, e.nik, e.tipe_karyawan, e.posisi, daysCount, e.validInputs, e.totalOutput, avgDay];
+
+      const vals = [
+        idx + 1,
+        { formula: `${EMP_SHEET}!B${empRow}`, result: e.nama },
+        { formula: `${EMP_SHEET}!C${empRow}`, result: e.nik },
+        { formula: `${EMP_SHEET}!D${empRow}`, result: e.tipe_karyawan },
+        { formula: `${EMP_SHEET}!E${empRow}`, result: e.posisi },
+        { formula: `${EMP_SHEET}!F${empRow}`, result: daysCount },
+        { formula: `${EMP_SHEET}!G${empRow}`, result: e.validInputs },
+        { formula: `${EMP_SHEET}!I${empRow}`, result: e.totalOutput },
+        { formula: `IFERROR(H${curRow}/F${curRow},0)`, result: avgDay },
+      ];
       vals.forEach((v, cIdx) => {
         const cell = r.getCell(cIdx + 1);
         cell.value = v;
@@ -536,9 +644,7 @@ function buildExecutiveSheet(workbook, data, meta) {
       r.getCell(5).font = { name: FONT_NAME, size: 10, bold: true, color: { argb: posBadge.fg } };
       r.getCell(1).font = { name: FONT_NAME, size: 10, bold: idx < 3, color: { argb: idx < 3 ? COLORS.navyMid : COLORS.bodyText } };
       r.getCell(2).font = { name: FONT_NAME, size: 10, bold: true, color: { argb: COLORS.bodyText } };
-      r.getCell(6).numFmt = '#,##0';
-      r.getCell(7).numFmt = '#,##0';
-      r.getCell(8).numFmt = '#,##0';
+      [6, 7, 8].forEach(c => { r.getCell(c).numFmt = '#,##0'; });
       r.getCell(8).font = { name: FONT_NAME, size: 10, bold: true, color: { argb: COLORS.emerald } };
       r.getCell(9).numFmt = '#,##0.0';
       r.height = 20;
@@ -548,8 +654,8 @@ function buildExecutiveSheet(workbook, data, meta) {
 
   curRow += 1;
 
-  // ===== SECTION 3: RINGKASAN PER ZONA & TIPE LOKASI =====
-  addSectionTitle('C. RINGKASAN DISTRIBUSI PER ZONA & TIPE LOKASI', 9);
+  // ===== SECTION C: RINGKASAN DISTRIBUSI PER ZONA & TIPE LOKASI =====
+  addSectionTitle('C. RINGKASAN DISTRIBUSI PER ZONA & TIPE LOKASI (RUMUS OTOMATIS)', 9);
   const zonaHeaders = ['No', 'Posisi', 'Tipe Lokasi', 'Zona', 'Jml Karyawan', 'Jml Input', 'Total Batch', 'Total Output', 'Kontribusi (%)'];
   const zHeaderRow = ws.getRow(curRow);
   zonaHeaders.forEach((h, i) => {
@@ -563,39 +669,78 @@ function buildExecutiveSheet(workbook, data, meta) {
   zHeaderRow.height = 22;
   curRow++;
 
-  data.zonaList.forEach((z, idx) => {
-    const r = ws.getRow(curRow);
-    const bg = idx % 2 === 0 ? COLORS.zebraEven : COLORS.zebraOdd;
-    const contrib = data.totalOutputValid > 0 ? z.output / data.totalOutputValid : 0;
-    const vals = [idx + 1, z.posisi, z.tipeLokasi, z.zona, z.employees.size, z.inputs, z.batches, z.output, contrib];
-    vals.forEach((v, cIdx) => {
-      const cell = r.getCell(cIdx + 1);
-      cell.value = v;
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
-      cell.font = { name: FONT_NAME, size: 10, color: { argb: COLORS.bodyText } };
-      cell.border = BORDER_THIN;
-      cell.alignment = { vertical: 'middle', horizontal: cIdx <= 3 ? 'center' : 'right' };
-    });
-    const posBadge = getPosisiStyle(z.posisi);
-    r.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: posBadge.bg } };
-    r.getCell(2).font = { name: FONT_NAME, size: 10, bold: true, color: { argb: posBadge.fg } };
-    r.getCell(5).numFmt = '#,##0';
-    r.getCell(6).numFmt = '#,##0';
-    r.getCell(7).numFmt = '#,##0';
-    r.getCell(8).numFmt = '#,##0';
-    r.getCell(8).font = { name: FONT_NAME, size: 10, bold: true, color: { argb: COLORS.navy } };
-    r.getCell(9).numFmt = '0.0%';
-    r.height = 20;
-    curRow++;
-  });
+  if (data.zonaList.length > 0) {
+    const zStartRow = curRow;
+    const zEndRow = curRow + data.zonaList.length - 1;
+    const zTotRow = zEndRow + 1;
 
-  // Set clean column widths for Executive Sheet
+    data.zonaList.forEach((z, idx) => {
+      const r = ws.getRow(curRow);
+      const bg = idx % 2 === 0 ? COLORS.zebraEven : COLORS.zebraOdd;
+      const contrib = data.totalOutputValid > 0 ? z.output / data.totalOutputValid : 0;
+
+      const vals = [
+        idx + 1,
+        z.posisi,
+        z.tipeLokasi,
+        z.zona,
+        z.employees.size,
+        { formula: `COUNTIFS(${dPosisi},B${curRow},${dLokasi},C${curRow},${dZona},D${curRow},${dStatus},"<>Rejected")`, result: z.inputs },
+        { formula: `SUMIFS(${dBatch},${dPosisi},B${curRow},${dLokasi},C${curRow},${dZona},D${curRow},${dStatus},"<>Rejected")`, result: z.batches },
+        { formula: `SUMIFS(${dOutput},${dPosisi},B${curRow},${dLokasi},C${curRow},${dZona},D${curRow},${dStatus},"<>Rejected")`, result: z.output },
+        { formula: `IFERROR(H${curRow}/$H$${zTotRow},0)`, result: contrib },
+      ];
+      vals.forEach((v, cIdx) => {
+        const cell = r.getCell(cIdx + 1);
+        cell.value = v;
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+        cell.font = { name: FONT_NAME, size: 10, color: { argb: COLORS.bodyText } };
+        cell.border = BORDER_THIN;
+        cell.alignment = { vertical: 'middle', horizontal: cIdx <= 3 ? 'center' : 'right' };
+      });
+      const posBadge = getPosisiStyle(z.posisi);
+      r.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: posBadge.bg } };
+      r.getCell(2).font = { name: FONT_NAME, size: 10, bold: true, color: { argb: posBadge.fg } };
+      [5, 6, 7, 8].forEach(c => { r.getCell(c).numFmt = '#,##0'; });
+      r.getCell(8).font = { name: FONT_NAME, size: 10, bold: true, color: { argb: COLORS.navy } };
+      r.getCell(9).numFmt = '0.0%';
+      r.height = 20;
+      curRow++;
+    });
+
+    // Total Row Zona
+    const zTotR = ws.getRow(zTotRow);
+    ws.mergeCells(`A${zTotRow}:D${zTotRow}`);
+    for (let c = 1; c <= 9; c++) {
+      const cell = zTotR.getCell(c);
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.totalBg } };
+      cell.font = { name: FONT_NAME, size: 10, bold: true, color: { argb: COLORS.totalFg } };
+      cell.border = BORDER_TOTAL;
+      cell.alignment = { vertical: 'middle', horizontal: c <= 4 ? 'center' : 'right' };
+    }
+    zTotR.getCell(1).value = 'TOTAL DISTRIBUSI ZONA';
+    zTotR.getCell(5).value = data.activeEmployeesCount;
+    zTotR.getCell(5).numFmt = '#,##0';
+    ['F', 'G', 'H'].forEach((l, i) => {
+      const cached = [
+        data.zonaList.reduce((s, x) => s + x.inputs, 0),
+        data.totalBatchValid,
+        data.totalOutputValid,
+      ][i];
+      zTotR.getCell(i + 6).value = { formula: `SUM(${l}${zStartRow}:${l}${zEndRow})`, result: cached };
+      zTotR.getCell(i + 6).numFmt = '#,##0';
+    });
+    zTotR.getCell(9).value = { formula: `SUM(I${zStartRow}:I${zEndRow})`, result: 1 };
+    zTotR.getCell(9).numFmt = '0.0%';
+    zTotR.height = 22;
+  }
+
   const widths = [8, 28, 16, 16, 15, 14, 15, 16, 16];
   widths.forEach((w, i) => { ws.getColumn(i + 1).width = w; });
   applyPrintSetup(ws, true);
 }
 
-function buildEmployeeSummarySheet(workbook, data, meta) {
+function buildEmployeeSummarySheet(workbook, data, meta, refs) {
   const ws = workbook.addWorksheet('Rekap Per Karyawan', {
     properties: { tabColor: { argb: COLORS.royalBlue } },
     views: [{ state: 'frozen', ySplit: 4, xSplit: 2, showGridLines: true }],
@@ -623,7 +768,7 @@ function buildEmployeeSummarySheet(workbook, data, meta) {
     ws,
     cols.length,
     'REKAP PENCAPAIAN PER KARYAWAN — DC SS08',
-    `Periode: ${meta.periodLabel}   |   Diurutkan berdasarkan Total Output tertinggi (Output dihitung dari status non-Rejected)`
+    `Periode: ${meta.periodLabel}   |   Seluruh metrik dihitung otomatis dengan rumus COUNTIFS / SUMIFS dari sheet Data Detail Submissions`
   );
   ws.getRow(3).height = 8;
 
@@ -639,7 +784,16 @@ function buildEmployeeSummarySheet(workbook, data, meta) {
   });
   headerRow.height = 25;
 
-  const startDataRow = 5;
+  const dNama   = absRange(DETAIL_SHEET, 'D', refs.detailStartRow, refs.detailEndRow);
+  const dPosisi = absRange(DETAIL_SHEET, 'G', refs.detailStartRow, refs.detailEndRow);
+  const dBatch  = absRange(DETAIL_SHEET, 'K', refs.detailStartRow, refs.detailEndRow);
+  const dOutput = absRange(DETAIL_SHEET, 'L', refs.detailStartRow, refs.detailEndRow);
+  const dStatus = absRange(DETAIL_SHEET, 'M', refs.detailStartRow, refs.detailEndRow);
+
+  const startDataRow = refs.empStartRow;
+  const endDataRow   = refs.empEndRow;
+  const totalRowNum  = endDataRow + 1;
+
   data.employeeList.forEach((e, idx) => {
     const rowNum = startDataRow + idx;
     const r = ws.getRow(rowNum);
@@ -656,15 +810,15 @@ function buildEmployeeSummarySheet(workbook, data, meta) {
       e.tipe_karyawan,
       e.posisi,
       daysCount,
-      e.validInputs,
-      e.totalBatch,
-      e.totalOutput,
-      avgDay,
-      avgInput,
-      contrib,
-      e.approved,
-      e.pending,
-      e.rejected,
+      { formula: `COUNTIFS(${dNama},B${rowNum},${dPosisi},E${rowNum},${dStatus},"<>Rejected")`, result: e.validInputs },
+      { formula: `SUMIFS(${dBatch},${dNama},B${rowNum},${dPosisi},E${rowNum},${dStatus},"<>Rejected")`, result: e.totalBatch },
+      { formula: `SUMIFS(${dOutput},${dNama},B${rowNum},${dPosisi},E${rowNum},${dStatus},"<>Rejected")`, result: e.totalOutput },
+      { formula: `IFERROR(I${rowNum}/F${rowNum},0)`, result: avgDay },
+      { formula: `IFERROR(I${rowNum}/G${rowNum},0)`, result: avgInput },
+      { formula: `IFERROR(I${rowNum}/$I$${totalRowNum},0)`, result: contrib },
+      { formula: `COUNTIFS(${dNama},B${rowNum},${dPosisi},E${rowNum},${dStatus},"Approved")`, result: e.approved },
+      { formula: `COUNTIFS(${dNama},B${rowNum},${dPosisi},E${rowNum},${dStatus},"Pending")`, result: e.pending },
+      { formula: `COUNTIFS(${dNama},B${rowNum},${dPosisi},E${rowNum},${dStatus},"Rejected")`, result: e.rejected },
     ];
 
     vals.forEach((v, cIdx) => {
@@ -698,8 +852,6 @@ function buildEmployeeSummarySheet(workbook, data, meta) {
   });
 
   if (data.employeeList.length > 0) {
-    const endDataRow = startDataRow + data.employeeList.length - 1;
-    const totalRowNum = endDataRow + 1;
     const totR = ws.getRow(totalRowNum);
     ws.mergeCells(`A${totalRowNum}:E${totalRowNum}`);
 
@@ -713,16 +865,27 @@ function buildEmployeeSummarySheet(workbook, data, meta) {
     totR.getCell(1).value = `GRAND TOTAL (${data.employeeList.length} Baris)`;
     totR.getCell(6).value = data.activeDaysCount;
     totR.getCell(6).numFmt = '#,##0';
+
+    const cachedSums = {
+      7:  data.employeeList.reduce((s, x) => s + x.validInputs, 0),
+      8:  data.totalBatchValid,
+      9:  data.totalOutputValid,
+      13: data.totalApproved,
+      14: data.totalPending,
+      15: data.totalRejected,
+    };
     [7, 8, 9, 13, 14, 15].forEach(c => {
       const l = colLetter(c);
-      totR.getCell(c).value = { formula: `SUM(${l}${startDataRow}:${l}${endDataRow})` };
+      totR.getCell(c).value = { formula: `SUM(${l}${startDataRow}:${l}${endDataRow})`, result: cachedSums[c] };
       totR.getCell(c).numFmt = '#,##0';
     });
-    totR.getCell(10).value = { formula: `IF(F${totalRowNum}>0,I${totalRowNum}/F${totalRowNum},0)` };
+    const totAvgDay = data.activeDaysCount > 0 ? data.totalOutputValid / data.activeDaysCount : 0;
+    const totAvgInp = cachedSums[7] > 0 ? data.totalOutputValid / cachedSums[7] : 0;
+    totR.getCell(10).value = { formula: `IFERROR(I${totalRowNum}/F${totalRowNum},0)`, result: totAvgDay };
     totR.getCell(10).numFmt = '#,##0.0';
-    totR.getCell(11).value = { formula: `IF(G${totalRowNum}>0,I${totalRowNum}/G${totalRowNum},0)` };
+    totR.getCell(11).value = { formula: `IFERROR(I${totalRowNum}/G${totalRowNum},0)`, result: totAvgInp };
     totR.getCell(11).numFmt = '#,##0.0';
-    totR.getCell(12).value = { formula: `SUM(L${startDataRow}:L${endDataRow})` };
+    totR.getCell(12).value = { formula: `SUM(L${startDataRow}:L${endDataRow})`, result: 1 };
     totR.getCell(12).numFmt = '0.0%';
     totR.height = 23;
 
@@ -736,7 +899,7 @@ function buildEmployeeSummarySheet(workbook, data, meta) {
   applyPrintSetup(ws, true);
 }
 
-function buildMonthlyPerPersonSheet(workbook, data, meta) {
+function buildMonthlyPerPersonSheet(workbook, data, meta, refs) {
   const ws = workbook.addWorksheet('Rekap Bulanan Per Orang', {
     properties: { tabColor: { argb: COLORS.emerald } },
     views: [{ state: 'frozen', ySplit: 5, xSplit: 5, showGridLines: true }],
@@ -751,15 +914,13 @@ function buildMonthlyPerPersonSheet(workbook, data, meta) {
     { header: 'Posisi',        minWidth: 12 },
   ];
 
-  // Each month has 3 columns: Hari Aktif, Jml Input, Total Output
-  // Right summary has 4 columns: Hari Aktif, Total Input, Total Output, Rata2/Input
   const totalCols = fixedCols.length + months.length * 3 + 4;
 
   applyBanner(
     ws,
     totalCols,
     'MATRIKS INPUT & OUTPUT BULANAN PER KARYAWAN — DC SS08',
-    `Periode: ${meta.periodLabel}   |   Menampilkan jumlah hari aktif, berapa kali input, & total output per orang setiap bulan`
+    `Periode: ${meta.periodLabel}   |   Setiap kolom Input & Output bulanan memakai rumus COUNTIFS / SUMIFS otomatis`
   );
   ws.getRow(3).height = 8;
 
@@ -768,7 +929,6 @@ function buildMonthlyPerPersonSheet(workbook, data, meta) {
   rGroup.height = 22;
   rSub.height = 21;
 
-  // Fixed left headers merged vertically across rows 4-5
   fixedCols.forEach((fc, idx) => {
     const colL = colLetter(idx + 1);
     ws.mergeCells(`${colL}4:${colL}5`);
@@ -782,7 +942,6 @@ function buildMonthlyPerPersonSheet(workbook, data, meta) {
     rGroup.getCell(idx + 1).value = fc.header;
   });
 
-  // Dynamic month groups
   const monthColors = [COLORS.emerald, COLORS.teal, 'FF0369A1', 'FF4338CA'];
   let curCol = fixedCols.length + 1;
 
@@ -801,8 +960,7 @@ function buildMonthlyPerPersonSheet(workbook, data, meta) {
     }
     rGroup.getCell(curCol).value = formatMonthLabel(m).toUpperCase();
 
-    const subLabels = ['Hari', 'Jml Input', 'Output'];
-    subLabels.forEach((lbl, sIdx) => {
+    ['Hari', 'Jml Input', 'Output'].forEach((lbl, sIdx) => {
       const subCell = rSub.getCell(curCol + sIdx);
       subCell.value = lbl;
       subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: mColor } };
@@ -813,7 +971,6 @@ function buildMonthlyPerPersonSheet(workbook, data, meta) {
     curCol += 3;
   });
 
-  // Total Periode group (4 cols)
   const totStartCol = curCol;
   ws.mergeCells(`${colLetter(totStartCol)}4:${colLetter(totStartCol + 3)}4`);
   for (let c = totStartCol; c <= totStartCol + 3; c++) {
@@ -834,7 +991,12 @@ function buildMonthlyPerPersonSheet(workbook, data, meta) {
     subCell.border = BORDER_THIN;
   });
 
-  // Data rows
+  const dTgl    = absRange(DETAIL_SHEET, 'B', refs.detailStartRow, refs.detailEndRow);
+  const dNama   = absRange(DETAIL_SHEET, 'D', refs.detailStartRow, refs.detailEndRow);
+  const dPosisi = absRange(DETAIL_SHEET, 'G', refs.detailStartRow, refs.detailEndRow);
+  const dOutput = absRange(DETAIL_SHEET, 'L', refs.detailStartRow, refs.detailEndRow);
+  const dStatus = absRange(DETAIL_SHEET, 'M', refs.detailStartRow, refs.detailEndRow);
+
   const validEmployees = data.employeeList.filter(e => e.validInputs > 0);
   const startDataRow = 6;
 
@@ -858,33 +1020,72 @@ function buildMonthlyPerPersonSheet(workbook, data, meta) {
     r.getCell(5).font = { name: FONT_NAME, size: 10, bold: true, color: { argb: posStyle.fg } };
 
     let cPtr = fixedCols.length + 1;
+    const dayColLetters = [];
+    const inpColLetters = [];
+    const outColLetters = [];
+
     months.forEach(m => {
       const md = e.months[m];
       const daysVal = md ? md.days.size : 0;
       const inpVal  = md ? md.inputs : 0;
       const outVal  = md ? md.output : 0;
 
-      const vals = [daysVal, inpVal, outVal];
-      vals.forEach((v, sIdx) => {
+      const dayL = colLetter(cPtr);
+      const inpL = colLetter(cPtr + 1);
+      const outL = colLetter(cPtr + 2);
+      dayColLetters.push(`${dayL}${rowNum}`);
+      inpColLetters.push(`${inpL}${rowNum}`);
+      outColLetters.push(`${outL}${rowNum}`);
+
+      const isYm = /^\d{4}-\d{2}$/.test(m);
+      let inpCellVal = inpVal;
+      let outCellVal = outVal;
+
+      if (isYm && refs.detailEndRow >= refs.detailStartRow) {
+        const [yy, mm] = m.split('-').map(Number);
+        const lastDay = new Date(yy, mm, 0).getDate();
+        const dateStartExpr = `">="&DATE(${yy},${mm},1)`;
+        const dateEndExpr   = `"<="&DATE(${yy},${mm},${lastDay})`;
+
+        inpCellVal = {
+          formula: `COUNTIFS(${dNama},$B${rowNum},${dPosisi},$E${rowNum},${dTgl},${dateStartExpr},${dTgl},${dateEndExpr},${dStatus},"<>Rejected")`,
+          result: inpVal,
+        };
+        outCellVal = {
+          formula: `SUMIFS(${dOutput},${dNama},$B${rowNum},${dPosisi},$E${rowNum},${dTgl},${dateStartExpr},${dTgl},${dateEndExpr},${dStatus},"<>Rejected")`,
+          result: outVal,
+        };
+      }
+
+      [daysVal, inpCellVal, outCellVal].forEach((v, sIdx) => {
         const cell = r.getCell(cPtr + sIdx);
         cell.value = v;
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
         cell.border = BORDER_THIN;
         cell.alignment = { vertical: 'middle', horizontal: 'right' };
-        cell.numFmt = v === 0 ? '"-"' : '#,##0';
+        cell.numFmt = '#,##0;-#,##0;"-"';
+        const numericVal = sIdx === 0 ? daysVal : (sIdx === 1 ? inpVal : outVal);
         cell.font = {
           name: FONT_NAME,
           size: 10,
-          bold: sIdx === 2 && v > 0,
-          color: { argb: v === 0 ? COLORS.mutedText : (sIdx === 2 ? COLORS.emerald : COLORS.bodyText) },
+          bold: sIdx === 2 && numericVal > 0,
+          color: { argb: numericVal === 0 ? COLORS.mutedText : (sIdx === 2 ? COLORS.emerald : COLORS.bodyText) },
         };
       });
       cPtr += 3;
     });
 
-    // Total columns
     const avgInput = e.validInputs > 0 ? e.totalOutput / e.validInputs : 0;
-    const totVals = [e.validDays.size, e.validInputs, e.totalOutput, avgInput];
+    const totInpColL = colLetter(totStartCol + 1);
+    const totOutColL = colLetter(totStartCol + 2);
+
+    const totVals = [
+      { formula: dayColLetters.join('+'), result: e.validDays.size },
+      { formula: inpColLetters.join('+'), result: e.validInputs },
+      { formula: outColLetters.join('+'), result: e.totalOutput },
+      { formula: `IFERROR(${totOutColL}${rowNum}/${totInpColL}${rowNum},0)`, result: avgInput },
+    ];
+
     totVals.forEach((v, sIdx) => {
       const cell = r.getCell(totStartCol + sIdx);
       cell.value = v;
@@ -919,33 +1120,36 @@ function buildMonthlyPerPersonSheet(workbook, data, meta) {
     totR.getCell(1).value = `GRAND TOTAL (${validEmployees.length} Karyawan)`;
 
     let cPtr = fixedCols.length + 1;
-    months.forEach(() => {
-      // Days column -> leave dash or max; Input & Output -> SUM formula
+    months.forEach(m => {
       totR.getCell(cPtr).value = '-';
       totR.getCell(cPtr).alignment = { vertical: 'middle', horizontal: 'center' };
       const inpL = colLetter(cPtr + 1);
       const outL = colLetter(cPtr + 2);
-      totR.getCell(cPtr + 1).value = { formula: `SUM(${inpL}${startDataRow}:${inpL}${endDataRow})` };
+      const cachedMInp = validEmployees.reduce((s, e) => s + (e.months[m]?.inputs || 0), 0);
+      const cachedMOut = validEmployees.reduce((s, e) => s + (e.months[m]?.output || 0), 0);
+      totR.getCell(cPtr + 1).value = { formula: `SUM(${inpL}${startDataRow}:${inpL}${endDataRow})`, result: cachedMInp };
       totR.getCell(cPtr + 1).numFmt = '#,##0';
-      totR.getCell(cPtr + 2).value = { formula: `SUM(${outL}${startDataRow}:${outL}${endDataRow})` };
+      totR.getCell(cPtr + 2).value = { formula: `SUM(${outL}${startDataRow}:${outL}${endDataRow})`, result: cachedMOut };
       totR.getCell(cPtr + 2).numFmt = '#,##0';
       cPtr += 3;
     });
+
+    const totInpAll = validEmployees.reduce((s, e) => s + e.validInputs, 0);
+    const totAvgAll = totInpAll > 0 ? data.totalOutputValid / totInpAll : 0;
 
     totR.getCell(totStartCol).value = data.activeDaysCount;
     totR.getCell(totStartCol).numFmt = '#,##0';
     const totInpL = colLetter(totStartCol + 1);
     const totOutL = colLetter(totStartCol + 2);
-    totR.getCell(totStartCol + 1).value = { formula: `SUM(${totInpL}${startDataRow}:${totInpL}${endDataRow})` };
+    totR.getCell(totStartCol + 1).value = { formula: `SUM(${totInpL}${startDataRow}:${totInpL}${endDataRow})`, result: totInpAll };
     totR.getCell(totStartCol + 1).numFmt = '#,##0';
-    totR.getCell(totStartCol + 2).value = { formula: `SUM(${totOutL}${startDataRow}:${totOutL}${endDataRow})` };
+    totR.getCell(totStartCol + 2).value = { formula: `SUM(${totOutL}${startDataRow}:${totOutL}${endDataRow})`, result: data.totalOutputValid };
     totR.getCell(totStartCol + 2).numFmt = '#,##0';
-    totR.getCell(totStartCol + 3).value = { formula: `IF(${totInpL}${totalRowNum}>0,${totOutL}${totalRowNum}/${totInpL}${totalRowNum},0)` };
+    totR.getCell(totStartCol + 3).value = { formula: `IFERROR(${totOutL}${totalRowNum}/${totInpL}${totalRowNum},0)`, result: totAvgAll };
     totR.getCell(totStartCol + 3).numFmt = '#,##0.0';
     totR.height = 23;
   }
 
-  // Column widths
   const widths = [7, 28, 15, 15, 13];
   months.forEach(() => { widths.push(9, 12, 14); });
   widths.push(11, 13, 15, 13);
@@ -954,34 +1158,38 @@ function buildMonthlyPerPersonSheet(workbook, data, meta) {
   applyPrintSetup(ws, true);
 }
 
-function buildDetailSheet(workbook, submissions, data, meta) {
+function buildDetailSheet(workbook, submissions, data, meta, refs) {
   const ws = workbook.addWorksheet('Data Detail Submissions', {
     properties: { tabColor: { argb: COLORS.slateDark } },
     views: [{ state: 'frozen', ySplit: 4, showGridLines: true }],
   });
 
+  // Columns A..O (15 cols):
+  // A:No, B:Tgl Carian (Date), C:Tgl Pengerjaan (Date), D:Nama, E:NIK, F:Tipe, G:Posisi,
+  // H:Tipe Lokasi, I:Zona, J:Batch/Cluster, K:Jml Batch, L:Jumlah Output, M:Status, N:Catatan, O:Waktu Submit
   const colConfigs = [
-    { header: 'No',                 key: 'no',            minWidth: 8,  hasFilter: true },
-    { header: 'Tgl Carian',         key: 'tgl_carian',    minWidth: 14, hasFilter: true },
-    { header: 'Tgl Pengerjaan',     key: 'tgl_kerja',     minWidth: 15, hasFilter: true },
-    { header: 'Nama Karyawan',      key: 'nama',          minWidth: 26, hasFilter: true },
-    { header: 'NIK',                key: 'nik',           minWidth: 14, hasFilter: true },
-    { header: 'Tipe Karyawan',      key: 'tipe_karyawan', minWidth: 16, hasFilter: true },
-    { header: 'Posisi',             key: 'posisi',        minWidth: 12, hasFilter: true },
-    { header: 'Tipe Lokasi',        key: 'tipe',          minWidth: 16, hasFilter: true },
-    { header: 'Zona',               key: 'zona',          minWidth: 10, hasFilter: true },
-    { header: 'Batch / Cluster',    key: 'batch',         minWidth: 18, maxWidth: 38, hasFilter: true },
-    { header: 'Jumlah Output',      key: 'output',        minWidth: 16, hasFilter: true },
-    { header: 'Status',             key: 'status',        minWidth: 13, hasFilter: true },
-    { header: 'Catatan Tambahan',   key: 'catatan',       minWidth: 24, maxWidth: 40, hasFilter: true },
-    { header: 'Waktu Submit',       key: 'waktu',         minWidth: 21, hasFilter: true },
+    { header: 'No',               key: 'no',            minWidth: 8,  hasFilter: true },
+    { header: 'Tgl Carian',       key: 'tgl_carian',    minWidth: 14, hasFilter: true },
+    { header: 'Tgl Pengerjaan',   key: 'tgl_kerja',     minWidth: 15, hasFilter: true },
+    { header: 'Nama Karyawan',    key: 'nama',          minWidth: 26, hasFilter: true },
+    { header: 'NIK',              key: 'nik',           minWidth: 14, hasFilter: true },
+    { header: 'Tipe Karyawan',    key: 'tipe_karyawan', minWidth: 16, hasFilter: true },
+    { header: 'Posisi',           key: 'posisi',        minWidth: 12, hasFilter: true },
+    { header: 'Tipe Lokasi',      key: 'tipe',          minWidth: 16, hasFilter: true },
+    { header: 'Zona',             key: 'zona',          minWidth: 10, hasFilter: true },
+    { header: 'Batch / Cluster',  key: 'batch',         minWidth: 18, maxWidth: 38, hasFilter: true },
+    { header: 'Jml Batch',        key: 'jml_batch',     minWidth: 12, hasFilter: true },
+    { header: 'Jumlah Output',    key: 'output',        minWidth: 16, hasFilter: true },
+    { header: 'Status',           key: 'status',        minWidth: 13, hasFilter: true },
+    { header: 'Catatan Tambahan', key: 'catatan',       minWidth: 24, maxWidth: 40, hasFilter: true },
+    { header: 'Waktu Submit',     key: 'waktu',         minWidth: 21, hasFilter: true },
   ];
 
   applyBanner(
     ws,
     colConfigs.length,
     'DATA DETAIL SUBMISSIONS — DC SS08',
-    `Periode: ${meta.periodLabel}   |   Filter: ${meta.filterText}   |   Total Baris: ${submissions.length.toLocaleString('id-ID')} entri`
+    `Periode: ${meta.periodLabel}   |   Filter: ${meta.filterText}   |   Sumber Data Rumus (${submissions.length.toLocaleString('id-ID')} entri)`
   );
   ws.getRow(3).height = 8;
 
@@ -997,7 +1205,7 @@ function buildDetailSheet(workbook, submissions, data, meta) {
   });
   headerRow.height = 25;
 
-  const startDataRow = 5;
+  const startDataRow = refs.detailStartRow;
   submissions.forEach((s, i) => {
     const rowNum = startDataRow + i;
     const r = ws.getRow(rowNum);
@@ -1005,17 +1213,20 @@ function buildDetailSheet(workbook, submissions, data, meta) {
 
     const namaKey = String(s.nama || '').toLowerCase().trim();
     const uInfo = data.userInfoMap[namaKey] || { nik: '-', tipe_karyawan: 'Belum Ditentukan' };
-    const batchStr = parseBatches(s.batch_cluster).join(', ');
+    const batches = parseBatches(s.batch_cluster);
+    const batchStr = batches.join(', ');
     const waktuStr = s.created_at
       ? new Date(s.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false })
       : '-';
     const st = getStatusStyle(s.status);
     const pos = getPosisiStyle(s.posisi);
+    const tglCarianVal = toExcelUtcDate(s.tanggal_carian) || (s.tanggal_carian || '-');
+    const tglKerjaVal  = toExcelUtcDate(s.tanggal_pengerjaan) || (s.tanggal_pengerjaan || '-');
 
     const vals = [
       i + 1,
-      s.tanggal_carian || '-',
-      s.tanggal_pengerjaan || '-',
+      tglCarianVal,
+      tglKerjaVal,
       s.nama || '-',
       uInfo.nik,
       uInfo.tipe_karyawan,
@@ -1023,6 +1234,7 @@ function buildDetailSheet(workbook, submissions, data, meta) {
       s.tipe_lokasi || '-',
       s.zona || '-',
       batchStr || '-',
+      batches.length,
       Number(s.jumlah_output) || 0,
       st.label,
       s.catatan_tambahan || '',
@@ -1035,30 +1247,32 @@ function buildDetailSheet(workbook, submissions, data, meta) {
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
       cell.font = { name: FONT_NAME, size: 10, color: { argb: COLORS.bodyText } };
       cell.border = BORDER_THIN;
-      if (cIdx === 3 || cIdx === 9 || cIdx === 12) {
+      if (cIdx === 3 || cIdx === 9 || cIdx === 13) {
         cell.alignment = { vertical: 'middle', horizontal: 'left' };
-      } else if (cIdx === 10) {
+      } else if (cIdx === 10 || cIdx === 11) {
         cell.alignment = { vertical: 'middle', horizontal: 'right' };
       } else {
         cell.alignment = { vertical: 'middle', horizontal: 'center' };
       }
     });
 
+    if (tglCarianVal instanceof Date) r.getCell(2).numFmt = 'yyyy-mm-dd';
+    if (tglKerjaVal instanceof Date)  r.getCell(3).numFmt = 'yyyy-mm-dd';
     r.getCell(4).font = { name: FONT_NAME, size: 10, bold: true, color: { argb: COLORS.bodyText } };
     r.getCell(7).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: pos.bg } };
     r.getCell(7).font = { name: FONT_NAME, size: 10, bold: true, color: { argb: pos.fg } };
     r.getCell(11).numFmt = '#,##0';
-    r.getCell(11).font = { name: FONT_NAME, size: 10, bold: true, color: { argb: COLORS.navy } };
-    r.getCell(12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: st.bg } };
-    r.getCell(12).font = { name: FONT_NAME, size: 10, bold: true, color: { argb: st.fg } };
+    r.getCell(12).numFmt = '#,##0';
+    r.getCell(12).font = { name: FONT_NAME, size: 10, bold: true, color: { argb: COLORS.navy } };
+    r.getCell(13).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: st.bg } };
+    r.getCell(13).font = { name: FONT_NAME, size: 10, bold: true, color: { argb: st.fg } };
     r.height = 20;
   });
 
   if (submissions.length > 0) {
-    const endDataRow = startDataRow + submissions.length - 1;
     ws.autoFilter = {
       from: { row: 4, column: 1 },
-      to:   { row: endDataRow, column: colConfigs.length },
+      to:   { row: refs.detailEndRow, column: colConfigs.length },
     };
   }
 
@@ -1070,6 +1284,7 @@ async function generateSubmissionsExcelBuffer(submissions, users, query = {}) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'SS08 Admin — Formulir Pencapaian Kerja';
   workbook.created = new Date();
+  workbook.calcProperties.fullCalcOnLoad = true;
 
   const printedAt = new Date().toLocaleString('id-ID', {
     timeZone: 'Asia/Jakarta',
@@ -1085,10 +1300,17 @@ async function generateSubmissionsExcelBuffer(submissions, users, query = {}) {
 
   const data = aggregateReportData(submissions, users);
 
-  buildExecutiveSheet(workbook, data, meta);
-  buildEmployeeSummarySheet(workbook, data, meta);
-  buildMonthlyPerPersonSheet(workbook, data, meta);
-  buildDetailSheet(workbook, submissions, data, meta);
+  const refs = {
+    detailStartRow: 5,
+    detailEndRow:   4 + submissions.length,
+    empStartRow:    5,
+    empEndRow:      4 + data.employeeList.length,
+  };
+
+  buildExecutiveSheet(workbook, data, meta, refs);
+  buildEmployeeSummarySheet(workbook, data, meta, refs);
+  buildMonthlyPerPersonSheet(workbook, data, meta, refs);
+  buildDetailSheet(workbook, submissions, data, meta, refs);
 
   return workbook.xlsx.writeBuffer();
 }
