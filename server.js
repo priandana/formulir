@@ -11,6 +11,7 @@ const XLSX = require('xlsx');
 const ExcelJS = require('exceljs');
 const db = require('./db');
 const googleSheets = require('./googleSheets');
+const { generateSubmissionsExcelBuffer } = require('./exportExcelReport');
 
 const app = express();
 
@@ -2702,184 +2703,38 @@ app.put('/api/submissions/:id/status', requirePermission('submissions'), async (
 });
 
 
-// GET /api/export - Export to Styled Excel (ExcelJS) with optional filters
+// GET /api/export - Export to Styled Executive Excel (ExcelJS) with optional filters
 // Query params: tanggal_mulai, tanggal_akhir, posisi, zona, status
 app.get('/api/export', requireAuth, async (req, res) => {
   try {
-    let submissions = await db.getAllSubmissions(req.query);
+    const [rawSubmissions, users] = await Promise.all([
+      db.getAllSubmissions(req.query),
+      db.getAllOperationalUsers().catch(err => {
+        console.error('Error loading users for export map:', err);
+        return [];
+      })
+    ]);
+
+    let submissions = rawSubmissions || [];
 
     // ===== Terapkan Filter =====
     const { tanggal_mulai, tanggal_akhir, posisi: filterPosisi, zona: filterZona, status: filterStatus } = req.query;
-    if (tanggal_mulai) submissions = submissions.filter(s => s.tanggal_carian >= tanggal_mulai);
-    if (tanggal_akhir) submissions = submissions.filter(s => s.tanggal_carian <= tanggal_akhir);
-    if (filterPosisi && filterPosisi !== 'semua') submissions = submissions.filter(s => s.posisi === filterPosisi);
-    if (filterZona && filterZona !== 'semua') submissions = submissions.filter(s => s.zona === filterZona);
-    if (filterStatus && filterStatus !== 'semua') submissions = submissions.filter(s => s.status === filterStatus);
+    if (tanggal_mulai) submissions = submissions.filter(s => (s.tanggal_carian || '') >= tanggal_mulai);
+    if (tanggal_akhir) submissions = submissions.filter(s => (s.tanggal_carian || '') <= tanggal_akhir);
+    if (filterPosisi && filterPosisi !== 'semua' && filterPosisi !== 'all') submissions = submissions.filter(s => s.posisi === filterPosisi);
+    if (filterZona && filterZona !== 'semua' && filterZona !== 'all') submissions = submissions.filter(s => s.zona === filterZona);
+    if (filterStatus && filterStatus !== 'semua' && filterStatus !== 'all') submissions = submissions.filter(s => (s.status || 'approved') === filterStatus);
     // ===========================
 
-    const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'Formulir Pencapaian Kerja SS08';
-    workbook.created = new Date();
-
-    const sheet = workbook.addWorksheet('Pencapaian Kerja SS08', {
-      views: [{ state: 'frozen', ySplit: 1 }] // Freeze baris header
-    });
-
-    // ===== Definisi Kolom =====
-    sheet.columns = [
-      { header: 'No',                key: 'no',         width: 6  },
-      { header: 'Tanggal Carian',    key: 'tgl_carian', width: 16 },
-      { header: 'Tanggal Pengerjaan',key: 'tgl_kerja',  width: 20 },
-      { header: 'Nama',              key: 'nama',       width: 32 },
-      { header: 'Tipe Karyawan',     key: 'tipe_karyawan', width: 16 },
-      { header: 'Posisi',            key: 'posisi',     width: 12 },
-      { header: 'Tipe Lokasi',       key: 'tipe',       width: 16 },
-      { header: 'Zona',              key: 'zona',       width: 10 },
-      { header: 'Batch/Cluster',     key: 'batch',      width: 42 },
-      { header: 'Jumlah Output',     key: 'output',     width: 16 },
-      { header: 'Status',            key: 'status',     width: 12 },
-      { header: 'Catatan Tambahan',  key: 'catatan',    width: 30 },
-      { header: 'Waktu Submit',      key: 'waktu',      width: 24 },
-    ];
-
-    // ===== Style Header Row =====
-    const headerRow = sheet.getRow(1);
-    headerRow.eachCell(cell => {
-      cell.fill = {
-        type: 'pattern', pattern: 'solid',
-        fgColor: { argb: 'FF1A4799' }  // biru tua
-      };
-      cell.font   = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Calibri' };
-      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false };
-      cell.border = {
-        bottom: { style: 'medium', color: { argb: 'FFAEC6E8' } }
-      };
-    });
-    headerRow.height = 22;
-
-    // ===== Warna header kolom angka berbeda (output) =====
-    ['output'].forEach(key => {
-      const col = sheet.getColumn(key);
-      sheet.getRow(1).getCell(col.number).fill = {
-        type: 'pattern', pattern: 'solid',
-        fgColor: { argb: 'FF0D6E3F' } // hijau gelap untuk kolom angka
-      };
-    });
-
-    // ===== Tambah Data =====
-    const STATUS_COLOR = {
-      approved: 'FFD4EDDA', // hijau muda
-      pending:  'FFFFF3CD', // kuning muda
-      rejected: 'FFF8D7DA', // merah muda
-    };
-
-    // Load user type mapping
-    let userTypeMap = {};
-    try {
-      const users = await db.getAllOperationalUsers();
-      users.forEach(u => {
-        userTypeMap[u.nama_lengkap] = u.tipe_karyawan || 'Belum Ditentukan';
-      });
-    } catch(e) {
-      console.error('Error loading users for export map:', e);
-    }
-
-    submissions.forEach((s, i) => {
-      let batchStr = '';
-      try { batchStr = JSON.parse(s.batch_cluster || '[]').join(', '); } catch(e) { batchStr = s.batch_cluster || ''; }
-
-      const waktuStr = s.created_at
-        ? new Date(s.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false })
-        : '';
-
-      const row = sheet.addRow({
-        no:        i + 1,
-        tgl_carian: s.tanggal_carian || '',
-        tgl_kerja:  s.tanggal_pengerjaan || '',
-        nama:      s.nama || '',
-        tipe_karyawan: userTypeMap[s.nama] || 'Belum Ditentukan',
-        posisi:    s.posisi || '',
-        tipe:      s.tipe_lokasi || '',
-        zona:      s.zona || '',
-        batch:     batchStr,
-        output:    s.jumlah_output || 0,
-        status:    (s.status || 'approved').charAt(0).toUpperCase() + (s.status || 'approved').slice(1),
-        catatan:   s.catatan_tambahan || '',
-        waktu:     waktuStr,
-      });
-
-      // Warna baris alternating + tint sesuai status
-      const bgColor = STATUS_COLOR[s.status] || (i % 2 === 0 ? 'FFFAFAFA' : 'FFEFEFEF');
-      row.eachCell(cell => {
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
-        cell.font = { name: 'Calibri', size: 10 };
-        cell.border = {
-          bottom: { style: 'thin', color: { argb: 'FFD0D0D0' } }
-        };
-      });
-
-      // Kolom angka: rata kanan + bold
-      row.getCell('output').alignment = { horizontal: 'right' };
-      row.getCell('output').font = { bold: true, name: 'Calibri', size: 10 };
-      row.getCell('no').alignment = { horizontal: 'center' };
-      row.getCell('zona').alignment = { horizontal: 'center' };
-      row.getCell('posisi').alignment = { horizontal: 'center' };
-      row.getCell('status').alignment = { horizontal: 'center' };
-      row.height = 18;
-    });
-
-    // ===== Auto-filter pada header =====
-    sheet.autoFilter = {
-      from: { row: 1, column: 1 },
-      to:   { row: 1, column: sheet.columns.length }
-    };
-
-    // ===== Sheet ringkasan per posisi =====
-    if (submissions.length > 0) {
-      const summarySheet = workbook.addWorksheet('Ringkasan');
-      summarySheet.columns = [
-        { header: 'Posisi',       key: 'posisi',  width: 14 },
-        { header: 'Zona',         key: 'zona',    width: 10 },
-        { header: 'Total Output', key: 'total',   width: 16 },
-        { header: 'Jml Entri',    key: 'entri',   width: 14 },
-      ];
-      // Style header summary
-      summarySheet.getRow(1).eachCell(cell => {
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4A2573' } };
-        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
-      });
-      summarySheet.getRow(1).height = 20;
-
-      // Aggregate per posisi + zona
-      const agg = {};
-      submissions.filter(s => s.status !== 'rejected').forEach(s => {
-        const key = `${s.posisi}|||${s.zona}`;
-        if (!agg[key]) agg[key] = { posisi: s.posisi, zona: s.zona, total: 0, entri: 0 };
-        agg[key].total += (s.jumlah_output || 0);
-        agg[key].entri++;
-      });
-      let sIdx = 0;
-      Object.values(agg).sort((a,b) => a.posisi.localeCompare(b.posisi) || a.zona.localeCompare(b.zona))
-        .forEach(r => {
-          const sr = summarySheet.addRow({ posisi: r.posisi, zona: r.zona, total: r.total, entri: r.entri });
-          const bgS = sIdx % 2 === 0 ? 'FFF3EFF8' : 'FFFFFFFF';
-          sr.eachCell(cell => {
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgS } };
-            cell.font = { name: 'Calibri', size: 10 };
-          });
-          sr.getCell('total').font = { bold: true, name: 'Calibri', size: 10 };
-          sr.getCell('total').alignment = { horizontal: 'right' };
-          sr.getCell('zona').alignment = { horizontal: 'center' };
-          sIdx++;
-        });
-    }
-
-    // ===== Generate buffer dan kirim =====
-    const buffer = await workbook.xlsx.writeBuffer();
+    const buffer = await generateSubmissionsExcelBuffer(submissions, users, req.query);
     const dateStr = new Date().toISOString().slice(0, 10);
-    const filterSuffix = filterPosisi && filterPosisi !== 'semua' ? `-${filterPosisi.toLowerCase()}` : '';
-    const filename = `pencapaian-kerja-ss08${filterSuffix}-${dateStr}.xlsx`;
+    const filterSuffix = filterPosisi && filterPosisi !== 'semua' && filterPosisi !== 'all'
+      ? `-${filterPosisi.toLowerCase()}`
+      : '';
+    const periodSuffix = (tanggal_mulai && tanggal_akhir)
+      ? `-${tanggal_mulai}_sd_${tanggal_akhir}`
+      : (tanggal_mulai ? `-dari_${tanggal_mulai}` : (tanggal_akhir ? `-sd_${tanggal_akhir}` : `-${dateStr}`));
+    const filename = `laporan-pencapaian-ss08${filterSuffix}${periodSuffix}.xlsx`;
 
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
