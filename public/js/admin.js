@@ -176,7 +176,11 @@ function showOnscreenError(source, err) {
           });
 
           // Load core operational data & discipline base data in parallel
-          const initTasks = [loadData({ throwOnError: true })];
+          const isSuperAdmin = currentUser.username && currentUser.username.toLowerCase() === 'admin';
+          const allowed = currentUser.allowed_pages || [];
+          const hasSubmissionsAccess = isSuperAdmin || allowed.includes('submissions');
+
+          const initTasks = [loadData({ throwOnError: hasSubmissionsAccess })];
           if (window.DisciplineAdminModule && typeof window.DisciplineAdminModule.ensureBaseData === 'function') {
             initTasks.push(window.DisciplineAdminModule.ensureBaseData().catch(() => {}));
           }
@@ -193,8 +197,6 @@ function showOnscreenError(source, err) {
           }
 
           appReady = true;
-          const isSuperAdmin = currentUser.username && currentUser.username.toLowerCase() === 'admin';
-          const allowed = currentUser.allowed_pages || [];
           const targetPage = pendingPage || (isSuperAdmin || allowed.includes('dashboard') ? 'dashboard' : (allowed.length > 0 ? allowed[0] : 'feature-guide'));
           pendingPage = null;
           showPage(targetPage);
@@ -336,8 +338,60 @@ function showOnscreenError(source, err) {
     }
   }
 
+  async function loadStatsOnly() {
+    try {
+      const [stats, pendingCountRes] = await Promise.all([
+        fetch('/api/stats').then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch('/api/submissions/pending-count').then(r => r.ok ? r.json() : { count: 0 }).catch(() => ({ count: 0 }))
+      ]);
+
+      const total = stats && stats.total ? stats.total : 0;
+      const today = stats && stats.today ? stats.today : 0;
+      const byPosisi = stats && Array.isArray(stats.byPosisi) ? stats.byPosisi : [];
+
+      animateValue('stat-total', total);
+      animateValue('stat-today', today);
+      const pickerCount = (byPosisi.find(p => p.posisi === 'Picker') || {count: 0}).count || 0;
+      const otherCount = total - pickerCount;
+      animateValue('stat-picker', pickerCount);
+      animateValue('stat-other', otherCount);
+
+      const isSuperAdmin = currentUser.username && currentUser.username.toLowerCase() === 'admin';
+      const allowed = currentUser.allowed_pages || [];
+      const hasSubmissionsAccess = isSuperAdmin || allowed.includes('submissions');
+
+      const pendingCount = pendingCountRes && pendingCountRes.count ? pendingCountRes.count : 0;
+      const pendingBadge = document.getElementById('nav-submissions-pending');
+      if (pendingBadge) {
+        if (hasSubmissionsAccess && pendingCount > 0) {
+          pendingBadge.textContent = pendingCount;
+          pendingBadge.style.display = 'inline-flex';
+        } else {
+          pendingBadge.style.display = 'none';
+        }
+      }
+
+      const banner = document.getElementById('pendingAlertBanner');
+      if (banner) banner.style.display = 'none';
+
+      updateTopbarPendingChip(hasSubmissionsAccess ? pendingCount : 0);
+    } catch (err) {
+      console.warn('loadStatsOnly error:', err);
+    }
+  }
+
   async function loadData(opts = {}) {
     const throwOnError = !!(opts && opts.throwOnError);
+    const isSuperAdmin = currentUser.username && currentUser.username.toLowerCase() === 'admin';
+    const allowed = currentUser.allowed_pages || [];
+    const hasSubmissionsAccess = isSuperAdmin || allowed.includes('submissions');
+
+    // Jika admin tidak memiliki hak akses ke Data Submissions, hanya muat statistik umum
+    if (!hasSubmissionsAccess) {
+      await loadStatsOnly();
+      return;
+    }
+
     const dateFrom = document.getElementById('filterDateFrom')?.value || '';
     const dateTo   = document.getElementById('filterDateTo')?.value || '';
     const hasDateFilter = !!(dateFrom || dateTo);
