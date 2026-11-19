@@ -2182,6 +2182,59 @@ module.exports = {
     }
   },
 
+  // =============================================
+  // POSISI MENU SETTINGS – izin menu per posisi
+  // =============================================
+
+  // Semua menu yang bisa dikonfigurasi
+  ALL_MENU_KEYS: ['dashboard', 'riwayat', 'calendar', 'kinerja-saya', 'pendapatan', 'formulir', 'chat'],
+
+  // Default akses menu per posisi
+  DEFAULT_POSISI_MENUS: {
+    'Picker':       { dashboard: true, riwayat: true, calendar: true, 'kinerja-saya': true, pendapatan: true, formulir: true, chat: true },
+    'Sorter':       { dashboard: true, riwayat: true, calendar: true, 'kinerja-saya': true, pendapatan: true, formulir: true, chat: true },
+    'Loader':       { dashboard: true, riwayat: true, calendar: true, 'kinerja-saya': true, pendapatan: true, formulir: true, chat: true },
+    'Return':       { dashboard: true, riwayat: true, calendar: true, 'kinerja-saya': true, pendapatan: false, formulir: true, chat: true },
+    'QC Outbound':  { dashboard: true, riwayat: true, calendar: true, 'kinerja-saya': true, pendapatan: false, formulir: true, chat: true },
+    'Runner':       { dashboard: true, riwayat: true, calendar: true, 'kinerja-saya': true, pendapatan: false, formulir: false, chat: true },
+    'Stock Keeper': { dashboard: true, riwayat: true, calendar: true, 'kinerja-saya': true, pendapatan: false, formulir: false, chat: true },
+    'PKWT':         { dashboard: false, riwayat: false, calendar: true, 'kinerja-saya': false, pendapatan: false, formulir: false, chat: false },
+  },
+
+  async getPosisiMenus() {
+    if (isSupabaseEnabled) {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'posisi_menus')
+        .maybeSingle();
+      if (error) {
+        console.warn('Supabase getPosisiMenus error (returning defaults):', error.message);
+        return this.DEFAULT_POSISI_MENUS;
+      }
+      return data ? { ...this.DEFAULT_POSISI_MENUS, ...data.value } : this.DEFAULT_POSISI_MENUS;
+    } else {
+      const db = load();
+      return db.posisi_menus ? { ...this.DEFAULT_POSISI_MENUS, ...db.posisi_menus } : this.DEFAULT_POSISI_MENUS;
+    }
+  },
+
+  async savePosisiMenus(settings) {
+    const merged = { ...this.DEFAULT_POSISI_MENUS, ...settings };
+    if (isSupabaseEnabled) {
+      const { error } = await supabase
+        .from('site_settings')
+        .upsert({ key: 'posisi_menus', value: merged }, { onConflict: 'key' });
+      if (error) { console.error('Supabase savePosisiMenus error:', error); throw error; }
+      return merged;
+    } else {
+      const db = load();
+      db.posisi_menus = merged;
+      save(db);
+      return merged;
+    }
+  },
+
   /**
    * Get active period start date (tutup buku)
    */

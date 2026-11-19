@@ -507,6 +507,24 @@ app.get('/api/check-auth', async (req, res) => {
         }
       }
 
+      // Menu permissions per posisi
+      let allowedMenus = null;
+      if (decoded.role === 'operasional') {
+        try {
+          const posisiMenusConfig = await db.getPosisiMenus();
+          const isPkwt = (decoded.tipe_karyawan || '').toUpperCase() === 'PKWT' || decoded.posisi === 'PKWT';
+          if (isPkwt && posisiMenusConfig['PKWT']) {
+            allowedMenus = posisiMenusConfig['PKWT'];
+          } else if (decoded.posisi && posisiMenusConfig[decoded.posisi]) {
+            allowedMenus = posisiMenusConfig[decoded.posisi];
+          } else {
+            allowedMenus = posisiMenusConfig[decoded.posisi] || null;
+          }
+        } catch(e) {
+          console.warn('getPosisiMenus error:', e.message);
+        }
+      }
+
       return res.json({
         authenticated: true,
         userId: decoded.userId || null,
@@ -516,6 +534,7 @@ app.get('/api/check-auth', async (req, res) => {
         posisi: decoded.posisi || null,
         tipe_karyawan: decoded.tipe_karyawan || 'Productivity',
         allowed_pages: decoded.allowed_pages || [],
+        allowed_menus: allowedMenus,
         isImpersonating: isImpersonating,
         adminUsername: adminUsername
       });
@@ -948,6 +967,33 @@ app.put('/api/settings/periode-aktif', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Save periode aktif error:', err);
     res.status(500).json({ error: 'Gagal menyimpan pengaturan periode aktif.' });
+  }
+});
+
+// GET /api/settings/posisi-menus — Ambil konfigurasi izin menu per posisi (admin only)
+app.get('/api/settings/posisi-menus', requirePermission('users'), async (req, res) => {
+  try {
+    const settings = await db.getPosisiMenus();
+    res.json({ success: true, data: settings, all_menus: db.ALL_MENU_KEYS });
+  } catch (err) {
+    console.error('Get posisi menus error:', err);
+    res.status(500).json({ error: 'Gagal memuat konfigurasi menu.' });
+  }
+});
+
+// PUT /api/settings/posisi-menus — Simpan konfigurasi izin menu per posisi (admin only)
+app.put('/api/settings/posisi-menus', requirePermission('users'), async (req, res) => {
+  try {
+    const { settings } = req.body;
+    if (!settings || typeof settings !== 'object') {
+      return res.status(400).json({ error: 'Data settings tidak valid.' });
+    }
+    const saved = await db.savePosisiMenus(settings);
+    await db.insertAuditLog(req.user.username, 'UPDATE_SETTINGS', 'Mengubah konfigurasi izin menu per posisi');
+    res.json({ success: true, data: saved });
+  } catch (err) {
+    console.error('Save posisi menus error:', err);
+    res.status(500).json({ error: 'Gagal menyimpan konfigurasi menu.' });
   }
 });
 
@@ -4078,8 +4124,8 @@ app.post('/api/users', requirePermission('users'), async (req, res) => {
     if (!username || !nama_lengkap || !nik || !posisi) {
       return res.status(400).json({ error: 'Semua field (username, nama lengkap, NIK, posisi) wajib diisi.' });
     }
-    if (!['Picker', 'Sorter', 'Loader', 'Return', 'QC Outbound'].includes(posisi)) {
-      return res.status(400).json({ error: 'Posisi harus Picker, Sorter, Loader, Return, atau QC Outbound.' });
+    if (!['Picker', 'Sorter', 'Loader', 'Return', 'QC Outbound', 'Runner', 'Stock Keeper', 'PKWT'].includes(posisi)) {
+      return res.status(400).json({ error: 'Posisi harus Picker, Sorter, Loader, Return, QC Outbound, Runner, Stock Keeper, atau PKWT.' });
     }
     if (tipe_karyawan && !['Productivity', 'PHL', 'PKWT'].includes(tipe_karyawan)) {
       return res.status(400).json({ error: 'Tipe Karyawan harus Productivity, PHL, atau PKWT.' });
@@ -4153,8 +4199,8 @@ app.put('/api/users/:id', requirePermission('users'), async (req, res) => {
       return res.status(409).json({ error: 'Akun Administrator utama digunakan oleh sistem dan tidak dapat diedit dari sini.' });
     }
 
-    if (!['Picker', 'Sorter', 'Loader', 'Return', 'QC Outbound'].includes(posisi)) {
-      return res.status(400).json({ error: 'Posisi harus Picker, Sorter, Loader, Return, atau QC Outbound.' });
+    if (!['Picker', 'Sorter', 'Loader', 'Return', 'QC Outbound', 'Runner', 'Stock Keeper', 'PKWT'].includes(posisi)) {
+      return res.status(400).json({ error: 'Posisi harus Picker, Sorter, Loader, Return, QC Outbound, Runner, Stock Keeper, atau PKWT.' });
     }
     if (tipe_karyawan && !['Productivity', 'PHL', 'PKWT'].includes(tipe_karyawan)) {
       return res.status(400).json({ error: 'Tipe Karyawan harus Productivity, PHL, atau PKWT.' });

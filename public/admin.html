@@ -137,6 +137,10 @@
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
           Manajemen User
         </a>
+        <a class="nav-item" id="nav-posisi-menus" onclick="showPage('posisi-menus')">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          Izin Menu Posisi
+        </a>
         <a class="nav-item" id="nav-absensi" onclick="showPage('absensi')">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
           Kehadiran Absensi
@@ -1221,6 +1225,9 @@
                 <option value="Loader">Loader</option>
                 <option value="Return">Return</option>
                 <option value="QC Outbound">QC Outbound</option>
+                <option value="Runner">Runner</option>
+                <option value="Stock Keeper">Stock Keeper</option>
+                <option value="PKWT">PKWT</option>
               </select>
             </div>
             <div class="form-group">
@@ -1268,12 +1275,16 @@
             </div>
 
             <!-- Filter Posisi -->
-            <select id="userFilterPosisi" class="filter-select" onchange="renderUsersTable()" style="height:36px; width:125px; border-radius:9px; font-size:12px; font-weight:600;">
+            <select id="userFilterPosisi" class="filter-select" onchange="renderUsersTable()" style="height:36px; width:135px; border-radius:9px; font-size:12px; font-weight:600;">
               <option value="">Semua Posisi</option>
               <option value="Picker">Picker</option>
               <option value="Sorter">Sorter</option>
               <option value="Loader">Loader</option>
               <option value="Return">Return</option>
+              <option value="QC Outbound">QC Outbound</option>
+              <option value="Runner">Runner</option>
+              <option value="Stock Keeper">Stock Keeper</option>
+              <option value="PKWT">PKWT</option>
             </select>
 
             <!-- Filter Tipe Karyawan -->
@@ -1313,6 +1324,54 @@
               <tr><td colspan="9"><div class="loading-spinner"><div class="spin"></div></div></td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== IZIN MENU PER POSISI PAGE ===== -->
+    <div id="page-posisi-menus" class="page-section" style="display:none;">
+      <!-- Hero / Header Card -->
+      <div style="margin-bottom:24px; padding:24px 28px; background:linear-gradient(135deg, rgba(37,99,235,0.08) 0%, rgba(99,102,241,0.05) 50%, rgba(168,85,247,0.04) 100%); border:1.5px solid rgba(37,99,235,0.22); border-radius:20px; box-shadow:0 8px 30px rgba(37,99,235,0.06); display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:280px;">
+          <div style="display:inline-flex; align-items:center; gap:8px; padding:4px 12px; background:rgba(37,99,235,0.12); border:1px solid rgba(37,99,235,0.25); border-radius:20px; font-size:11px; font-weight:800; color:#2563eb; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:10px;">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+            Hak Akses Portal Operasional
+          </div>
+          <h2 style="font-size:22px; font-weight:800; color:var(--text); margin:0 0 6px; letter-spacing:-0.4px;">
+            Izin Menu per Posisi Karyawan
+          </h2>
+          <p style="font-size:13px; color:var(--text-muted); line-height:1.55; margin:0; max-width:680px;">
+            Atur menu dan modul apa saja yang dapat diakses oleh masing-masing posisi (Picker, Sorter, Loader, Runner, Stock Keeper, PKWT). Karyawan yang membuka menu terlarang akan langsung diblokir dan diarahkan kembali.
+          </p>
+        </div>
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <button type="button" class="btn btn-outline" onclick="resetPosisiMenusToDefault()" style="font-size:12.5px; padding:10px 16px; border-radius:12px;">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Reset Default
+          </button>
+          <button type="button" class="btn btn-primary" id="btnSavePosisiMenus" onclick="savePosisiMenus()" style="font-size:13px; font-weight:700; padding:10px 22px; border-radius:12px; box-shadow:0 6px 18px rgba(37,99,235,0.35);">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+            Simpan Perubahan
+          </button>
+        </div>
+      </div>
+
+      <div id="posisiMenusStatus" style="display:none; padding:12px 18px; border-radius:12px; font-size:13px; font-weight:600; margin-bottom:18px;"></div>
+
+      <!-- Matrix Grid Card -->
+      <div class="table-card">
+        <div class="table-header" style="justify-content:space-between; flex-wrap:wrap; gap:12px;">
+          <div>
+            <div class="table-title">Matriks Izin Menu & Fitur</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">Centang switch hijau untuk mengizinkan akses ke menu tersebut</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:16px; font-size:11.5px; color:var(--text-muted);">
+            <span style="display:inline-flex; align-items:center; gap:6px;"><span style="width:10px; height:10px; border-radius:50%; background:#22c55e;"></span> Diizinkan (ON)</span>
+            <span style="display:inline-flex; align-items:center; gap:6px;"><span style="width:10px; height:10px; border-radius:50%; background:#94a3b8;"></span> Dinonaktifkan (OFF)</span>
+          </div>
+        </div>
+        <div id="posisiMenusGridContainer" style="padding:16px 20px;">
+          <div class="loading-spinner"><div class="spin"></div></div>
         </div>
       </div>
     </div>
@@ -3271,6 +3330,9 @@ GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----
             <option value="Loader">Loader</option>
             <option value="Return">Return</option>
             <option value="QC Outbound">QC Outbound</option>
+            <option value="Runner">Runner</option>
+            <option value="Stock Keeper">Stock Keeper</option>
+            <option value="PKWT">PKWT</option>
           </select>
         </div>
         <div class="form-group" style="margin-bottom: 0;">

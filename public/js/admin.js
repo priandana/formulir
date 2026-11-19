@@ -65,7 +65,7 @@ function showOnscreenError(source, err) {
     // All pages that can be protected
     const pages = [
       'dashboard', 'submissions', 'loader', 'data-carian', 'rekap-toko',
-      'status-carian', 'users', 'absensi', 'ketentuan-harga', 'rekap-pendapatan', 'penggajian', 'announcements',
+      'status-carian', 'users', 'posisi-menus', 'absensi', 'ketentuan-harga', 'rekap-pendapatan', 'penggajian', 'announcements',
       'export', 'gsheets', 'login-settings', 'admin-accounts',
       'audit-logs', 'live-chat', 'chat-settings',
       'discipline-dashboard', 'discipline-input', 'discipline-history',
@@ -77,7 +77,9 @@ function showOnscreenError(source, err) {
       if (nav) {
         const isDisciplinePage = p.startsWith('discipline-');
         const hasDisciplineAccess = isSuperAdmin || allowed.length === 0 || allowed.includes('discipline') || allowed.includes(p) || allowed.includes('users') || allowed.includes('absensi') || allowed.includes('penggajian');
-        const hasAccess = isSuperAdmin || p === 'live-chat' || p === 'chat-settings' || allowed.includes(p) || (isDisciplinePage && hasDisciplineAccess);
+        const isPosisiMenus = p === 'posisi-menus';
+        const hasPosisiMenusAccess = isSuperAdmin || allowed.includes('users') || allowed.includes('posisi-menus');
+        const hasAccess = isSuperAdmin || p === 'live-chat' || p === 'chat-settings' || (isPosisiMenus && hasPosisiMenusAccess) || allowed.includes(p) || (isDisciplinePage && hasDisciplineAccess);
         nav.style.display = hasAccess ? 'flex' : 'none';
       }
     });
@@ -1928,7 +1930,9 @@ function showOnscreenError(source, err) {
     const allowed = currentUser.allowed_pages || [];
     const isDisciplinePage = page.startsWith('discipline-');
     const hasDisciplineAccess = isSuperAdmin || allowed.length === 0 || allowed.includes('discipline') || allowed.includes(page) || allowed.includes('users') || allowed.includes('absensi') || allowed.includes('penggajian');
-    const isAllowed = isSuperAdmin || page === 'feature-guide' || page === 'live-chat' || page === 'chat-settings' || allowed.includes(page) || (isDisciplinePage && hasDisciplineAccess);
+    const isPosisiMenus = page === 'posisi-menus';
+    const hasPosisiMenusAccess = isSuperAdmin || allowed.includes('users') || allowed.includes('posisi-menus');
+    const isAllowed = isSuperAdmin || page === 'feature-guide' || page === 'live-chat' || page === 'chat-settings' || (isPosisiMenus && hasPosisiMenusAccess) || allowed.includes(page) || (isDisciplinePage && hasDisciplineAccess);
 
     if (!isAllowed) {
       showToast('Akses Ditolak: Anda tidak memiliki hak akses untuk halaman ini.', 'error');
@@ -1943,7 +1947,7 @@ function showOnscreenError(source, err) {
     currentView = page;
     const sidebar = document.getElementById('sidebar');
     if (sidebar) sidebar.classList.remove('open');
-    ['dashboard','submissions','data-carian','rekap-toko','status-carian','welcome','users','loader','return-validation','absensi','export','gsheets','login-settings','periode-aktif','phl-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga','rekap-pendapatan','penggajian','live-chat','chat-settings','discipline-dashboard','discipline-input','discipline-history','discipline-categories','discipline-appeals','discipline-settings'].forEach(p => {
+    ['dashboard','submissions','data-carian','rekap-toko','status-carian','welcome','users','posisi-menus','loader','return-validation','absensi','export','gsheets','login-settings','periode-aktif','phl-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga','rekap-pendapatan','penggajian','live-chat','chat-settings','discipline-dashboard','discipline-input','discipline-history','discipline-categories','discipline-appeals','discipline-settings'].forEach(p => {
       const el = document.getElementById('page-' + p);
       if (el) el.style.display = p === page ? 'block' : 'none';
     });
@@ -1956,6 +1960,7 @@ function showOnscreenError(source, err) {
       'status-carian': 'Status Input Carian Harian',
       welcome: 'Selamat Datang',
       users: 'Manajemen User Operasional',
+      'posisi-menus': 'Izin Menu per Posisi Karyawan',
       loader: 'Hasil Entry Loader',
       'return-validation': 'Validasi Return Kontainer',
       export: 'Export Data',
@@ -1982,7 +1987,7 @@ function showOnscreenError(source, err) {
     };
     document.getElementById('pageTitle').textContent = titles[page] || page;
 
-    ['dashboard','submissions','data-carian','rekap-toko','status-carian','welcome','users','loader','return-validation','absensi','export','gsheets','login-settings','periode-aktif','phl-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga','rekap-pendapatan','penggajian','live-chat','chat-settings','discipline-dashboard','discipline-input','discipline-history','discipline-categories','discipline-appeals','discipline-settings'].forEach(p => {
+    ['dashboard','submissions','data-carian','rekap-toko','status-carian','welcome','users','posisi-menus','loader','return-validation','absensi','export','gsheets','login-settings','periode-aktif','phl-settings','admin-accounts','audit-logs','feature-guide','announcements','ketentuan-harga','rekap-pendapatan','penggajian','live-chat','chat-settings','discipline-dashboard','discipline-input','discipline-history','discipline-categories','discipline-appeals','discipline-settings'].forEach(p => {
       const nav = document.getElementById('nav-' + p);
       if (nav) {
         const isActive = p === page;
@@ -2001,6 +2006,7 @@ function showOnscreenError(source, err) {
     if (page === 'data-carian') loadDataCarian();
     if (page === 'rekap-toko') loadRekapToko();
     if (page === 'users') loadUsers();
+    if (page === 'posisi-menus') loadPosisiMenus();
     if (page === 'loader') loadLoaderEntries();
     if (page === 'return-validation') loadAdminReturnEntries();
     if (page === 'absensi') { if (typeof window.initAbsensiPage === 'function') window.initAbsensiPage(); }
@@ -2334,7 +2340,14 @@ function showOnscreenError(source, err) {
     }
 
     tbody.innerHTML = filteredUsers.map((u, i) => {
-      const posBadge = u.posisi === 'Picker' ? 'badge-picker' : u.posisi === 'Sorter' ? 'badge-sorter' : u.posisi === 'Return' ? 'badge-return' : 'badge-loader';
+      const posBadge = u.posisi === 'Picker' ? 'badge-picker' 
+        : u.posisi === 'Sorter' ? 'badge-sorter' 
+        : u.posisi === 'Return' ? 'badge-return' 
+        : u.posisi === 'Runner' ? 'badge-runner'
+        : u.posisi === 'Stock Keeper' ? 'badge-stockkeeper'
+        : u.posisi === 'QC Outbound' ? 'badge-qco'
+        : u.posisi === 'PKWT' ? 'badge-pkwt'
+        : 'badge-loader';
       const tipeBadge = u.tipe_karyawan === 'PHL' ? 'badge-phl' : u.tipe_karyawan === 'Productivity' ? 'badge-prod' : u.tipe_karyawan === 'PKWT' ? 'badge-pkwt' : 'badge-other';
       // is_active: null/undefined dianggap aktif (data lama)
       const isActive = u.is_active !== false;
@@ -2589,6 +2602,249 @@ function showOnscreenError(source, err) {
       btn.disabled = false; btn.textContent = 'Simpan Perubahan';
     }
   }
+
+  // ============= POSISI MENU PERMISSION MANAGEMENT =============
+  let posisiMenusData = null;
+  let allMenuKeys = ['dashboard', 'formulir', 'pendapatan', 'kinerja-saya', 'calendar', 'riwayat', 'chat'];
+
+  const defaultPosisiMenus = {
+    'Picker':       { dashboard: true, riwayat: true, calendar: true, 'kinerja-saya': true, pendapatan: true, formulir: true, chat: true },
+    'Sorter':       { dashboard: true, riwayat: true, calendar: true, 'kinerja-saya': true, pendapatan: true, formulir: true, chat: true },
+    'Loader':       { dashboard: true, riwayat: true, calendar: true, 'kinerja-saya': true, pendapatan: true, formulir: true, chat: true },
+    'Return':       { dashboard: true, riwayat: true, calendar: true, 'kinerja-saya': true, pendapatan: false, formulir: true, chat: true },
+    'QC Outbound':  { dashboard: true, riwayat: true, calendar: true, 'kinerja-saya': true, pendapatan: false, formulir: true, chat: true },
+    'Runner':       { dashboard: true, riwayat: true, calendar: true, 'kinerja-saya': true, pendapatan: false, formulir: false, chat: true },
+    'Stock Keeper': { dashboard: true, riwayat: true, calendar: true, 'kinerja-saya': true, pendapatan: false, formulir: false, chat: true },
+    'PKWT':         { dashboard: false, riwayat: false, calendar: true, 'kinerja-saya': false, pendapatan: false, formulir: false, chat: false }
+  };
+
+  async function loadPosisiMenus() {
+    const container = document.getElementById('posisiMenusGridContainer');
+    if (!container) return;
+    container.innerHTML = `<div class="loading-spinner"><div class="spin"></div></div>`;
+    try {
+      const res = await fetch('/api/settings/posisi-menus').then(r => r.json());
+      if (res.success && res.data) {
+        posisiMenusData = JSON.parse(JSON.stringify(res.data));
+        renderPosisiMenusGrid();
+      } else {
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><h3>Gagal memuat konfigurasi izin menu</h3><p>${res.error || 'Terjadi kesalahan'}</p></div>`;
+      }
+    } catch(err) {
+      console.error('loadPosisiMenus error:', err);
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><h3>Gagal memuat konfigurasi izin menu</h3><p>${err.message}</p></div>`;
+    }
+  }
+
+  function renderPosisiMenusGrid() {
+    const container = document.getElementById('posisiMenusGridContainer');
+    if (!container || !posisiMenusData) return;
+
+    const positions = [
+      { key: 'Picker', label: 'Picker', desc: 'Pengambilan barang di rak / zona', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
+      { key: 'Sorter', label: 'Sorter', desc: 'Penyortiran barang per toko & batch', color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
+      { key: 'Loader', label: 'Loader', desc: 'Pemuatan kontainer ke armada mobil', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+      { key: 'Return', label: 'Return', desc: 'Penerimaan & validasi kontainer kembali', color: '#0d9488', bg: 'rgba(13,148,136,0.1)' },
+      { key: 'QC Outbound', label: 'QC Outbound', desc: 'Quality control sebelum keberangkatan', color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
+      { key: 'Runner', label: 'Runner', desc: 'Distribusi / suplai internal zona kerja', color: '#06b6d4', bg: 'rgba(6,182,212,0.1)' },
+      { key: 'Stock Keeper', label: 'Stock Keeper', desc: 'Pengelolaan stok & opname gudang', color: '#ec4899', bg: 'rgba(236,72,153,0.1)' },
+      { key: 'PKWT', label: 'PKWT', desc: 'Karyawan kontrak khusus kalender kerja', color: '#64748b', bg: 'rgba(100,116,139,0.1)' }
+    ];
+
+    const menuColumns = [
+      { key: 'dashboard', label: 'Dashboard', icon: '📊', desc: 'Ringkasan harian & pencapaian' },
+      { key: 'formulir', label: 'Formulir Input', icon: '📝', desc: 'Input lembar kerja harian' },
+      { key: 'pendapatan', label: 'Pendapatan', icon: '💰', desc: 'Estimasi nilai upah & rate' },
+      { key: 'kinerja-saya', label: 'Poin & Disiplin', icon: '🏆', desc: 'Poin reward & catatan disiplin' },
+      { key: 'calendar', label: 'Kalender Kerja', icon: '📅', desc: 'Riwayat masuk & jadwal off' },
+      { key: 'riwayat', label: 'Riwayat', icon: '📋', desc: 'History input & transaksi' },
+      { key: 'chat', label: 'Live Chat', icon: '💬', desc: 'Fitur chat dengan admin' }
+    ];
+
+    let html = `
+      <div style="overflow-x:auto; border-radius:14px; border:1px solid var(--card-border); background:var(--card-bg);">
+        <table style="width:100%; border-collapse:collapse; min-width:850px; font-size:13px;">
+          <thead>
+            <tr style="background:linear-gradient(180deg, rgba(37,99,235,0.06) 0%, rgba(37,99,235,0.02) 100%);">
+              <th style="padding:16px 18px; text-align:left; font-size:12px; font-weight:800; color:var(--text); text-transform:uppercase; letter-spacing:0.6px; border-bottom:1.5px solid var(--card-border); min-width:200px;">
+                Posisi Karyawan
+              </th>
+    `;
+
+    menuColumns.forEach(col => {
+      html += `
+        <th style="padding:14px 12px; text-align:center; font-size:12px; font-weight:800; color:var(--text); border-bottom:1.5px solid var(--card-border); min-width:115px;">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:3px;">
+            <span style="font-size:16px;">${col.icon}</span>
+            <span>${col.label}</span>
+          </div>
+        </th>
+      `;
+    });
+
+    html += `
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    positions.forEach((pos, idx) => {
+      const cfg = posisiMenusData[pos.key] || {};
+      const rowBg = idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.015)';
+
+      html += `
+        <tr style="background:${rowBg}; border-bottom:1px solid var(--card-border); transition:background 0.15s;" onmouseover="this.style.background='rgba(37,99,235,0.035)'" onmouseout="this.style.background='${rowBg}'">
+          <td style="padding:14px 18px; vertical-align:middle;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="width:12px; height:12px; border-radius:50%; background:${pos.color}; box-shadow:0 0 10px ${pos.color}66; flex-shrink:0;"></span>
+              <div>
+                <div style="font-weight:700; font-size:13.5px; color:var(--text);">${pos.label}</div>
+                <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${pos.desc}</div>
+              </div>
+            </div>
+            <div style="margin-top:8px; display:flex; gap:6px;">
+              <button type="button" onclick="setPosisiAllMenus('${pos.key}', true)" style="background:none; border:none; padding:2px 6px; font-size:10.5px; font-weight:700; color:#2563eb; cursor:pointer; border-radius:4px;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">+ Izinkan Semua</button>
+              <span style="color:var(--text-muted); font-size:10px;">•</span>
+              <button type="button" onclick="setPosisiAllMenus('${pos.key}', false)" style="background:none; border:none; padding:2px 6px; font-size:10.5px; font-weight:700; color:#ef4444; cursor:pointer; border-radius:4px;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">- Matikan Semua</button>
+            </div>
+          </td>
+      `;
+
+      menuColumns.forEach(col => {
+        const isChecked = cfg[col.key] !== false;
+        html += `
+          <td style="padding:12px 10px; text-align:center; vertical-align:middle;">
+            <label style="display:inline-flex; align-items:center; justify-content:center; cursor:pointer; position:relative; margin:0;">
+              <input type="checkbox" data-posisi="${pos.key}" data-menu="${col.key}" ${isChecked ? 'checked' : ''} onchange="togglePosisiMenu('${pos.key}', '${col.key}', this.checked)" style="position:absolute; opacity:0; width:0; height:0;">
+              <span class="pm-toggle-switch" style="
+                display:inline-block;
+                width:44px; height:24px;
+                border-radius:12px;
+                background:${isChecked ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(148,163,184,0.35)'};
+                position:relative;
+                transition:all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+                box-shadow:${isChecked ? '0 3px 10px rgba(34,197,94,0.35)' : 'none'};
+                border:1px solid ${isChecked ? 'rgba(34,197,94,0.4)' : 'rgba(148,163,184,0.2)'};
+              ">
+                <span style="
+                  position:absolute;
+                  top:2px;
+                  left:${isChecked ? '22px' : '2px'};
+                  width:18px; height:18px;
+                  border-radius:50%;
+                  background:#ffffff;
+                  transition:all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+                  box-shadow:0 2px 5px rgba(0,0,0,0.25);
+                "></span>
+              </span>
+            </label>
+          </td>
+        `;
+      });
+
+      html += `</tr>`;
+    });
+
+    html += `
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    container.innerHTML = html;
+  }
+
+  function togglePosisiMenu(posisi, menuKey, checked) {
+    if (!posisiMenusData[posisi]) posisiMenusData[posisi] = {};
+    posisiMenusData[posisi][menuKey] = checked;
+
+    const cb = document.querySelector(`input[data-posisi="${posisi}"][data-menu="${menuKey}"]`);
+    if (cb) {
+      const toggle = cb.nextElementSibling;
+      const knob = toggle?.querySelector('span');
+      if (toggle) {
+        toggle.style.background = checked ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(148,163,184,0.35)';
+        toggle.style.boxShadow = checked ? '0 3px 10px rgba(34,197,94,0.35)' : 'none';
+        toggle.style.borderColor = checked ? 'rgba(34,197,94,0.4)' : 'rgba(148,163,184,0.2)';
+      }
+      if (knob) {
+        knob.style.left = checked ? '22px' : '2px';
+      }
+    }
+  }
+
+  function setPosisiAllMenus(posisi, status) {
+    if (!posisiMenusData[posisi]) posisiMenusData[posisi] = {};
+    allMenuKeys.forEach(k => {
+      posisiMenusData[posisi][k] = status;
+    });
+    renderPosisiMenusGrid();
+  }
+
+  function resetPosisiMenusToDefault() {
+    posisiMenusData = JSON.parse(JSON.stringify(defaultPosisiMenus));
+    renderPosisiMenusGrid();
+    const statusEl = document.getElementById('posisiMenusStatus');
+    if (statusEl) {
+      statusEl.style.display = 'block';
+      statusEl.style.background = 'rgba(59,130,246,0.1)';
+      statusEl.style.border = '1px solid rgba(59,130,246,0.3)';
+      statusEl.style.color = '#2563eb';
+      statusEl.textContent = 'ℹ️ Pengaturan telah di-reset ke rekomendasi default. Klik "Simpan Perubahan" untuk menerapkan.';
+    }
+  }
+
+  async function savePosisiMenus() {
+    const btn = document.getElementById('btnSavePosisiMenus');
+    const statusEl = document.getElementById('posisiMenusStatus');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spin" style="display:inline-block;width:13px;height:13px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;"></span> Menyimpan...`;
+    }
+    if (statusEl) statusEl.style.display = 'none';
+
+    try {
+      const res = await fetch('/api/settings/posisi-menus', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: posisiMenusData })
+      }).then(r => r.json());
+
+      if (res.success) {
+        showToast('Konfigurasi izin menu per posisi berhasil disimpan!', 'success');
+        if (statusEl) {
+          statusEl.style.display = 'block';
+          statusEl.style.background = 'rgba(34,197,94,0.1)';
+          statusEl.style.border = '1px solid rgba(34,197,94,0.3)';
+          statusEl.style.color = '#16a34a';
+          statusEl.textContent = '✅ Konfigurasi berhasil disimpan! Karyawan yang login atau me-refresh halaman akan langsung mengikuti aturan baru.';
+        }
+      } else {
+        throw new Error(res.error || 'Gagal menyimpan');
+      }
+    } catch(err) {
+      showToast('Gagal menyimpan: ' + err.message, 'error');
+      if (statusEl) {
+        statusEl.style.display = 'block';
+        statusEl.style.background = 'rgba(239,68,68,0.1)';
+        statusEl.style.border = '1px solid rgba(239,68,68,0.3)';
+        statusEl.style.color = '#dc2626';
+        statusEl.textContent = '❌ Gagal menyimpan: ' + err.message;
+      }
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg> Simpan Perubahan`;
+      }
+    }
+  }
+
+  window.loadPosisiMenus = loadPosisiMenus;
+  window.renderPosisiMenusGrid = renderPosisiMenusGrid;
+  window.togglePosisiMenu = togglePosisiMenu;
+  window.setPosisiAllMenus = setPosisiAllMenus;
+  window.resetPosisiMenusToDefault = resetPosisiMenusToDefault;
+  window.savePosisiMenus = savePosisiMenus;
 
   // ============= ADMIN ACCOUNT MANAGEMENT =============
   let allAdminAccounts = [];

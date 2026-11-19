@@ -1027,6 +1027,9 @@
     .badge-sorter { background: rgba(16,185,129,0.06); color: #047857; border: 1px solid rgba(16,185,129,0.15); }
     .badge-loader { background: rgba(245,158,11,0.06); color: #B45309; border: 1px solid rgba(245,158,11,0.15); }
     .badge-return { background: rgba(20,184,166,0.08); color: #0f766e; border: 1px solid rgba(20,184,166,0.2); }
+    .badge-runner { background: rgba(13,148,136,0.08); color: #0f766e; border: 1px solid rgba(13,148,136,0.25); }
+    .badge-stockkeeper { background: rgba(236,72,153,0.08); color: #db2777; border: 1px solid rgba(236,72,153,0.25); }
+    .badge-qco { background: rgba(168,85,247,0.08); color: #9333ea; border: 1px solid rgba(168,85,247,0.25); }
     .badge-prod { background: rgba(96, 165, 250,0.06); color: #6D28D9; border: 1px solid rgba(96, 165, 250,0.15); }
     .badge-phl { background: rgba(236,72,153,0.06); color: #BE185D; border: 1px solid rgba(236,72,153,0.15); }
     .badge-pkwt { background: rgba(14, 165, 233, 0.08); color: #0284C7; border: 1px solid rgba(14, 165, 233, 0.25); }
@@ -2320,6 +2323,9 @@ body.dark-mode .badge-picker { background: rgba(96,165,250,0.12); color: #60A5FA
 body.dark-mode .badge-sorter { background: rgba(52,211,153,0.12); color: #34D399; border-color: rgba(52,211,153,0.2); }
 body.dark-mode .badge-loader { background: rgba(251,191,36,0.12); color: #FBBF24; border-color: rgba(251,191,36,0.2); }
 body.dark-mode .badge-return { background: rgba(45,212,191,0.12); color: #2dd4bf; border-color: rgba(45,212,191,0.2); }
+body.dark-mode .badge-runner { background: rgba(45,212,191,0.12); color: #2dd4bf; border-color: rgba(45,212,191,0.25); }
+body.dark-mode .badge-stockkeeper { background: rgba(244,114,182,0.12); color: #f472b6; border-color: rgba(244,114,182,0.25); }
+body.dark-mode .badge-qco { background: rgba(192,132,252,0.12); color: #c084fc; border-color: rgba(192,132,252,0.25); }
 body.dark-mode .badge-prod { background: rgba(167,139,250,0.12); color: #A78BFA; border-color: rgba(167,139,250,0.2); }
 body.dark-mode .badge-phl { background: rgba(244,114,182,0.12); color: #F472B6; border-color: rgba(244,114,182,0.2); }
 body.dark-mode .badge-pkwt { background: rgba(56, 189, 248, 0.12); color: #38BDF8; border-color: rgba(56, 189, 248, 0.25); }

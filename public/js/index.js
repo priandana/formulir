@@ -209,8 +209,24 @@ function populateUserUI() {
     const tabReturn = document.getElementById('tab-return');
     const tabPendapatan = document.getElementById('tab-pendapatan');
     const tabQcOutbound = document.getElementById('tab-qc-outbound');
+    const tabDash = document.getElementById('tab-dashboard');
+    const tabRiw = document.getElementById('tab-riwayat');
+    const tabKin = document.getElementById('tab-kinerja-saya');
+    const tabCal = document.getElementById('tab-calendar');
+    const secFormulir = document.getElementById('sidebarSectionFormulir');
+    const navFormulir = document.getElementById('sidebarNavFormulir');
 
-    const isPkwt = (u.tipe_karyawan || '').toUpperCase() === 'PKWT';
+    const mbnDash = document.getElementById('mbn-dashboard');
+    const mbnEntry = document.getElementById('mbn-entry');
+    const mbnKin = document.getElementById('mbn-kinerja');
+    const mbnRiw = document.getElementById('mbn-riwayat');
+    const mbnChat = document.getElementById('mbn-chat');
+    const mbnCal = document.getElementById('mbn-calendar');
+    const mbnLog = document.getElementById('mbn-logout');
+    const chatFloat = document.getElementById('chat-float-btn');
+
+    const isPkwt = (u.tipe_karyawan || '').toUpperCase() === 'PKWT' || u.posisi === 'PKWT';
+    const allowed = u.allowed_menus || null;
 
     if (isPkwt) {
       if (tabPicker) tabPicker.style.display = 'none';
@@ -219,37 +235,73 @@ function populateUserUI() {
       if (tabReturn) tabReturn.style.display = 'none';
       if (tabQcOutbound) tabQcOutbound.style.display = 'none';
 
-      const tabDash = document.getElementById('tab-dashboard');
       if (tabDash) tabDash.style.display = 'none';
-      const tabRiw = document.getElementById('tab-riwayat');
       if (tabRiw) tabRiw.style.display = 'none';
-      const tabKin = document.getElementById('tab-kinerja-saya');
       if (tabKin) tabKin.style.display = 'none';
 
-      const secFormulir = document.getElementById('sidebarSectionFormulir');
       if (secFormulir) secFormulir.style.display = 'none';
-      const navFormulir = document.getElementById('sidebarNavFormulir');
       if (navFormulir) navFormulir.style.display = 'none';
 
       // Mobile Bottom Nav adjustments for PKWT
-      const mbnDash = document.getElementById('mbn-dashboard');
       if (mbnDash) mbnDash.style.display = 'none';
-      const mbnEntry = document.getElementById('mbn-entry');
       if (mbnEntry) mbnEntry.style.display = 'none';
-      const mbnKin = document.getElementById('mbn-kinerja');
       if (mbnKin) mbnKin.style.display = 'none';
-      const mbnRiw = document.getElementById('mbn-riwayat');
       if (mbnRiw) mbnRiw.style.display = 'none';
-      const mbnChat = document.getElementById('mbn-chat');
       if (mbnChat) mbnChat.style.display = 'none';
 
-      const mbnCal = document.getElementById('mbn-calendar');
       if (mbnCal) mbnCal.style.display = 'flex';
-      const mbnLog = document.getElementById('mbn-logout');
       if (mbnLog) mbnLog.style.display = 'flex';
 
-      const chatFloat = document.getElementById('chat-float-btn');
       if (chatFloat) chatFloat.style.display = 'none';
+    } else if (allowed) {
+      // Dynamic permissions per posisi
+      if (tabDash) tabDash.style.display = allowed.dashboard !== false ? 'flex' : 'none';
+      if (mbnDash) mbnDash.style.display = allowed.dashboard !== false ? 'flex' : 'none';
+
+      if (tabRiw) tabRiw.style.display = allowed.riwayat !== false ? 'flex' : 'none';
+      if (mbnRiw) mbnRiw.style.display = allowed.riwayat !== false ? 'flex' : 'none';
+
+      if (tabCal) tabCal.style.display = allowed.calendar !== false ? 'flex' : 'none';
+      if (mbnCal) mbnCal.style.display = allowed.calendar !== false ? 'flex' : 'none';
+
+      if (tabKin) tabKin.style.display = allowed['kinerja-saya'] !== false ? 'flex' : 'none';
+      if (mbnKin) mbnKin.style.display = allowed['kinerja-saya'] !== false ? 'flex' : 'none';
+
+      if (tabPendapatan) tabPendapatan.style.display = allowed.pendapatan !== false ? 'flex' : 'none';
+
+      const canFormulir = allowed.formulir !== false;
+      if (secFormulir) secFormulir.style.display = canFormulir ? '' : 'none';
+      if (navFormulir) navFormulir.style.display = canFormulir ? '' : 'none';
+      if (mbnEntry) mbnEntry.style.display = canFormulir ? 'flex' : 'none';
+
+      if (canFormulir) {
+        if (pos === 'return') {
+          if (tabPicker) tabPicker.style.display = 'none';
+          if (tabLoader) tabLoader.style.display = 'none';
+          if (tabReturn) tabReturn.style.display = 'flex';
+          if (tabQcOutbound) tabQcOutbound.style.display = 'none';
+        } else if (isQcOutbound) {
+          if (tabPicker) tabPicker.style.display = 'none';
+          if (tabLoader) tabLoader.style.display = 'none';
+          if (tabReturn) tabReturn.style.display = 'none';
+          if (tabQcOutbound) tabQcOutbound.style.display = 'flex';
+        } else {
+          if (tabPicker) tabPicker.style.display = 'flex';
+          if (tabLoader) tabLoader.style.display = 'flex';
+          if (tabReturn) tabReturn.style.display = 'none';
+          if (tabQcOutbound) tabQcOutbound.style.display = 'none';
+        }
+      } else {
+        if (tabPicker) tabPicker.style.display = 'none';
+        if (tabLoader) tabLoader.style.display = 'none';
+        if (tabReturn) tabReturn.style.display = 'none';
+        if (tabQcOutbound) tabQcOutbound.style.display = 'none';
+      }
+
+      if (allowed.chat === false) {
+        if (mbnChat) mbnChat.style.display = 'none';
+        if (chatFloat) chatFloat.style.display = 'none';
+      }
     } else if (pos === 'return') {
       if (tabPicker) tabPicker.style.display = 'none';
       if (tabLoader) tabLoader.style.display = 'none';
@@ -335,6 +387,10 @@ function populateUserUI() {
 
     if (isPkwt) {
       switchTab('calendar');
+    } else if (allowed && allowed.dashboard === false) {
+      const candidates = ['calendar', 'kinerja-saya', 'riwayat', 'pendapatan', 'picker'];
+      const firstAllowed = candidates.find(t => isTabAllowed(t)) || 'dashboard';
+      switchTab(firstAllowed);
     } else {
       switchTab('dashboard');
     }
@@ -474,8 +530,197 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeChangePasswordModal();
 });
 
+// ===================== PERMISSION GUARD & ACCESS OVERLAY =====================
+function isTabAllowed(tab) {
+  const isPkwt = (currentUser?.tipe_karyawan || '').toUpperCase() === 'PKWT' || currentUser?.posisi === 'PKWT';
+  if (isPkwt) {
+    return tab === 'calendar';
+  }
+  const allowed = currentUser?.allowed_menus;
+  if (!allowed) return true; // default all allowed
+
+  const tabToMenu = {
+    'dashboard': 'dashboard',
+    'riwayat': 'riwayat',
+    'calendar': 'calendar',
+    'kinerja-saya': 'kinerja-saya',
+    'pendapatan': 'pendapatan',
+    'picker': 'formulir',
+    'loader': 'formulir',
+    'return': 'formulir',
+    'qc-outbound': 'formulir'
+  };
+
+  const menuKey = tabToMenu[tab];
+  if (!menuKey) return true;
+  return allowed[menuKey] !== false;
+}
+
+function showAccessDeniedOverlay(attemptedTab) {
+  triggerHaptic(30);
+  const existing = document.getElementById('accessDeniedOverlay');
+  if (existing) existing.remove();
+
+  const tabTitles = {
+    'picker': 'Formulir Entry Picker & Sorter',
+    'loader': 'Formulir Entry Loader',
+    'return': 'Formulir Entry Return',
+    'qc-outbound': 'Formulir QC Outbound',
+    'pendapatan': 'Menu Pendapatan Saya',
+    'riwayat': 'Menu Riwayat Pencapaian',
+    'kinerja-saya': 'Menu Kinerja Saya (Poin & Disiplin)',
+    'calendar': 'Kalender Kerja',
+    'dashboard': 'Dashboard'
+  };
+  const title = tabTitles[attemptedTab] || 'Halaman Ini';
+  const userPosisi = currentUser?.posisi || 'Karyawan Operasional';
+
+  const overlay = document.createElement('div');
+  overlay.id = 'accessDeniedOverlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(15, 23, 42, 0.78);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: adoFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  `;
+
+  overlay.innerHTML = `
+    <style>
+      @keyframes adoFadeIn {
+        from { opacity: 0; transform: scale(0.96); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      @keyframes adoPulse {
+        0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+        50% { transform: scale(1.05); box-shadow: 0 0 0 16px rgba(239, 68, 68, 0); }
+      }
+    </style>
+    <div style="
+      background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+      border: 1.5px solid rgba(239, 68, 68, 0.35);
+      border-radius: 24px;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 40px rgba(239, 68, 68, 0.15);
+      padding: 36px 28px;
+      max-width: 440px;
+      width: 100%;
+      text-align: center;
+      color: #ffffff;
+      font-family: inherit;
+      position: relative;
+    ">
+      <div style="
+        width: 76px; height: 76px;
+        margin: 0 auto 18px;
+        background: rgba(239, 68, 68, 0.12);
+        border: 2px solid rgba(239, 68, 68, 0.45);
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        color: #ef4444;
+        animation: adoPulse 2.4s infinite;
+      ">
+        <svg width="38" height="38" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+        </svg>
+      </div>
+
+      <div style="
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 4px 14px;
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 20px;
+        font-size: 11px; font-weight: 800;
+        letter-spacing: 0.8px;
+        color: #f87171;
+        text-transform: uppercase;
+        margin-bottom: 12px;
+      ">
+        <span>Akses Ditolak</span>
+      </div>
+
+      <h3 style="font-size: 20px; font-weight: 800; margin: 0 0 8px; color: #f8fafc; line-height: 1.35;">
+        Kamu Tidak Berhak Mengakses Halaman Ini
+      </h3>
+
+      <div style="
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px dashed rgba(255, 255, 255, 0.18);
+        border-radius: 12px;
+        padding: 10px 14px;
+        margin: 14px 0 16px;
+        font-size: 13.5px;
+        font-weight: 700;
+        color: #fca5a5;
+      ">
+        ${title}
+      </div>
+
+      <p style="font-size: 13.5px; color: #94a3b8; line-height: 1.6; margin: 0 0 24px;">
+        Akun kamu terdaftar sebagai posisi <strong style="color:#f1f5f9;">${userPosisi}</strong>. Halaman ini dinonaktifkan oleh Administrator untuk posisi tersebut.
+      </p>
+
+      <button type="button" onclick="closeAccessDeniedOverlay()" style="
+        width: 100%;
+        padding: 14px 20px;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 14px;
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+        box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.5);
+        transition: transform 0.15s, box-shadow 0.15s;
+      " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+        Kembali ke Halaman yang Diizinkan
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+}
+
+function closeAccessDeniedOverlay() {
+  triggerHaptic(15);
+  const el = document.getElementById('accessDeniedOverlay');
+  if (el) el.remove();
+  const isPkwt = (currentUser?.tipe_karyawan || '').toUpperCase() === 'PKWT' || currentUser?.posisi === 'PKWT';
+  if (isPkwt) {
+    switchTab('calendar');
+  } else if (isTabAllowed('dashboard')) {
+    switchTab('dashboard');
+  } else if (isTabAllowed('calendar')) {
+    switchTab('calendar');
+  } else if (isTabAllowed('kinerja-saya')) {
+    switchTab('kinerja-saya');
+  } else {
+    switchTab('riwayat');
+  }
+}
+window.isTabAllowed = isTabAllowed;
+window.showAccessDeniedOverlay = showAccessDeniedOverlay;
+window.closeAccessDeniedOverlay = closeAccessDeniedOverlay;
+
 // ===================== TABS =====================
 function switchTab(tab) {
+  if (!isTabAllowed(tab)) {
+    showAccessDeniedOverlay(tab);
+    return;
+  }
+
   const isPkwt = (currentUser?.tipe_karyawan || '').toUpperCase() === 'PKWT';
   if (isPkwt) {
     tab = 'calendar';
