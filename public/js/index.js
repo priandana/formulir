@@ -1526,12 +1526,12 @@ function renderBatchGroup(containerId, items, chipClass = '') {
 }
 
 // --- TAB 1 batches ---
-const angka   = Array.from({length: 23}, (_, i) => String(i + 1));
-const BDGArr  = Array.from({length: 35}, (_, i) => 'BDG' + pad(i + 1));
-const BDYArr  = Array.from({length: 21}, (_, i) => 'BDY' + pad(i + 1));
-const cjrArr  = Array.from({length: 27}, (_, i) => 'CJR' + pad(i + 1));
-const kwgArr  = Array.from({length: 32}, (_, i) => 'KWG' + pad(i + 1));
-const PBNArr  = Array.from({length: 24}, (_, i) => 'PBN' + pad(i + 1));
+const angka   = Array.from({length: 40}, (_, i) => String(i + 1));
+const BDGArr  = Array.from({length: 50}, (_, i) => 'BDG' + pad(i + 1));
+const BDYArr  = Array.from({length: 35}, (_, i) => 'BDY' + pad(i + 1));
+const cjrArr  = Array.from({length: 40}, (_, i) => 'CJR' + pad(i + 1));
+const kwgArr  = Array.from({length: 45}, (_, i) => 'KWG' + pad(i + 1));
+const PBNArr  = Array.from({length: 35}, (_, i) => 'PBN' + pad(i + 1));
 const special = ['Gacoan', 'Lainnya'];
 
 renderBatchGroup('ps-grid-angka', angka);
@@ -1683,6 +1683,62 @@ async function psLoadActiveBatches() {
 
     placeholder.style.display = 'none';
     section.style.display = 'block';
+
+    // Dinamis: Buat elemen batch baru secara otomatis jika ada batch dari data carian yang belum ada di grid
+    const existingBatchValues = new Set();
+    section.querySelectorAll('.batch-item input[type="checkbox"]').forEach(cb => {
+      existingBatchValues.add(String(cb.value).trim());
+    });
+
+    let newBatchAdded = false;
+    activeBatches.forEach(b => {
+      if (!existingBatchValues.has(b)) {
+        let targetId = 'ps-grid-special';
+        if (/^\d+$/.test(b)) {
+          targetId = 'ps-grid-angka';
+        } else if (/^BDG/i.test(b)) {
+          targetId = 'ps-grid-BDG';
+        } else if (/^BDY/i.test(b)) {
+          targetId = 'ps-grid-BDY';
+        } else if (/^CJR/i.test(b)) {
+          targetId = 'ps-grid-cjr';
+        } else if (/^KWG/i.test(b)) {
+          targetId = 'ps-grid-kwg';
+        } else if (/^PBN/i.test(b)) {
+          targetId = 'ps-grid-PBN';
+        }
+
+        const container = document.getElementById(targetId);
+        if (container) {
+          const div = document.createElement('div');
+          div.className = 'batch-item';
+          const id = targetId + '_' + b.replace(/\s/g, '_');
+          div.innerHTML = `
+            <input type="checkbox" id="${id}" value="${b}">
+            <label for="${id}">${b}</label>
+          `;
+          const input = div.querySelector('input');
+          input.addEventListener('change', psUpdateCount);
+          container.appendChild(div);
+          existingBatchValues.add(b);
+          newBatchAdded = true;
+        }
+      }
+    });
+
+    // Jika ada batch angka baru yang ditambahkan, pastikan grid angka tetap berurutan
+    if (newBatchAdded) {
+      const angkaGrid = document.getElementById('ps-grid-angka');
+      if (angkaGrid) {
+        const items = Array.from(angkaGrid.children);
+        items.sort((a, b) => {
+          const valA = parseInt(a.querySelector('input')?.value) || 0;
+          const valB = parseInt(b.querySelector('input')?.value) || 0;
+          return valA - valB;
+        });
+        items.forEach(el => angkaGrid.appendChild(el));
+      }
+    }
 
     section.querySelectorAll('.batch-group').forEach(group => {
       let visibleCount = 0;
